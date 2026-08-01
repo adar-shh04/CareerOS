@@ -37,7 +37,7 @@ jobs:
           ls -R apps/api/node_modules/.prisma || true
 
       - name: Generate Prisma Client
-        run: pnpm --filter careeros-api prisma generate
+        run: pnpm --filter careeros-api db:generate
 
       - name: Versions
         run: |
