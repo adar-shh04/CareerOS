@@ -1,0 +1,366 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ResumeOutputFormat {
+  HTML
+  LATEX
+  PDF
+}
+
+/// Owned by Better Auth (core). Fields/relations below match what the
+/// Prisma adapter + organization plugin expect — see auth/better-auth.instance.ts
+/// for the `modelName`/`fields` remap that points Better Auth at this table.
+model User {
+  id              String            @id @default(uuid()) @db.Uuid
+  email           String            @unique
+  emailVerified   Boolean           @default(false) @map("email_verified")
+  name            String?
+  avatar          String?
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+  ownedWorkspaces Workspace[]       @relation("WorkspaceOwner")
+  memberships     WorkspaceMember[]
+  sessions        Session[]
+  accounts        Account[]
+
+  @@map("users")
+}
+
+/// Better Auth core table. Stores active sessions (replaces the old
+/// custom access/refresh JWT pair with a single opaque session token).
+model Session {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+/// Better Auth core table. One row per login method per user —
+/// email/password hash lives here now (providerId = "credential"),
+/// not on User. This is where OAuth providers would also attach.
+model Account {
+  id                    String    @id @default(uuid()) @db.Uuid
+  userId                String    @map("user_id") @db.Uuid
+  accountId             String    @map("account_id")
+  providerId            String    @map("provider_id")
+  password              String?
+  accessToken           String?   @map("access_token")
+  refreshToken          String?   @map("refresh_token")
+  idToken               String?   @map("id_token")
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at")
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at")
+  scope                 String?
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@map("accounts")
+}
+
+/// Better Auth core table. Email-verification tokens, password-reset
+/// tokens, etc.
+model Verification {
+  id         String   @id @default(uuid()) @db.Uuid
+  identifier String
+  value      String
+  expiresAt  DateTime @map("expires_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("verifications")
+}
+
+/// Doubles as Better Auth's "organization" model (remapped — see
+/// better-auth.instance.ts). Untouched otherwise: still owns byokKeys,
+/// careerProfile, resumeProfiles exactly as before.
+model Workspace {
+  id             String               @id @default(uuid()) @db.Uuid
+  name           String
+  slug           String               @unique
+  logo           String?
+  ownerId        String               @map("owner_id") @db.Uuid
+  createdAt      DateTime             @default(now()) @map("created_at")
+  updatedAt      DateTime             @updatedAt @map("updated_at")
+  owner          User                 @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members        WorkspaceMember[]
+  byokKeys       ByokCredential[]
+  careerProfile  MasterCareerProfile?
+  resumeProfiles ResumeProfile[]
+
+  @@map("workspaces")
+}
+
+/// Doubles as Better Auth's "member" model (remapped). `role` moves from
+/// the old WorkspaceRole enum to a plain string: Better Auth's org plugin
+/// defaults to "owner" | "admin" | "member" (lowercase). Anywhere that
+/// read WorkspaceRole.OWNER etc. now reads/writes the string "owner".
+model WorkspaceMember {
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  workspaceId String    @map("workspace_id") @db.Uuid
+  role        String    @default("member")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
+  @@map("workspace_members")
+}
+
+model ByokCredential {
+  id           String    @id @default(uuid()) @db.Uuid
+  workspaceId  String    @map("workspace_id") @db.Uuid
+  provider     String
+  encryptedKey String    @map("encrypted_key")
+  iv           String
+  authTag      String    @map("auth_tag")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, provider])
+  @@map("byok_credentials")
+}
+
+model MasterCareerProfile {
+  id             String               @id @default(uuid()) @db.Uuid
+  workspaceId    String               @unique @map("workspace_id") @db.Uuid
+  fullName       String               @map("full_name")
+  headline       String?
+  location       String?
+  email          String?
+  version        Int                  @default(1)
+  status         String               @default("active")
+  createdAt      DateTime             @default(now()) @map("created_at")
+  updatedAt      DateTime             @updatedAt @map("updated_at")
+  deletedAt      DateTime?            @map("deleted_at")
+  workspace      Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  education      EducationEntry[]
+  experiences    ExperienceEntry[]
+  projects       ProjectEntry[]
+  achievements   AchievementEntry[]
+  skills         SkillEntry[]
+  technologies   TechnologyEntry[]
+  publications   PublicationEntry[]
+  hackathons     HackathonEntry[]
+  certifications CertificationEntry[]
+  links          CareerLink[]
+
+  @@map("master_career_profiles")
+}
+
+model EducationEntry {
+  id              String              @id @default(uuid()) @db.Uuid
+  profileId       String              @map("profile_id") @db.Uuid
+  institution     String
+  degree          String?
+  fieldOfStudy    String?             @map("field_of_study")
+  startDate       String?             @map("start_date")
+  endDate         String?             @map("end_date")
+  highlights      String[]            @default([])
+  source          String?
+  sourceReference String?             @map("source_reference")
+  profile         MasterCareerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@map("education_entries")
+}
+
+model ExperienceEntry {
+  id              String              @id @default(uuid()) @db.Uuid
+  profileId       String              @map("profile_id") @db.Uuid
+  company         String
+  title           String
+  location        String?
+  startDate       String?             @map("start_date")
+  endDate         String?             @map("end_date")
+  current         Boolean             @default(false)
+  bullets         String[]            @default([])
+  technologies    String[]            @default([])
+  source          String?
+  sourceReference String?             @map("source_reference")
+  profile         MasterCareerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@map("experience_entries")
+}
+
+model ProjectEntry {
+  id              String              @id @default(uuid()) @db.Uuid
+  profileId       String              @map("profile_id") @db.Uuid
+  name            String
+  description     String?
+  url             String?
+  repositoryUrl   String?             @map("repository_url")
+  bullets         String[]            @default([])
+  technologies    String[]            @default([])
+  source          String?
+  sourceReference String?             @map("source_reference")
+  profile         MasterCareerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@map("project_entries")
+}
+
+model AchievementEntry {
+  id              String              @id @default(uuid()) @db.Uuid
+  profileId       String              @map("profile_id") @db.Uuid
+  title           String
+  description     String?
+  date            String?
+  source          String?
+  sourceReference String?             @map("source_reference")
+  profile         MasterCareerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@map("achievement_entries")
+}
+
+model SkillEntry {
+  id              String              @id @default(uuid()) @db.Uuid
+  profileId       String              @map("profile_id") @db.Uuid
+  name            String
+  category        String?
+  proficiency     String?
+  source          String?
+  sourceReference String?             @map("source_reference")
+  profile         MasterCareerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@map("skill_entries")
+}
+
+model TechnologyEntry {
+  id              String              @id @default(uuid()) @db.Uuid
+  profileId       String              @map("profile_id") @db.Uuid
+  name            String
+  category        String?
+  source          String?
+  sourceReference String?             @map("source_reference")
+  profile         MasterCareerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@map("technology_entries")
+}
+
+model PublicationEntry {
+  id              String              @id @default(uuid()) @db.Uuid
+  profileId       String              @map("profile_id") @db.Uuid
+  title           String
+  publisher       String?
+  date            String?
+  url             String?
+  source          String?
+  sourceReference String?             @map("source_reference")
+  profile         MasterCareerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@map("publication_entries")
+}
+
+model HackathonEntry {
+  id              String              @id @default(uuid()) @db.Uuid
+  profileId       String              @map("profile_id") @db.Uuid
+  name            String
+  organizer       String?
+  date            String?
+  achievement     String?
+  source          String?
+  sourceReference String?             @map("source_reference")
+  profile         MasterCareerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@map("hackathon_entries")
+}
+
+model CertificationEntry {
+  id              String              @id @default(uuid()) @db.Uuid
+  profileId       String              @map("profile_id") @db.Uuid
+  name            String
+  issuer          String?
+  issueDate       String?             @map("issue_date")
+  expirationDate  String?             @map("expiration_date")
+  credentialUrl   String?             @map("credential_url")
+  source          String?
+  sourceReference String?             @map("source_reference")
+  profile         MasterCareerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@map("certification_entries")
+}
+
+model CareerLink {
+  id              String              @id @default(uuid()) @db.Uuid
+  profileId       String              @map("profile_id") @db.Uuid
+  label           String
+  url             String
+  source          String?
+  sourceReference String?             @map("source_reference")
+  profile         MasterCareerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@map("career_links")
+}
+
+model ResumeProfile {
+  id                       String          @id @default(uuid()) @db.Uuid
+  workspaceId              String          @map("workspace_id") @db.Uuid
+  name                     String
+  roleFocus                String?         @map("role_focus")
+  visibleSections          String[]        @default([]) @map("visible_sections")
+  sectionOrder             String[]        @default([]) @map("section_order")
+  summaryGuidance          String?         @map("summary_guidance")
+  highlightRules           Json            @default("[]") @map("highlight_rules")
+  priorityProjectIds       String[]        @default([]) @map("priority_project_ids") @db.Uuid
+  prioritySkillIds         String[]        @default([]) @map("priority_skill_ids") @db.Uuid
+  priorityExperienceIds    String[]        @default([]) @map("priority_experience_ids") @db.Uuid
+  priorityAchievementIds   String[]        @default([]) @map("priority_achievement_ids") @db.Uuid
+  priorityCertificationIds String[]        @default([]) @map("priority_certification_ids") @db.Uuid
+  templateId               String?         @map("template_id")
+  styleSettings            Json            @default("{}") @map("style_settings")
+  createdAt                DateTime        @default(now()) @map("created_at")
+  updatedAt                DateTime        @updatedAt @map("updated_at")
+  workspace                Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  versions                 ResumeVersion[]
+
+  @@index([workspaceId])
+  @@map("resume_profiles")
+}
+
+model ResumeVersion {
+  id                  String             @id @default(uuid()) @db.Uuid
+  workspaceId         String             @map("workspace_id") @db.Uuid
+  resumeProfileId     String             @map("resume_profile_id") @db.Uuid
+  targetCompany       String?            @map("target_company")
+  targetRole          String?            @map("target_role")
+  masterProfileSnapshot Json             @map("master_profile_snapshot")
+  selectedRecordIds   Json               @map("selected_record_ids")
+  templateVersion     String?            @map("template_version")
+  outputFormat        ResumeOutputFormat @default(HTML) @map("output_format")
+  jobAnalysisEvidence Json?              @map("job_analysis_evidence")
+  matchResult         Json?              @map("match_result")
+  confidence          Float?
+  explanation         String?
+  artifactMetadata    Json?              @map("artifact_metadata")
+  createdAt           DateTime           @default(now()) @map("created_at")
+  resumeProfile       ResumeProfile      @relation(fields: [resumeProfileId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([resumeProfileId])
+  @@map("resume_versions")
+}

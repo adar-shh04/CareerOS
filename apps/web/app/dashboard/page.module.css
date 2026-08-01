@@ -1,0 +1,541 @@
+.shell {
+  min-height: 100vh;
+  background: #f6f7f8;
+  color: #17212b;
+  display: grid;
+  grid-template-columns: 254px minmax(0, 1fr);
+}
+
+.sidebar {
+  background: #11261f;
+  color: #f7faf8;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding: 32px 20px 22px;
+}
+
+.brand {
+  align-items: center;
+  display: flex;
+  font-size: 21px;
+  font-weight: 750;
+  gap: 10px;
+  letter-spacing: -0.04em;
+}
+
+.brandMark {
+  align-items: center;
+  background: #b8f66b;
+  border-radius: 8px;
+  color: #11261f;
+  display: inline-flex;
+  font-size: 17px;
+  height: 29px;
+  justify-content: center;
+  width: 29px;
+}
+
+.tagline {
+  color: #a7c2b8;
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 12px 7px 35px;
+}
+
+.navigation {
+  display: grid;
+  gap: 5px;
+}
+
+.navigation a {
+  border-radius: 8px;
+  color: #c4d5cf;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 12px;
+}
+
+.navigation a:hover,
+.navigation .activeLink {
+  background: #28483e;
+  color: #ffffff;
+}
+
+.sidebarFooter {
+  align-items: center;
+  border-top: 1px solid #2a483e;
+  display: flex;
+  gap: 10px;
+  margin-top: auto;
+  padding: 19px 6px 0;
+  flex-wrap: wrap;
+}
+
+.sidebarFooter div {
+  display: grid;
+  gap: 2px;
+}
+
+.sidebarFooter strong {
+  font-size: 13px;
+}
+
+.sidebarFooter span:not(.avatar) {
+  color: #9db5ac;
+  font-size: 11px;
+}
+
+.avatar {
+  align-items: center;
+  background: #d6eabd;
+  border-radius: 50%;
+  color: #294137;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 800;
+  height: 31px;
+  justify-content: center;
+  width: 31px;
+}
+
+.content {
+  margin: 0 auto;
+  max-width: 1480px;
+  padding: 48px 54px 30px;
+  width: 100%;
+}
+
+.topbar,
+.panelHeader,
+.opportunityHeading,
+.resumeFooter,
+.outreachFooter,
+.contactCard {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.topbar {
+  gap: 24px;
+  margin-bottom: 34px;
+}
+
+.eyebrow {
+  color: #688077;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  margin: 0 0 8px;
+  text-transform: uppercase;
+}
+
+.topbar h1,
+.panel h2,
+.opportunity h3,
+.resumeCard h3 {
+  letter-spacing: -0.035em;
+}
+
+.topbar h1 {
+  font-size: clamp(27px, 3vw, 40px);
+  line-height: 1.08;
+  margin: 0;
+}
+
+.primaryButton,
+.secondaryButton {
+  border-radius: 8px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 750;
+  padding: 10px 14px;
+}
+
+.primaryButton {
+  background: #1c513d;
+  border: 1px solid #1c513d;
+  color: #ffffff;
+}
+
+.primaryButton:hover {
+  background: #123f2e;
+}
+
+.secondaryButton {
+  background: #ffffff;
+  border: 1px solid #d8dfdb;
+  color: #24513e;
+}
+
+.secondaryButton:hover {
+  background: #f0f5f1;
+}
+
+.metrics {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 24px;
+}
+
+.metrics article,
+.panel {
+  background: #ffffff;
+  border: 1px solid #e1e6e3;
+  border-radius: 12px;
+}
+
+.metrics article {
+  display: grid;
+  gap: 7px;
+  min-height: 126px;
+  padding: 18px;
+}
+
+.metrics span,
+.metrics small,
+.reason,
+.opportunity p,
+.resumeCard p,
+.resumeCard small,
+.resumeFooter p,
+.contactCard p,
+.outreachFooter span {
+  color: #63746d;
+  font-size: 12px;
+}
+
+.metrics strong {
+  font-size: 29px;
+  letter-spacing: -0.06em;
+  line-height: 1;
+}
+
+.grid {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.8fr);
+}
+
+.panel {
+  padding: 23px;
+}
+
+.panelHeader {
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.panel h2 {
+  font-size: 20px;
+  margin: 0;
+}
+
+.textLink {
+  color: #246148;
+  font-size: 12px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.opportunityList {
+  display: grid;
+}
+
+.opportunity {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 44px minmax(0, 1fr);
+  padding: 17px 0;
+}
+
+.opportunity + .opportunity {
+  border-top: 1px solid #e8ece9;
+}
+
+.score {
+  align-items: center;
+  background: #e8f5d8;
+  border: 1px solid #cee9ae;
+  border-radius: 10px;
+  color: #386428;
+  display: flex;
+  font-size: 14px;
+  font-weight: 800;
+  height: 44px;
+  justify-content: center;
+  width: 44px;
+}
+
+.opportunityHeading {
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.opportunity h3,
+.resumeCard h3 {
+  font-size: 15px;
+  margin: 0 0 4px;
+}
+
+.opportunity p,
+.resumeCard p,
+.resumeCard small,
+.resumeFooter p,
+.contactCard p {
+  margin: 0;
+}
+
+.status,
+.badge,
+.priority {
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 5px 8px;
+  white-space: nowrap;
+}
+
+.status,
+.badge {
+  background: #edf5f0;
+  color: #2f684d;
+}
+
+.reason {
+  line-height: 1.5;
+  margin: 12px 0 0;
+}
+
+.actionPanel {
+  background: #193a2d;
+  border-color: #193a2d;
+  color: #f8faf8;
+}
+
+.actionPanel .eyebrow {
+  color: #aed0bb;
+}
+
+.actionList {
+  counter-reset: action;
+  display: grid;
+  gap: 16px;
+  list-style: none;
+  margin: 24px 0;
+  padding: 0;
+}
+
+.actionList li {
+  align-items: flex-start;
+  display: flex;
+  gap: 10px;
+}
+
+.actionList li span {
+  align-items: center;
+  background: #b8f66b;
+  border-radius: 50%;
+  color: #173d2d;
+  display: flex;
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-weight: 900;
+  height: 19px;
+  justify-content: center;
+  width: 19px;
+}
+
+.actionList p {
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.actionPanel .secondaryButton {
+  background: transparent;
+  border-color: #497360;
+  color: #e5f3e9;
+  width: 100%;
+}
+
+.resumeCards {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.resumeCard {
+  background: #f7f9f7;
+  border: 1px solid #e4e9e5;
+  border-radius: 9px;
+  min-height: 142px;
+  padding: 18px;
+}
+
+.resumeAccent {
+  background: #88d671;
+  border-radius: 2px;
+  display: block;
+  height: 4px;
+  margin-bottom: 20px;
+  width: 33px;
+}
+
+.resumeCard h3 {
+  margin: 5px 0 9px;
+}
+
+.resumeCard small {
+  display: block;
+  line-height: 1.45;
+}
+
+.resumeFooter {
+  gap: 16px;
+  margin-top: 17px;
+}
+
+.resumeFooter p {
+  line-height: 1.5;
+  max-width: 430px;
+}
+
+.outreachBody {
+  display: grid;
+  gap: 17px;
+}
+
+.contactCard {
+  background: #f6f9f7;
+  border-radius: 9px;
+  gap: 10px;
+  justify-content: flex-start;
+  padding: 12px;
+}
+
+.contactCard div {
+  display: grid;
+  gap: 4px;
+}
+
+.contactCard strong {
+  font-size: 13px;
+}
+
+.priority {
+  background: #fff1c9;
+  color: #8c5a0e;
+  margin-left: auto;
+}
+
+.outreachBody blockquote {
+  border-left: 3px solid #9ac980;
+  color: #405149;
+  font-size: 13px;
+  font-style: italic;
+  line-height: 1.6;
+  margin: 0;
+  padding-left: 13px;
+}
+
+.outreachFooter {
+  align-items: flex-end;
+  gap: 16px;
+}
+
+.outreachFooter span {
+  line-height: 1.45;
+  max-width: 320px;
+}
+
+.notice {
+  color: #63746d;
+  font-size: 11px;
+  line-height: 1.4;
+  margin: 25px 0 0;
+}
+
+.topbarActions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.logoutButton {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid #3a5a4d;
+  color: #d7e8df;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.logoutButton:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+@media (max-width: 1050px) {
+  .metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .shell {
+    display: block;
+  }
+
+  .sidebar {
+    min-height: auto;
+    padding: 18px;
+  }
+
+  .tagline,
+  .sidebarFooter {
+    display: none;
+  }
+
+  .navigation {
+    display: flex;
+    overflow-x: auto;
+  }
+
+  .navigation a {
+    white-space: nowrap;
+  }
+
+  .content {
+    padding: 28px 18px;
+  }
+
+  .topbar,
+  .resumeFooter,
+  .outreachFooter {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .metrics,
+  .resumeCards {
+    grid-template-columns: 1fr;
+  }
+
+  .topbar .primaryButton,
+  .resumeFooter .secondaryButton,
+  .outreachFooter .primaryButton {
+    width: 100%;
+  }
+}

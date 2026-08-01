@@ -1,0 +1,13 @@
+{
+  "name": "@careeros/tooling-scripts",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Internal workspace tooling and automation scripts for CareerOS",
+  "scripts": {
+    "check-types": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "typescript": "5.9.2"
+  }
+}

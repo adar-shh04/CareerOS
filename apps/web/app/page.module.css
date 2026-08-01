@@ -1,0 +1,69 @@
+.page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 40px 20px;
+  background:
+    radial-gradient(circle at 10% 20%, rgba(184, 246, 107, 0.12), transparent 30%),
+    linear-gradient(160deg, #07140f, #11261f);
+  color: #eef6f1;
+}
+
+.main {
+  width: min(720px, 100%);
+  display: grid;
+  gap: 18px;
+}
+
+.heroBadge {
+  display: inline-flex;
+  width: fit-content;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.main h1 {
+  font-size: clamp(34px, 5vw, 56px);
+  line-height: 1.02;
+  letter-spacing: -0.05em;
+  margin: 0;
+}
+
+.main p {
+  margin: 0;
+  color: #a8c4b8;
+  line-height: 1.65;
+  font-size: 16px;
+  max-width: 620px;
+}
+
+.ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.primary,
+.secondary {
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.primary {
+  background: linear-gradient(145deg, #b8f66b, #89d44d);
+  color: #11261f;
+}
+
+.secondary {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}

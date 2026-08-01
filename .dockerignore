@@ -1,0 +1,32 @@
+# Dependencies
+node_modules
+**/node_modules
+
+# pnpm
+.pnpm-store
+pnpm-store
+
+# Turbo
+.turbo
+
+# Next.js
+.next
+
+# Build output
+dist
+coverage
+
+# Git
+.git
+.gitignore
+
+# Environment
+.env
+.env.*
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
