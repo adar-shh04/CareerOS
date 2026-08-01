@@ -112,7 +112,7 @@ export const auth = betterAuth({
       // auth.service.ts#register.
       organizationCreation: {
         disabled: false,
-        beforeCreate: async ({
+        beforeCreate: ({
           organization: org,
           user,
         }: {
@@ -123,7 +123,8 @@ export const auth = betterAuth({
           };
           user: { email: string };
         }) => {
-          const workspaceName = org.name || user.email.split('@')[0] || 'workspace';
+          const workspaceName =
+            org.name ?? user.email.substring(0, user.email.indexOf('@'));
 
           return {
             data: {
@@ -146,8 +147,12 @@ export const auth = betterAuth({
           // register() flow (one workspace per new account, owner role).
           await auth.api.createOrganization({
             body: {
-              name: user.name ? `${user.name}'s Workspace` : 'My Career Workspace',
-              slug: `${slugify(user.name || user.email.split('@')[0] || 'workspace')}-${Date.now().toString(36)}`,
+              name: user.name
+                ? `${user.name}'s Workspace`
+                : 'My Career Workspace',
+              slug: `${slugify(
+                user.name ?? user.email.split('@')[0] ?? 'workspace',
+              )}-${Date.now().toString(36)}`,
               userId: user.id,
             },
           });

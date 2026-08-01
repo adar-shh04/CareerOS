@@ -1,7 +1,7 @@
-import { toNodeHandler } from 'better-auth/node';
 import { ValidationPipe } from '@nestjs/common';
-import { NestExpressApplication } from '@nestjs/platform-express';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
+import { toNodeHandler } from 'better-auth/node';
 
 import { AppModule } from './app.module';
 import { auth } from './auth/better-auth.instance';

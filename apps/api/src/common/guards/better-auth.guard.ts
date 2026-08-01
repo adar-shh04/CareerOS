@@ -7,8 +7,8 @@ import {
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 
-import { auth } from '../../auth/better-auth.instance';
 import type { AuthenticatedUser } from '../../auth/auth.types';
+import { auth } from '../../auth/better-auth.instance';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
 @Injectable()
@@ -36,17 +36,19 @@ export class BetterAuthGuard implements CanActivate {
     if (!session?.user) {
       throw new UnauthorizedException('Authentication required.');
     }
+    
+    const organizations = await auth.api.listOrganizations({
+      headers: new Headers(request.headers as Record<string, string>),
+    });
 
     const activeOrganizationId =
       session.session.activeOrganizationId ??
-      (
-        await auth.api.listOrganizations({
-          headers: new Headers(request.headers as Record<string, string>),
-        })
-      )?.[0]?.id;
+      organizations[0]?.id;
 
     if (!activeOrganizationId) {
-      throw new UnauthorizedException('No workspace found for this account.');
+      throw new UnauthorizedException(
+        'No active organization found for the user.',
+      );
     }
 
     const user: AuthenticatedUser = {
