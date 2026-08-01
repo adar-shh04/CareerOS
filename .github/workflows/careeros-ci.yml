@@ -31,6 +31,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Check Prisma Client
+        run: |
+          ls -R apps/api/node_modules/@prisma || true
+          ls -R apps/api/node_modules/.prisma || true
+
+      - name: Generate Prisma Client
+        run: pnpm --filter careeros-api exec prisma generate
+
       - name: Versions
         run: |
           node -v
