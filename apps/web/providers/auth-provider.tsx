@@ -27,7 +27,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user: {
         id: data.user.id,
         email: data.user.email,
-        name: data.user.name ?? null,
+        name: data.user.name,
         avatar: data.user.image ?? null,
       },
       workspace: {

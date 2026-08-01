@@ -151,7 +151,7 @@ export const auth = betterAuth({
                 ? `${user.name}'s Workspace`
                 : 'My Career Workspace',
               slug: `${slugify(
-                user.name ?? user.email.split('@')[0] ?? 'workspace',
+                user.name || user.email.split('@')[0],
               )}-${Date.now().toString(36)}`,
               userId: user.id,
             },

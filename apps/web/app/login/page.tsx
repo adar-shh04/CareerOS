@@ -44,7 +44,7 @@ function LoginForm() {
       }
 
       const next = searchParams.get("next");
-      const needsOnboarding = !data?.user?.name;
+      const needsOnboarding = !data.user.name;
 
       if (needsOnboarding) {
         router.push("/onboarding");

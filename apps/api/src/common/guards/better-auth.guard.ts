@@ -36,14 +36,13 @@ export class BetterAuthGuard implements CanActivate {
     if (!session?.user) {
       throw new UnauthorizedException('Authentication required.');
     }
-    
+
     const organizations = await auth.api.listOrganizations({
       headers: new Headers(request.headers as Record<string, string>),
     });
 
     const activeOrganizationId =
-      session.session.activeOrganizationId ??
-      organizations[0]?.id;
+      session.session.activeOrganizationId ?? organizations[0]?.id;
 
     if (!activeOrganizationId) {
       throw new UnauthorizedException(
@@ -54,7 +53,7 @@ export class BetterAuthGuard implements CanActivate {
     const user: AuthenticatedUser = {
       id: session.user.id,
       email: session.user.email,
-      name: session.user.name ?? null,
+      name: session.user.name,
       workspaceId: activeOrganizationId,
     };
 
