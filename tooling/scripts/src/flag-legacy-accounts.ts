@@ -1,17 +1,16 @@
-/**
- * Run after the Better Auth schema migration (see
- * docs/migrations/0001-password-migration.md). Lists every user who has
- * no `Account` row yet — meaning their old bcrypt password no longer
- * works and they need a "reset your password" email before they can log
- * in again.
- *
- * Usage:
- *   cd apps/api && pnpm tsx ../../tooling/scripts/src/flag-legacy-accounts.ts
- */
+import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../../../apps/api/src/generated/prisma/client';
 
 async function main() {
-  const prisma = new PrismaClient();
+  const connectionString = process.env.DATABASE_URL;
+
+  if (!connectionString) {
+    throw new Error('DATABASE_URL is required.');
+  }
+
+  const prisma = new PrismaClient({
+    adapter: new PrismaPg({ connectionString }),
+  });
 
   const usersNeedingReset = await prisma.user.findMany({
     where: { accounts: { none: {} } },
