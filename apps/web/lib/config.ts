@@ -1,5 +1,5 @@
 export const AUTH_COOKIE = {
-  accessToken: "careeros_access_token",
+  accessToken: "better-auth.session_token",
   refreshToken: "careeros_refresh_token",
 } as const;
 

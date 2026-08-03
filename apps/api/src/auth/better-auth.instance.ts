@@ -26,6 +26,9 @@ function slugify(value: string): string {
     .slice(0, 48);
 }
 
+process.on("unhandledRejection", console.error);
+process.on("uncaughtException", console.error);
+
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: 'postgresql',
@@ -67,11 +70,14 @@ export const auth = betterAuth({
   ],
 
   advanced: {
-    // We're API-only (no server-rendered pages on this origin), and the
-    // web app is a different origin in dev — cross-site cookies needed.
+    database: {
+      generateId: false,
+    },
+
     crossSubDomainCookies: {
       enabled: false,
     },
+
     defaultCookieAttributes: {
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       secure: process.env.NODE_ENV === 'production',
@@ -139,27 +145,27 @@ export const auth = betterAuth({
     }),
   ],
 
-  databaseHooks: {
-    user: {
-      create: {
-        after: async (user) => {
-          // Auto-create the user's first workspace, mirroring the old
+  //databaseHooks: {
+  //  user: {
+    //  create: {
+      //  after: async (user) => {
+        //  // Auto-create the user's first workspace, mirroring the old
           // register() flow (one workspace per new account, owner role).
-          await auth.api.createOrganization({
-            body: {
-              name: user.name
-                ? `${user.name}'s Workspace`
-                : 'My Career Workspace',
-              slug: `${slugify(
-                user.name || user.email.split('@')[0],
-              )}-${Date.now().toString(36)}`,
-              userId: user.id,
-            },
-          });
-        },
-      },
-    },
-  },
+          //await auth.api.createOrganization({
+            //body: {
+              //name: user.name
+                //? `${user.name}'s Workspace`
+                //: 'My Career Workspace',
+              //slug: `${slugify(
+                //user.name || user.email.split('@')[0],
+              //)}-${Date.now().toString(36)}`,
+              //userId: user.id,
+            //},
+          //});
+        //},
+      //},
+    //},
+  //},
 });
 
 export type Auth = typeof auth;
