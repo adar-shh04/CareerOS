@@ -83,9 +83,10 @@ class InMemoryResumeProfileRepository implements ResumeProfileRepository {
   }
 
   update(profile: ResumeProfile): Promise<ResumeProfile> {
-    this.profiles.set(profile.id, structuredClone(profile));
+    const updatedProfile = { ...profile, updatedAt: new Date().toISOString() };
+    this.profiles.set(profile.id, structuredClone(updatedProfile));
 
-    return Promise.resolve(structuredClone(profile));
+    return Promise.resolve(structuredClone(updatedProfile));
   }
 
   delete(workspaceId: string, profileId: string): Promise<void> {
