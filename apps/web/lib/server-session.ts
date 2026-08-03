@@ -28,7 +28,7 @@ export async function getServerSession(): Promise<ServerSession | null> {
     return null;
   }
 
-  const response = await fetch(`${getApiBaseUrl()}/auth/get-session`, {
+  const response = await fetch(`${getApiBaseUrl()}/api/auth/get-session`, {
     headers: { cookie },
     cache: "no-store",
   });
@@ -58,7 +58,7 @@ export async function getServerSession(): Promise<ServerSession | null> {
   }
 
   const orgResponse = await fetch(
-    `${getApiBaseUrl()}/auth/organization/get-full-organization?organizationId=${workspaceId}`,
+    `${getApiBaseUrl()}/api/auth/organization/get-full-organization?organizationId=${workspaceId}`,
     {
       headers: { Authorization: `Bearer ${payload.session.token}` },
       cache: "no-store",
@@ -67,10 +67,10 @@ export async function getServerSession(): Promise<ServerSession | null> {
 
   const org = orgResponse.ok
     ? ((await orgResponse.json()) as {
-        id: string;
-        name: string;
-        slug: string;
-      })
+      id: string;
+      name: string;
+      slug: string;
+    })
     : null;
 
   return {
