@@ -8,17 +8,20 @@ import type {
   ResumeProfileInput,
   ResumeVersion,
 } from "@repo/types";
-import { FileText, History, Layers, UserCheck } from "lucide-react";
+import { Diff, Eye, FileText, History, Layers, UserCheck } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 
 import { MasterProfileEditor } from "./master-profile-editor";
+import { ResumeOverviewCards } from "./resume-overview-cards";
+import { ResumePreview } from "./resume-preview";
 import { ResumeProfilesManager } from "./resume-profiles-manager";
+import { ResumeVersionComparison } from "./resume-version-comparison";
 import { ResumeVersionHistory } from "./resume-version-history";
 
 export function ResumeIntelligenceView() {
-  const [subTab, setSubTab] = useState<"master" | "profiles" | "versions">(
-    "master",
-  );
+  const [subTab, setSubTab] = useState<
+    "master" | "profiles" | "versions" | "preview" | "compare"
+  >("master");
 
   /* ── State ─────────────────────────────────────────────────────────── */
   const [masterProfile, setMasterProfile] =
@@ -202,11 +205,13 @@ export function ResumeIntelligenceView() {
         </div>
 
         {/* Sub Navigation Pills */}
-        <div style={{ display: "flex", gap: "0.5rem" }}>
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
           {[
             { id: "master", label: "Master Career Profile", icon: UserCheck },
             { id: "profiles", label: `Resume Profiles (${String(profiles.length)})`, icon: Layers },
             { id: "versions", label: `Version History (${String(versions.length)})`, icon: History },
+            { id: "preview", label: "Resume Studio Preview", icon: Eye },
+            { id: "compare", label: "Version Diff", icon: Diff },
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = subTab === tab.id;
@@ -237,6 +242,13 @@ export function ResumeIntelligenceView() {
         </div>
       </div>
 
+      {/* Overview Cards */}
+      <ResumeOverviewCards
+        masterProfile={masterProfile}
+        profiles={profiles}
+        versions={versions}
+      />
+
       {/* Tab Content */}
       {subTab === "master" && (
         <MasterProfileEditor
@@ -263,6 +275,18 @@ export function ResumeIntelligenceView() {
           onCreateVersion={handleCreateVersion}
           loading={loadingVersions}
         />
+      )}
+
+      {subTab === "preview" && (
+        <ResumePreview
+          masterProfile={masterProfile}
+          selectedProfile={selectedProfile}
+          selectedVersion={versions[0] ?? null}
+        />
+      )}
+
+      {subTab === "compare" && (
+        <ResumeVersionComparison versions={versions} />
       )}
     </div>
   );

@@ -101,6 +101,8 @@ model Workspace {
   byokKeys       ByokCredential[]
   careerProfile  MasterCareerProfile?
   resumeProfiles ResumeProfile[]
+  jobStates      WorkspaceJobState[]
+  jobMatches     JobMatch[]
 
   @@map("workspaces")
 }
@@ -337,6 +339,7 @@ model ResumeProfile {
   updatedAt                DateTime        @updatedAt @map("updated_at")
   workspace                Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   versions                 ResumeVersion[]
+  matches                  JobMatch[]
 
   @@index([workspaceId])
   @@map("resume_profiles")
@@ -363,4 +366,85 @@ model ResumeVersion {
   @@index([workspaceId])
   @@index([resumeProfileId])
   @@map("resume_versions")
+}
+
+model Job {
+  id                 String               @id @default(uuid()) @db.Uuid
+  externalId         String?              @map("external_id")
+  source             String               @default("manual")
+  sourceUrl          String?              @map("source_url")
+  company            String
+  title              String
+  location           String
+  isRemote           Boolean              @default(false) @map("is_remote")
+  remotePolicy       String?              @map("remote_policy")
+  employmentType     String?              @map("employment_type")
+  salaryMin          Float?               @map("salary_min")
+  salaryMax          Float?               @map("salary_max")
+  salaryCurrency     String?              @map("salary_currency")
+  salaryRange        String?              @map("salary_range")
+  description        String?
+  requiredSkills     String[]             @default([]) @map("required_skills")
+  preferredSkills    String[]             @default([]) @map("preferred_skills")
+  postedAt           DateTime?            @map("posted_at")
+  expiresAt          DateTime?            @map("expires_at")
+  rawMetadata        Json?                @map("raw_metadata")
+  normalizedMetadata Json?                @map("normalized_metadata")
+  createdAt          DateTime             @default(now()) @map("created_at")
+  updatedAt          DateTime             @updatedAt @map("updated_at")
+  workspaceStates    WorkspaceJobState[]
+  matches            JobMatch[]
+
+  @@unique([source, externalId])
+  @@index([company])
+  @@index([title])
+  @@map("jobs")
+}
+
+model WorkspaceJobState {
+  id          String    @id @default(uuid()) @db.Uuid
+  workspaceId String    @map("workspace_id") @db.Uuid
+  jobId       String    @map("job_id") @db.Uuid
+  status      String    @default("discovered")
+  isSaved     Boolean   @default(false) @map("is_saved")
+  isDismissed Boolean   @default(false) @map("is_dismissed")
+  notes       String?
+  appliedAt   DateTime? @map("applied_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  job         Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, jobId])
+  @@index([workspaceId])
+  @@index([jobId])
+  @@map("workspace_job_states")
+}
+
+model JobMatch {
+  id              String         @id @default(uuid()) @db.Uuid
+  jobId           String         @map("job_id") @db.Uuid
+  workspaceId     String         @map("workspace_id") @db.Uuid
+  resumeProfileId String?        @map("resume_profile_id") @db.Uuid
+  overallScore    Float          @map("overall_score")
+  skillScore      Float          @map("skill_score")
+  roleScore       Float          @map("role_score")
+  experienceScore Float          @map("experience_score")
+  locationScore   Float          @map("location_score")
+  seniorityScore  Float          @map("seniority_score")
+  matchedSkills   String[]       @default([]) @map("matched_skills")
+  missingSkills   String[]       @default([]) @map("missing_skills")
+  confidence      Float          @default(1.0)
+  explanation     String
+  evidence        Json?
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+  job             Job            @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  workspace       Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  resumeProfile   ResumeProfile? @relation(fields: [resumeProfileId], references: [id], onDelete: SetNull)
+
+  @@unique([workspaceId, jobId, resumeProfileId])
+  @@index([workspaceId])
+  @@index([jobId])
+  @@map("job_matches")
 }

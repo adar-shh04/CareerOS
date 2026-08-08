@@ -1,7 +1,10 @@
 import type {
   AuthSession,
   ByokCredentialSummary,
+  CanonicalJob,
   CreateResumeVersionInput,
+  JobMatchingWeights,
+  JobOpportunity,
   MasterCareerProfile,
   MasterCareerProfileInput,
   ResumeProfile,
@@ -218,4 +221,112 @@ export async function createResumeVersion(
   );
 
   return parseResponse<ResumeVersion>(response);
+}
+
+/* ── Job Board API ─────────────────────────────────────────────────────── */
+
+export interface ListJobsParams {
+  query?: string;
+  remoteOnly?: boolean;
+  skill?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export async function listJobs(
+  accessToken: string,
+  workspaceId: string,
+  params: ListJobsParams = {},
+): Promise<JobOpportunity[]> {
+  const qs = new URLSearchParams();
+  if (params.query) qs.set("query", params.query);
+  if (params.remoteOnly) qs.set("remoteOnly", "true");
+  if (params.skill) qs.set("skill", params.skill);
+  if (params.limit != null) qs.set("limit", String(params.limit));
+  if (params.offset != null) qs.set("offset", String(params.offset));
+  const search = qs.toString() ? `?${qs.toString()}` : "";
+
+  const response = await fetch(
+    `${getApiBaseUrl()}/workspaces/${workspaceId}/jobs${search}`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      cache: "no-store",
+    },
+  );
+
+  return parseResponse<JobOpportunity[]>(response);
+}
+
+export async function getJob(
+  accessToken: string,
+  workspaceId: string,
+  jobId: string,
+): Promise<CanonicalJob> {
+  const response = await fetch(
+    `${getApiBaseUrl()}/workspaces/${workspaceId}/jobs/${jobId}`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      cache: "no-store",
+    },
+  );
+
+  return parseResponse<CanonicalJob>(response);
+}
+
+/**
+ * Trigger real job ingestion via external source adapter (e.g. Apify/LinkedIn).
+ */
+export async function ingestJobs(
+  accessToken: string,
+  workspaceId: string,
+  params?: { query?: string; location?: string; limit?: number; source?: string },
+): Promise<{
+  source: string;
+  fetchedCount: number;
+  createdCount: number;
+  updatedCount: number;
+  skippedCount: number;
+  jobs: JobOpportunity[];
+}> {
+  const response = await fetch(
+    `${getApiBaseUrl()}/workspaces/${workspaceId}/jobs/ingest`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(params ?? {}),
+    },
+  );
+
+  return parseResponse<{
+    source: string;
+    fetchedCount: number;
+    createdCount: number;
+    updatedCount: number;
+    skippedCount: number;
+    jobs: JobOpportunity[];
+  }>(response);
+}
+
+export async function triggerJobMatch(
+  accessToken: string,
+  workspaceId: string,
+  jobId: string,
+  options?: { resumeProfileId?: string; weights?: Partial<JobMatchingWeights> },
+): Promise<JobOpportunity> {
+  const response = await fetch(
+    `${getApiBaseUrl()}/workspaces/${workspaceId}/jobs/${jobId}/match`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(options ?? {}),
+    },
+  );
+
+  return parseResponse<JobOpportunity>(response);
 }

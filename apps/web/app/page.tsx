@@ -16,6 +16,7 @@ import {
 import { useRouter } from "next/navigation";
 import React, { useCallback, useEffect, useState } from "react";
 
+import { JobBoard } from "../components/jobs/job-board";
 import { ResumeIntelligenceView } from "../components/resume-intelligence/resume-intelligence-view";
 import { useAuth } from "../providers/auth-provider";
 
@@ -610,9 +611,11 @@ export default function CareerCommandCenter() {
           </div>
         </div>
 
-        {/* ── Dashboard Grid or Resume Intelligence ─────────────────── */}
+        {/* ── Dashboard Grid or Resume Intelligence or Job Board ─────── */}
         {activeTab === "resume" ? (
           <ResumeIntelligenceView />
+        ) : activeTab === "jobs" ? (
+          <JobBoard />
         ) : (
           <div
             style={{

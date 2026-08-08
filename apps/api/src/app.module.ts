@@ -9,6 +9,7 @@ import { ByokModule } from './byok/byok.module';
 import { CareerProfileModule } from './career-profile/career-profile.module';
 import { BetterAuthGuard } from './common/guards/better-auth.guard';
 import { DatabaseModule } from './database/database.module';
+import { JobsModule } from './jobs/jobs.module';
 import { ResumeProfileModule } from './resume-profile/resume-profile.module';
 import { WorkspaceModule } from './workspace/workspace.module';
 
@@ -24,6 +25,7 @@ import { WorkspaceModule } from './workspace/workspace.module';
     ByokModule,
     CareerProfileModule,
     ResumeProfileModule,
+    JobsModule,
   ],
   controllers: [AppController],
   providers: [

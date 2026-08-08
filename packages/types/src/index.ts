@@ -247,18 +247,169 @@ export interface ResumeVersion {
   createdAt: string;
 }
 
+/* ── Canonical Job Domain Types ───────────────────────────────────────── */
+
+/** Canonical job record ingested from a source adapter. Not workspace-owned;
+ * shared across workspaces. Workspace-specific concerns live in WorkspaceJobState. */
+export interface CanonicalJob {
+  id: string;
+  externalId?: string;
+  /** Identifier for the source adapter that produced this job (e.g. "manual", "linkedin-apify"). */
+  source: string;
+  sourceUrl?: string;
+  company: string;
+  title: string;
+  location: string;
+  isRemote: boolean;
+  remotePolicy?: "REMOTE" | "HYBRID" | "ONSITE";
+  employmentType?: string;
+  salaryMin?: number;
+  salaryMax?: number;
+  salaryCurrency?: string;
+  salaryRange?: string;
+  description?: string;
+  requiredSkills: string[];
+  preferredSkills: string[];
+  postedAt?: string;
+  expiresAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Workspace-specific interaction state for a canonical job.
+ * Separated from the canonical record to preserve multi-tenancy boundaries. */
+export type WorkspaceJobStatus =
+  | "discovered"
+  | "saved"
+  | "applied"
+  | "interview"
+  | "offer"
+  | "rejected"
+  | "dismissed";
+
+export interface WorkspaceJobState {
+  id: string;
+  workspaceId: string;
+  jobId: string;
+  status: WorkspaceJobStatus;
+  isSaved: boolean;
+  isDismissed: boolean;
+  notes?: string;
+  appliedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Per-dimension raw scores (0–1 range each).
+ * Weights used to combine them are configurable — see JobMatchingWeights. */
+export interface JobMatchDimensionScores {
+  skill: number;
+  role: number;
+  experience: number;
+  location: number;
+  seniority: number;
+}
+
+/** Concrete evidence backing the deterministic match — used in explanations. */
+export interface JobMatchEvidence {
+  matchedSkills: string[];
+  missingSkills: string[];
+  matchedPreferredSkills: string[];
+  profileSkillCount: number;
+  requiredSkillCount: number;
+  experienceYears: number;
+}
+
+/** Persisted match result for a job × workspace × resume-profile combination.
+ * The unique index is (workspaceId, jobId, resumeProfileId). */
+export interface JobMatchResult {
+  id: string;
+  jobId: string;
+  workspaceId: string;
+  /** Null/absent means the match was against the raw MasterCareerProfile, not a specific ResumeProfile. */
+  resumeProfileId?: string;
+  overallScore: number;
+  dimensionScores: JobMatchDimensionScores;
+  matchedSkills: string[];
+  missingSkills: string[];
+  /** 0–1 confidence derived from profile completeness and data coverage. */
+  confidence: number;
+  /** Human-readable explanation derived deterministically from profile + job data. Never LLM-generated here. */
+  explanation: string;
+  evidence: JobMatchEvidence;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Configurable scoring weights for the deterministic matching engine.
+ * Values should sum to 1.0. Adjust per-workspace or globally via config. */
+export interface JobMatchingWeights {
+  skill: number;
+  role: number;
+  experience: number;
+  location: number;
+  seniority: number;
+}
+
+/** Sensible defaults: skills dominate (40%), role is second (25%), then experience, location, seniority. */
+export const DEFAULT_MATCHING_WEIGHTS: JobMatchingWeights = {
+  skill: 0.4,
+  role: 0.25,
+  experience: 0.2,
+  location: 0.1,
+  seniority: 0.05,
+};
+
+/** Enriched UI representation of a job returned to the frontend.
+ * Canonical job data merged with workspace interaction state and match result. */
 export interface JobOpportunity {
   id: string;
   title: string;
   company: string;
   location: string;
   isRemote: boolean;
-  matchScore: number;
-  whyFits: string;
-  requiredSkills: string[];
-  missingSkills: string[];
+  remotePolicy?: string;
+  employmentType?: string;
   salaryRange?: string;
-  postedAt: string;
+  description?: string;
+  requiredSkills: string[];
+  preferredSkills: string[];
+  postedAt?: string;
+  source: string;
+  sourceUrl?: string;
+  /** Legacy/convenience fields populated from match result for UI rendering */
+  matchScore?: number;
+  whyFits?: string;
+  missingSkills?: string[];
+  matchEvidence?: {
+    skillScore: number;
+    roleScore: number;
+    experienceScore: number;
+    locationScore: number;
+    seniorityScore: number;
+    matchedSkills: string[];
+    missingSkills: string[];
+    reasons: string[];
+    confidence: number;
+  };
+  /** Present when a match has been calculated for this workspace / profile. */
+  match?: {
+    overallScore: number;
+    dimensionScores: JobMatchDimensionScores;
+    matchedSkills: string[];
+    missingSkills: string[];
+    confidence: number;
+    explanation: string;
+    evidence: JobMatchEvidence;
+  };
+  /** Workspace-scoped interaction state. Absent when no state record exists. */
+  workspaceState?: {
+    status: WorkspaceJobStatus;
+    isSaved: boolean;
+    isDismissed: boolean;
+    notes?: string;
+    appliedAt?: string;
+  };
 }
 
 export interface AIRecommendation {
@@ -271,3 +422,22 @@ export interface AIRecommendation {
   actionable: boolean;
   userDismissed: boolean;
 }
+
+/* ── Job Ingestion Types ──────────────────────────────────────────────── */
+
+export interface IngestJobsParams {
+  query?: string;
+  location?: string;
+  limit?: number;
+  source?: string;
+}
+
+export interface JobIngestionResult {
+  source: string;
+  fetchedCount: number;
+  createdCount: number;
+  updatedCount: number;
+  skippedCount: number;
+  jobs: JobOpportunity[];
+}
+
