@@ -10,6 +10,7 @@
  */
 
 import { PrismaPg } from '@prisma/adapter-pg';
+
 import { PrismaClient } from '../generated/prisma/client';
 
 if (process.env.NODE_ENV === 'production') {
@@ -81,8 +82,14 @@ const SEED_JOBS: SeedJob[] = [
     remotePolicy: 'ONSITE',
     salaryRange: '$200,000 - $260,000',
     description:
-      "Design and scale the distributed systems that serve Claude and other Anthropic products. You will work closely with the research team on high-throughput inference infrastructure.",
-    requiredSkills: ['Node.js', 'PostgreSQL', 'Redis', 'Distributed Systems', 'Python'],
+      'Design and scale the distributed systems that serve Claude and other Anthropic products. You will work closely with the research team on high-throughput inference infrastructure.',
+    requiredSkills: [
+      'Node.js',
+      'PostgreSQL',
+      'Redis',
+      'Distributed Systems',
+      'Python',
+    ],
     preferredSkills: ['C++', 'Rust', 'gRPC'],
     postedAt: '2026-08-05T09:15:00.000Z',
   },
@@ -96,8 +103,14 @@ const SEED_JOBS: SeedJob[] = [
     remotePolicy: 'HYBRID',
     salaryRange: '$210,000 - $280,000',
     description:
-      "Lead the platform team building tooling that enables researchers to iterate quickly on LLMs. Own BYOK integration, FastAPI microservices, and AI workflow orchestration.",
-    requiredSkills: ['Python', 'FastAPI', 'TypeScript', 'OpenAI API', 'Vector Databases'],
+      'Lead the platform team building tooling that enables researchers to iterate quickly on LLMs. Own BYOK integration, FastAPI microservices, and AI workflow orchestration.',
+    requiredSkills: [
+      'Python',
+      'FastAPI',
+      'TypeScript',
+      'OpenAI API',
+      'Vector Databases',
+    ],
     preferredSkills: ['GPU Cluster Management', 'Kubernetes', 'Ray'],
     postedAt: '2026-08-08T08:00:00.000Z',
   },
@@ -148,13 +161,15 @@ async function seed(): Promise<void> {
       updated++;
       console.log(` Updated: ${job.title} @ ${job.company}`);
     } else {
-      await prisma.job.create({ data: { ...data, externalId: job.externalId } });
+      await prisma.job.create({
+        data: { ...data, externalId: job.externalId },
+      });
       created++;
       console.log(` Created: ${job.title} @ ${job.company}`);
     }
   }
 
-  console.log(`\nDone. Created: ${created}, Updated: ${updated}.`);
+  console.log(`\nDone. Created: ${String(created)}, Updated: ${String(updated)}.`);
 }
 
 seed()

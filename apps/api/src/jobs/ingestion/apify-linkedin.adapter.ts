@@ -30,7 +30,7 @@ export class ApifyLinkedInAdapter implements JobSourceAdapter {
   private readonly logger = new Logger(ApifyLinkedInAdapter.name);
 
   async fetchJobs(params: FetchJobsParams): Promise<RawIngestedJob[]> {
-    const apiToken = params.apiKey || process.env.APIFY_API_TOKEN;
+    const apiToken = params.apiKey ?? process.env.APIFY_API_TOKEN;
 
     if (apiToken) {
       try {
@@ -67,7 +67,9 @@ export class ApifyLinkedInAdapter implements JobSourceAdapter {
     });
 
     if (!response.ok) {
-      throw new Error(`Apify API responded with HTTP status ${response.status}`);
+      throw new Error(
+        `Apify API responded with HTTP status ${String(response.status)}`,
+      );
     }
 
     const items = (await response.json()) as ApifyLinkedInItem[];
@@ -80,13 +82,17 @@ export class ApifyLinkedInAdapter implements JobSourceAdapter {
       .map((item, index) => this.mapApifyItemToRawJob(item, index));
   }
 
-  private mapApifyItemToRawJob(item: ApifyLinkedInItem, index: number): RawIngestedJob {
-    const externalId = item.id || item.jobId || `apify-li-${Date.now()}-${index}`;
-    const company = item.companyName || item.company || 'Unknown Company';
-    const title = item.title || 'Software Engineer';
-    const location = item.location || 'Remote';
-    const sourceUrl = item.link || item.url || undefined;
-    const description = item.description || `${title} position at ${company}.`;
+  private mapApifyItemToRawJob(
+    item: ApifyLinkedInItem,
+    index: number,
+  ): RawIngestedJob {
+    const externalId =
+      item.id ?? item.jobId ?? `apify-li-${String(Date.now())}-${String(index)}`;
+    const company = item.companyName ?? item.company ?? 'Unknown Company';
+    const title = item.title ?? 'Software Engineer';
+    const location = item.location ?? 'Remote';
+    const sourceUrl = item.link ?? item.url ?? undefined;
+    const description = item.description ?? `${title} position at ${company}.`;
 
     const isRemote =
       item.isRemote === true ||
@@ -102,7 +108,7 @@ export class ApifyLinkedInAdapter implements JobSourceAdapter {
       location,
       description,
       salaryText: item.salary,
-      postedAtText: item.postedAt || item.publishedAt,
+      postedAtText: item.postedAt ?? item.publishedAt,
       isRemote,
       rawSkills: item.skills,
       rawData: item as unknown as Record<string, unknown>,
@@ -124,7 +130,15 @@ export class ApifyLinkedInAdapter implements JobSourceAdapter {
         salaryText: '$185,000 - $235,000/yr',
         postedAtText: '1 day ago',
         isRemote: false,
-        rawSkills: ['TypeScript', 'Go', 'Ruby', 'PostgreSQL', 'AWS', 'Docker', 'Kubernetes'],
+        rawSkills: [
+          'TypeScript',
+          'Go',
+          'Ruby',
+          'PostgreSQL',
+          'AWS',
+          'Docker',
+          'Kubernetes',
+        ],
       },
       {
         externalId: 'li-apify-40192831',
@@ -138,7 +152,15 @@ export class ApifyLinkedInAdapter implements JobSourceAdapter {
         salaryText: '$200,000 - $250,000/yr',
         postedAtText: '3 days ago',
         isRemote: true,
-        rawSkills: ['React', 'Next.js', 'TypeScript', 'Node.js', 'Python', 'GraphQL', 'Vector Databases'],
+        rawSkills: [
+          'React',
+          'Next.js',
+          'TypeScript',
+          'Node.js',
+          'Python',
+          'GraphQL',
+          'Vector Databases',
+        ],
       },
       {
         externalId: 'li-apify-41029384',
@@ -152,7 +174,14 @@ export class ApifyLinkedInAdapter implements JobSourceAdapter {
         salaryText: '$210,000 - $270,000/yr',
         postedAtText: '2 days ago',
         isRemote: false,
-        rawSkills: ['TypeScript', 'React', 'C++', 'WebGL', 'WebAssembly', 'Performance'],
+        rawSkills: [
+          'TypeScript',
+          'React',
+          'C++',
+          'WebGL',
+          'WebAssembly',
+          'Performance',
+        ],
       },
       {
         externalId: 'li-apify-42938102',
@@ -166,7 +195,15 @@ export class ApifyLinkedInAdapter implements JobSourceAdapter {
         salaryText: '$220,000 - $290,000/yr',
         postedAtText: 'Just posted',
         isRemote: true,
-        rawSkills: ['Python', 'FastAPI', 'TypeScript', 'React', 'PostgreSQL', 'Redis', 'LLM'],
+        rawSkills: [
+          'Python',
+          'FastAPI',
+          'TypeScript',
+          'React',
+          'PostgreSQL',
+          'Redis',
+          'LLM',
+        ],
       },
     ];
 

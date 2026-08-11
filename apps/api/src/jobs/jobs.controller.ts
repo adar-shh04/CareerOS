@@ -10,10 +10,10 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import type { JobMatchingWeights, JobOpportunity } from '@repo/types';
 
 import { WorkspaceMemberGuard } from '../common/guards/workspace-member.guard';
 import { JobsService } from './jobs.service';
-import type { JobMatchingWeights, JobOpportunity } from '@repo/types';
 import type { CanonicalJob, ListJobsQuery } from './jobs.types';
 
 @Controller('workspaces/:workspaceId/jobs')
@@ -108,5 +108,35 @@ export class JobsController {
       body?.weights,
     );
   }
-}
 
+  /**
+   * GET /workspaces/:workspaceId/jobs/:jobId/analysis
+   * Perform structured job analysis with skill gaps and targeting evidence.
+   */
+  @Get(':jobId/analysis')
+  async getJobAnalysis(
+    @Param('workspaceId') workspaceId: string,
+    @Param('jobId') jobId: string,
+  ) {
+    return this.jobsService.analyzeJob(jobId, workspaceId);
+  }
+
+  /**
+   * POST /workspaces/:workspaceId/jobs/:jobId/targeted-resume
+   * Create an immutable targeted ResumeVersion backed by structured job analysis
+   * and grounded priority selections from MasterCareerProfile.
+   */
+  @Post(':jobId/targeted-resume')
+  @HttpCode(HttpStatus.OK)
+  async createTargetedResume(
+    @Param('workspaceId') workspaceId: string,
+    @Param('jobId') jobId: string,
+    @Body() body?: { resumeProfileId?: string },
+  ) {
+    return this.jobsService.createTargetedResumeVersion(
+      jobId,
+      workspaceId,
+      body?.resumeProfileId,
+    );
+  }
+}

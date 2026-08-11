@@ -26,8 +26,8 @@ function slugify(value: string): string {
     .slice(0, 48);
 }
 
-process.on("unhandledRejection", console.error);
-process.on("uncaughtException", console.error);
+process.on('unhandledRejection', console.error);
+process.on('uncaughtException', console.error);
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
@@ -147,24 +147,24 @@ export const auth = betterAuth({
 
   //databaseHooks: {
   //  user: {
-    //  create: {
-      //  after: async (user) => {
-        //  // Auto-create the user's first workspace, mirroring the old
-          // register() flow (one workspace per new account, owner role).
-          //await auth.api.createOrganization({
-            //body: {
-              //name: user.name
-                //? `${user.name}'s Workspace`
-                //: 'My Career Workspace',
-              //slug: `${slugify(
-                //user.name || user.email.split('@')[0],
-              //)}-${Date.now().toString(36)}`,
-              //userId: user.id,
-            //},
-          //});
-        //},
-      //},
-    //},
+  //  create: {
+  //  after: async (user) => {
+  //  // Auto-create the user's first workspace, mirroring the old
+  // register() flow (one workspace per new account, owner role).
+  //await auth.api.createOrganization({
+  //body: {
+  //name: user.name
+  //? `${user.name}'s Workspace`
+  //: 'My Career Workspace',
+  //slug: `${slugify(
+  //user.name || user.email.split('@')[0],
+  //)}-${Date.now().toString(36)}`,
+  //userId: user.id,
+  //},
+  //});
+  //},
+  //},
+  //},
   //},
 });
 

@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
+import type { CanonicalJob, JobMatchEvidence } from '@repo/types';
 
 import { PrismaService } from '../database/prisma.service';
 import type { Job, JobMatch, Prisma } from '../generated/prisma/client';
-import type { CanonicalJob, JobMatchEvidence } from '@repo/types';
 import type {
   CreateJobInput,
   ListJobsQuery,
@@ -115,7 +115,6 @@ export class PrismaJobsRepository {
 
     return null;
   }
-
 
   // ── Job Matches ────────────────────────────────────────────────────────
 
@@ -245,7 +244,8 @@ export class PrismaJobsRepository {
       title: row.title,
       location: row.location,
       isRemote: row.isRemote,
-      remotePolicy: (row.remotePolicy as CanonicalJob['remotePolicy']) ?? undefined,
+      remotePolicy:
+        (row.remotePolicy as CanonicalJob['remotePolicy']) ?? undefined,
       employmentType: row.employmentType ?? undefined,
       salaryMin: row.salaryMin ?? undefined,
       salaryMax: row.salaryMax ?? undefined,

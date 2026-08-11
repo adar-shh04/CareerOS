@@ -38,6 +38,9 @@ importers:
       '@prisma/client':
         specifier: ^7.9.0
         version: 7.9.0(prisma@7.9.0(@types/react-dom@19.2.2(@types/react@19.2.2))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.9.2))(typescript@5.9.2)
+      '@repo/types':
+        specifier: workspace:*
+        version: link:../../packages/types
       better-auth:
         specifier: ^1.4.6
         version: 1.6.25(@prisma/client@7.9.0(prisma@7.9.0(@types/react-dom@19.2.2(@types/react@19.2.2))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.9.2))(typescript@5.9.2))(mysql2@3.15.3)(next@16.2.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(pg@8.22.0)(prisma@7.9.0(@types/react-dom@19.2.2(@types/react@19.2.2))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.9.2))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)

@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-import { PrismaJobsRepository } from '../prisma-jobs.repository';
 import type { CanonicalJob } from '../jobs.types';
+import { PrismaJobsRepository } from '../prisma-jobs.repository';
 import { ApifyLinkedInAdapter } from './apify-linkedin.adapter';
 import { JobDeduplicationService } from './job-deduplication.service';
 import { JobNormalizationService } from './job-normalization.service';
@@ -39,8 +39,8 @@ export class JobIngestionService {
   }
 
   async ingest(options: IngestionOptions): Promise<IngestionResult> {
-    const sourceId = options.source || this.apifyAdapter.sourceId;
-    const adapter = this.adapters.get(sourceId) || this.apifyAdapter;
+    const sourceId = options.source ?? this.apifyAdapter.sourceId;
+    const adapter = this.adapters.get(sourceId) ?? this.apifyAdapter;
 
     this.logger.log(
       `Starting job ingestion via adapter '${adapter.sourceId}' for query '${options.query}' (location: ${options.location ?? 'any'})`,
@@ -53,16 +53,19 @@ export class JobIngestionService {
       apiKey: options.apiKey,
     });
 
-    this.logger.log(`Fetched ${rawJobs.length} raw jobs from ${adapter.sourceId}.`);
+    this.logger.log(
+      `Fetched ${String(rawJobs.length)} raw jobs from ${adapter.sourceId}.`,
+    );
 
     let createdCount = 0;
     let updatedCount = 0;
-    let skippedCount = 0;
+    const skippedCount = 0;
     const canonicalJobs: CanonicalJob[] = [];
 
     for (const raw of rawJobs) {
       const normalizedInput = this.normalizationService.normalize(raw);
-      const fingerprint = this.deduplicationService.computeFingerprint(normalizedInput);
+      const fingerprint =
+        this.deduplicationService.computeFingerprint(normalizedInput);
 
       // Check if job already exists by (source, externalId) or fingerprint
       const existing = await this.repository.findJobBySourceOrFingerprint(
@@ -79,7 +82,8 @@ export class JobIngestionService {
         updatedCount++;
         canonicalJobs.push(updated);
       } else {
-        const created = await this.repository.upsertCanonicalJob(normalizedInput);
+        const created =
+          await this.repository.upsertCanonicalJob(normalizedInput);
         createdCount++;
         canonicalJobs.push(created);
       }
@@ -87,7 +91,7 @@ export class JobIngestionService {
 
     this.logger.log(
       `Ingestion completed for '${adapter.sourceId}': ` +
-        `Fetched: ${rawJobs.length}, Created: ${createdCount}, Updated: ${updatedCount}, Skipped: ${skippedCount}`,
+        `Fetched: ${String(rawJobs.length)}, Created: ${String(createdCount)}, Updated: ${String(updatedCount)}, Skipped: ${String(skippedCount)}`,
     );
 
     return {

@@ -23,8 +23,12 @@ export class JobMatchingService {
    * Does NOT persist the result — callers decide when to store it.
    */
   match(input: MatchInput): MatchOutput {
-    const { job, masterProfile, resumeProfile, weights = DEFAULT_WEIGHTS } =
-      input;
+    const {
+      job,
+      masterProfile,
+      resumeProfile,
+      weights = DEFAULT_WEIGHTS,
+    } = input;
 
     const skillResult = this.scoreSkills(job, masterProfile, resumeProfile);
     const roleScore = this.scoreRole(job, masterProfile, resumeProfile);
@@ -164,15 +168,17 @@ export class JobMatchingService {
 
     // Small bonus for matching preferred skills (up to +0.1).
     if (preferred.length > 0) {
-      const preferredBonus =
-        (matchedPreferred.length / preferred.length) * 0.1;
+      const preferredBonus = (matchedPreferred.length / preferred.length) * 0.1;
       score = Math.min(1, score + preferredBonus);
     }
 
     // Priority skill boost: if a priority skill is matched, lift score slightly.
     const priorityMatched = matched.filter((m) => prioritySkillNames.has(m));
     if (priorityMatched.length > 0) {
-      const boost = Math.min(0.05, (priorityMatched.length / requiredCount) * 0.1);
+      const boost = Math.min(
+        0.05,
+        (priorityMatched.length / requiredCount) * 0.1,
+      );
       score = Math.min(1, score + boost);
     }
 
@@ -262,7 +268,10 @@ export class JobMatchingService {
     if (!profileLocation) return 0.5; // Unknown — neutral.
 
     // Exact match or job location mentions profile city/region.
-    if (jobLocation.includes(profileLocation) || profileLocation.includes(jobLocation)) {
+    if (
+      jobLocation.includes(profileLocation) ||
+      profileLocation.includes(jobLocation)
+    ) {
       return 1.0;
     }
 
@@ -298,7 +307,11 @@ export class JobMatchingService {
       jobLevel = 3;
     } else if (title.includes('senior') || title.includes('sr.')) {
       jobLevel = 2;
-    } else if (title.includes('junior') || title.includes('jr.') || title.includes('entry')) {
+    } else if (
+      title.includes('junior') ||
+      title.includes('jr.') ||
+      title.includes('entry')
+    ) {
       jobLevel = 0;
     } else {
       jobLevel = 1;
@@ -372,7 +385,9 @@ export class JobMatchingService {
     }
 
     if (missing.length > 0) {
-      parts.push(`Missing required skills: ${missing.slice(0, 3).join(', ')}${missing.length > 3 ? ', and more' : ''}.`);
+      parts.push(
+        `Missing required skills: ${missing.slice(0, 3).join(', ')}${missing.length > 3 ? ', and more' : ''}.`,
+      );
     }
 
     if (ctx.roleScore >= 0.6) {
@@ -389,7 +404,9 @@ export class JobMatchingService {
     if (ctx.locationScore === 1.0) {
       parts.push(ctx.job.isRemote ? 'Remote position.' : 'Location match.');
     } else if (ctx.locationScore < 0.4) {
-      parts.push('Location may not align — consider relocation or remote options.');
+      parts.push(
+        'Location may not align — consider relocation or remote options.',
+      );
     }
 
     return parts.join(' ');
@@ -401,9 +418,7 @@ export class JobMatchingService {
 
     for (const exp of experiences) {
       const start = this.parseYearMonth(exp.startDate);
-      const end = exp.current
-        ? new Date()
-        : this.parseYearMonth(exp.endDate);
+      const end = exp.current ? new Date() : this.parseYearMonth(exp.endDate);
 
       if (start && end && end >= start) {
         const months =
@@ -431,12 +446,12 @@ export class JobMatchingService {
     (profile.skills ?? []).forEach((s) => names.add(s.name));
     (profile.technologies ?? []).forEach((t) => names.add(t.name));
     // Also pick up technologies listed on experiences and projects.
-    (profile.experiences ?? []).forEach((e) =>
-      (e.technologies ?? []).forEach((t) => names.add(t)),
-    );
-    (profile.projects ?? []).forEach((p) =>
-      (p.technologies ?? []).forEach((t) => names.add(t)),
-    );
+    (profile.experiences ?? []).forEach((e) => {
+      (e.technologies ?? []).forEach((t) => names.add(t));
+    });
+    (profile.projects ?? []).forEach((p) => {
+      (p.technologies ?? []).forEach((t) => names.add(t));
+    });
     return names;
   }
 

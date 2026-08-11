@@ -36,15 +36,16 @@ model User {
 /// Better Auth core table. Stores active sessions (replaces the old
 /// custom access/refresh JWT pair with a single opaque session token).
 model Session {
-  id        String   @id @default(uuid()) @db.Uuid
-  userId    String   @map("user_id") @db.Uuid
-  token     String   @unique
-  expiresAt DateTime @map("expires_at")
-  ipAddress String?  @map("ip_address")
-  userAgent String?  @map("user_agent")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                   String   @id @default(uuid()) @db.Uuid
+  userId               String   @map("user_id") @db.Uuid
+  token                String   @unique
+  expiresAt            DateTime @map("expires_at")
+  ipAddress            String?  @map("ip_address")
+  userAgent            String?  @map("user_agent")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+  activeOrganizationId String?  @map("active_organization_id") @db.Uuid
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("sessions")
 }

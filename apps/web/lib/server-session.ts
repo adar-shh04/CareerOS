@@ -4,10 +4,13 @@ import { getApiBaseUrl } from "./config";
 
 export interface ServerSession {
   /**
-   * Forward this as `Authorization: Bearer ${token}` on every call from a
-   * Next.js route handler to the NestJS API — same pattern the old
-   * accessToken had, just sourced from Better Auth's session cookie
-   * instead of a hand-rolled JWT.
+   * The browser's original Better Auth `Cookie` header, verbatim. Forward
+   * this as `Cookie: ${token}` (NOT `Authorization: Bearer`) on every call
+   * from a Next.js route handler to the NestJS API — Better Auth resolves
+   * the session from the cookie itself, the same way it already does for
+   * the `get-session` call below. The field is still named `token` to
+   * keep `lib/api.ts` and every route handler that reads `session.token`
+   * unchanged; only what it contains has changed.
    */
   token: string;
   user: { id: string; email: string; name: string | null; avatar: string | null };
@@ -38,7 +41,7 @@ export async function getServerSession(): Promise<ServerSession | null> {
   }
 
   const payload = (await response.json()) as {
-    session?: { token?: string; activeOrganizationId?: string };
+    session?: { activeOrganizationId?: string };
     user?: {
       id: string;
       email: string;
@@ -47,7 +50,7 @@ export async function getServerSession(): Promise<ServerSession | null> {
     };
   } | null;
 
-  if (!payload?.session?.token || !payload.user) {
+  if (!payload?.session || !payload.user) {
     return null;
   }
 
@@ -57,10 +60,13 @@ export async function getServerSession(): Promise<ServerSession | null> {
     return null;
   }
 
+  // Forward the original browser cookie — not a derived bearer token — so
+  // Better Auth resolves this the same way it resolved the get-session call
+  // above.
   const orgResponse = await fetch(
     `${getApiBaseUrl()}/api/auth/organization/get-full-organization?organizationId=${workspaceId}`,
     {
-      headers: { Authorization: `Bearer ${payload.session.token}` },
+      headers: { cookie },
       cache: "no-store",
     },
   );
@@ -74,7 +80,7 @@ export async function getServerSession(): Promise<ServerSession | null> {
     : null;
 
   return {
-    token: payload.session.token,
+    token: cookie,
     user: payload.user,
     workspace: org ?? { id: workspaceId, name: "Workspace", slug: "" },
     needsOnboarding: !payload.user.name,

@@ -10,7 +10,10 @@ describe('ApifyLinkedInAdapter', () => {
   it('should return mock jobs when APIFY_API_TOKEN is not set', async () => {
     delete process.env.APIFY_API_TOKEN;
 
-    const rawJobs = await adapter.fetchJobs({ query: 'Software Engineer', limit: 5 });
+    const rawJobs = await adapter.fetchJobs({
+      query: 'Software Engineer',
+      limit: 5,
+    });
 
     expect(rawJobs).toBeDefined();
     expect(rawJobs.length).toBeGreaterThan(0);

@@ -18,10 +18,15 @@ import { ResumeProfilesManager } from "./resume-profiles-manager";
 import { ResumeVersionComparison } from "./resume-version-comparison";
 import { ResumeVersionHistory } from "./resume-version-history";
 
-export function ResumeIntelligenceView() {
+interface ResumeIntelligenceViewProps {
+  initialVersion?: ResumeVersion | null;
+  initialProfile?: ResumeProfile | null;
+}
+
+export function ResumeIntelligenceView({ initialVersion, initialProfile }: ResumeIntelligenceViewProps = {}) {
   const [subTab, setSubTab] = useState<
     "master" | "profiles" | "versions" | "preview" | "compare"
-  >("master");
+  >(initialVersion ? "preview" : "master");
 
   /* ── State ─────────────────────────────────────────────────────────── */
   const [masterProfile, setMasterProfile] =
@@ -30,11 +35,16 @@ export function ResumeIntelligenceView() {
 
   const [profiles, setProfiles] = useState<ResumeProfile[]>([]);
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(
-    null,
+    initialProfile?.id ?? null,
   );
   const [loadingProfiles, setLoadingProfiles] = useState(true);
 
-  const [versions, setVersions] = useState<ResumeVersion[]>([]);
+  const [versions, setVersions] = useState<ResumeVersion[]>(
+    initialVersion ? [initialVersion] : [],
+  );
+  const [selectedVersion, setSelectedVersion] = useState<ResumeVersion | null>(
+    initialVersion ?? null,
+  );
   const [loadingVersions, setLoadingVersions] = useState(false);
 
   /* ── Load Master Career Profile ────────────────────────────────────── */
@@ -281,7 +291,7 @@ export function ResumeIntelligenceView() {
         <ResumePreview
           masterProfile={masterProfile}
           selectedProfile={selectedProfile}
-          selectedVersion={versions[0] ?? null}
+          selectedVersion={selectedVersion ?? versions[0] ?? null}
         />
       )}
 

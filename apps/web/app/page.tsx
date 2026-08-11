@@ -1,6 +1,6 @@
 "use client";
 
-import type { MasterCareerProfile } from "@repo/types";
+import type { MasterCareerProfile, ResumeProfile, ResumeVersion } from "@repo/types";
 import {
   Bot,
   BrainCircuit,
@@ -166,6 +166,14 @@ export default function CareerCommandCenter() {
     "dashboard" | "resume" | "jobs" | "coach" | "skills"
   >("dashboard");
   const [coachOpen, setCoachOpen] = useState(false);
+  const [targetedVersion, setTargetedVersion] = useState<ResumeVersion | null>(null);
+  const [targetedProfile, setTargetedProfile] = useState<ResumeProfile | null>(null);
+
+  const handleNavigateToResume = (version: ResumeVersion, profile: ResumeProfile) => {
+    setTargetedVersion(version);
+    setTargetedProfile(profile);
+    setActiveTab("resume");
+  };
 
   const [byokStatus, setByokStatus] = useState<ByokStatus>({
     configured: false,
@@ -613,9 +621,12 @@ export default function CareerCommandCenter() {
 
         {/* ── Dashboard Grid or Resume Intelligence or Job Board ─────── */}
         {activeTab === "resume" ? (
-          <ResumeIntelligenceView />
+          <ResumeIntelligenceView
+            initialVersion={targetedVersion}
+            initialProfile={targetedProfile}
+          />
         ) : activeTab === "jobs" ? (
-          <JobBoard />
+          <JobBoard onNavigateToResume={handleNavigateToResume} />
         ) : (
           <div
             style={{

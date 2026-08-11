@@ -19,7 +19,9 @@ const makeJob = (overrides: Partial<CanonicalJob> = {}): CanonicalJob => ({
   ...overrides,
 });
 
-const makeProfile = (overrides: Partial<MasterCareerProfile> = {}): MasterCareerProfile => ({
+const makeProfile = (
+  overrides: Partial<MasterCareerProfile> = {},
+): MasterCareerProfile => ({
   id: '22222222-2222-2222-2222-222222222222',
   workspaceId: '33333333-3333-3333-3333-333333333333',
   version: 1,
@@ -87,7 +89,11 @@ describe('JobMatchingService', () => {
   it('produces different scores when profiles differ', () => {
     const job = makeJob();
     const strongProfile = makeProfile();
-    const weakProfile = makeProfile({ skills: [], technologies: [], experiences: [] });
+    const weakProfile = makeProfile({
+      skills: [],
+      technologies: [],
+      experiences: [],
+    });
     const strong = service.match({ job, masterProfile: strongProfile });
     const weak = service.match({ job, masterProfile: weakProfile });
     expect(strong.overallScore).toBeGreaterThan(weak.overallScore);
@@ -144,7 +150,9 @@ describe('JobMatchingService', () => {
     const job = makeJob({ isRemote: false, location: 'New York, NY' });
     const r = service.match({
       job,
-      masterProfile: makeProfile({ identity: { fullName: 'Jane', location: 'New York, NY' } }),
+      masterProfile: makeProfile({
+        identity: { fullName: 'Jane', location: 'New York, NY' },
+      }),
     });
     expect(r.dimensionScores.location).toBeGreaterThanOrEqual(0.9);
   });
@@ -153,7 +161,9 @@ describe('JobMatchingService', () => {
     const job = makeJob({ isRemote: false, location: 'Austin, TX' });
     const r = service.match({
       job,
-      masterProfile: makeProfile({ identity: { fullName: 'Jane', location: 'Boston, MA' } }),
+      masterProfile: makeProfile({
+        identity: { fullName: 'Jane', location: 'Boston, MA' },
+      }),
     });
     expect(r.dimensionScores.location).toBeLessThanOrEqual(0.3);
   });
@@ -161,13 +171,21 @@ describe('JobMatchingService', () => {
   // ── Configurable weights ──────────────────────────────────────────────────
 
   it('respects custom weights — skill-heavy config boosts skill contribution', () => {
-    const job = makeJob({ requiredSkills: ['TypeScript', 'React', 'PostgreSQL'] });
+    const job = makeJob({
+      requiredSkills: ['TypeScript', 'React', 'PostgreSQL'],
+    });
     const profile = makeProfile();
 
     const defaultResult = service.match({ job, masterProfile: profile });
 
     // Maximise skill weight, minimise others.
-    const skillHeavyWeights = { skill: 0.9, role: 0.025, experience: 0.025, location: 0.025, seniority: 0.025 };
+    const skillHeavyWeights = {
+      skill: 0.9,
+      role: 0.025,
+      experience: 0.025,
+      location: 0.025,
+      seniority: 0.025,
+    };
     const skillHeavyResult = service.match({
       job,
       masterProfile: profile,
@@ -176,14 +194,26 @@ describe('JobMatchingService', () => {
 
     // Since all required skills match, a skill-heavy config should give a higher overall score
     // than the default (which also weights other dimensions that may not be as strong).
-    expect(skillHeavyResult.overallScore).toBeGreaterThanOrEqual(defaultResult.overallScore - 0.05);
+    expect(skillHeavyResult.overallScore).toBeGreaterThanOrEqual(
+      defaultResult.overallScore - 0.05,
+    );
   });
 
   it('weights normalise even when they do not sum to 1.0', () => {
     const job = makeJob();
     const profile = makeProfile();
-    const sloppyWeights = { skill: 2.0, role: 1.0, experience: 1.0, location: 1.0, seniority: 0.5 };
-    const r = service.match({ job, masterProfile: profile, weights: sloppyWeights });
+    const sloppyWeights = {
+      skill: 2.0,
+      role: 1.0,
+      experience: 1.0,
+      location: 1.0,
+      seniority: 0.5,
+    };
+    const r = service.match({
+      job,
+      masterProfile: profile,
+      weights: sloppyWeights,
+    });
     expect(r.overallScore).toBeGreaterThanOrEqual(0);
     expect(r.overallScore).toBeLessThanOrEqual(1);
   });
@@ -214,9 +244,15 @@ describe('JobMatchingService', () => {
       updatedAt: '2026-01-01T00:00:00.000Z',
     };
 
-    const withRP = service.match({ job, masterProfile: profile, resumeProfile });
+    const withRP = service.match({
+      job,
+      masterProfile: profile,
+      resumeProfile,
+    });
     // With roleFocus matching job title exactly, role score should be higher.
-    expect(withRP.dimensionScores.role).toBeGreaterThan(withoutRP.dimensionScores.role);
+    expect(withRP.dimensionScores.role).toBeGreaterThan(
+      withoutRP.dimensionScores.role,
+    );
   });
 
   // ── Explanation ───────────────────────────────────────────────────────────
@@ -238,7 +274,10 @@ describe('JobMatchingService', () => {
   it('confidence is lower for sparse profiles', () => {
     const sparseProfile = makeProfile({ skills: [], experiences: [] });
     const richProfile = makeProfile();
-    const sparse = service.match({ job: makeJob(), masterProfile: sparseProfile });
+    const sparse = service.match({
+      job: makeJob(),
+      masterProfile: sparseProfile,
+    });
     const rich = service.match({ job: makeJob(), masterProfile: richProfile });
     expect(rich.confidence).toBeGreaterThan(sparse.confidence);
   });

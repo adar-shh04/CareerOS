@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
-import type { RawIngestedJob } from './job-source-adapter.interface';
 import type { CreateJobInput } from '../jobs.types';
+import type { RawIngestedJob } from './job-source-adapter.interface';
 
 const KNOWN_TECH_DICTIONARY: Record<string, string> = {
   typescript: 'TypeScript',
@@ -10,7 +10,7 @@ const KNOWN_TECH_DICTIONARY: Record<string, string> = {
   js: 'JavaScript',
   react: 'React',
   'react.js': 'React',
-  'reactjs': 'React',
+  reactjs: 'React',
   nextjs: 'Next.js',
   'next.js': 'Next.js',
   vue: 'Vue.js',
@@ -75,7 +75,7 @@ export class JobNormalizationService {
     const title = this.normalizeTitle(raw.title);
     const company = this.normalizeCompany(raw.company);
     const location = this.normalizeLocation(raw.location);
-    const description = raw.description?.trim() || '';
+    const description = raw.description?.trim() ?? '';
 
     const { isRemote, remotePolicy } = this.determineRemotePolicy(
       raw.isRemote,
@@ -91,6 +91,10 @@ export class JobNormalizationService {
     const { salaryMin, salaryMax, salaryCurrency, salaryRange } =
       this.parseSalary(raw.salaryText, description);
 
+    const seniority = this.extractSeniority(title, description);
+    const experienceRequirements =
+      this.extractExperienceRequirements(description);
+
     const postedAt = this.parsePostedDate(raw.postedAtText);
 
     return {
@@ -102,6 +106,8 @@ export class JobNormalizationService {
       location,
       isRemote,
       remotePolicy,
+      seniority,
+      experienceRequirements,
       salaryMin,
       salaryMax,
       salaryCurrency,
@@ -110,7 +116,89 @@ export class JobNormalizationService {
       requiredSkills,
       preferredSkills,
       postedAt,
+      normalizedMetadata: {
+        seniority,
+        experienceRequirements,
+      },
     };
+  }
+
+  private extractSeniority(title: string, description: string): string {
+    const combined = `${title} ${description}`.toLowerCase();
+    if (
+      combined.includes('principal') ||
+      combined.includes('distinguished') ||
+      combined.includes('fellow')
+    ) {
+      return 'Principal';
+    }
+    if (
+      combined.includes('staff') ||
+      combined.includes('architect') ||
+      combined.includes('lead')
+    ) {
+      return 'Staff / Lead';
+    }
+    if (
+      combined.includes('senior') ||
+      combined.includes('sr.') ||
+      combined.includes('sr ')
+    ) {
+      return 'Senior';
+    }
+    if (
+      combined.includes('junior') ||
+      combined.includes('jr.') ||
+      combined.includes('jr ') ||
+      combined.includes('entry') ||
+      combined.includes('associate')
+    ) {
+      return 'Junior / Entry';
+    }
+    if (
+      combined.includes('manager') ||
+      combined.includes('head') ||
+      combined.includes('director') ||
+      combined.includes('vp')
+    ) {
+      return 'Management';
+    }
+    return 'Mid';
+  }
+
+  private extractExperienceRequirements(
+    description: string,
+  ): { minYears?: number; maxYears?: number; text?: string } | undefined {
+    if (!description) return undefined;
+
+    const matchRange =
+      /(\d+)\s*(?:-|to)\s*(\d+)\s*(?:\+)?\s*(?:years?|yrs?)/i.exec(description);
+    if (matchRange?.[1] && matchRange[2]) {
+      const minYears = parseInt(matchRange[1], 10);
+      const maxYears = parseInt(matchRange[2], 10);
+      return {
+        minYears,
+        maxYears,
+        text: `${String(minYears)}-${String(maxYears)} years`,
+      };
+    }
+
+    const matchPlus =
+      /(\d+)\s*\+\s*(?:years?|yrs?)/i.exec(description) ??
+      /(?:at least|minimum of|minimum)\s*(\d+)\s*(?:years?|yrs?)/i.exec(
+        description,
+      ) ??
+      /(\d+)\s*(?:years?|yrs?)\s+(?:of\s+)?experience/i.exec(description);
+
+    if (matchPlus?.[1]) {
+      const minYears = parseInt(matchPlus[1], 10);
+      return {
+        minYears,
+        text: `${String(minYears)}+ years`,
+      };
+    }
+
+    return undefined;
   }
 
   private normalizeTitle(title: string): string {
@@ -132,7 +220,11 @@ export class JobNormalizationService {
   ): { isRemote: boolean; remotePolicy: 'REMOTE' | 'HYBRID' | 'ONSITE' } {
     const text = `${locationStr ?? ''} ${descriptionStr ?? ''}`.toLowerCase();
 
-    if (explicitRemote || text.includes('remote') || text.includes('work from home')) {
+    if (
+      explicitRemote ||
+      text.includes('remote') ||
+      text.includes('work from home')
+    ) {
       if (text.includes('hybrid')) {
         return { isRemote: false, remotePolicy: 'HYBRID' };
       }
@@ -218,11 +310,13 @@ export class JobNormalizationService {
     salaryCurrency?: string;
     salaryRange?: string;
   } {
-    const targetText = salaryText || description || '';
+    const targetText = salaryText ?? description ?? '';
     if (!targetText) return {};
 
-    const match = targetText.match(/\$([0-9,]{2,7})\s*(?:-|to)\s*\$([0-9,]{2,7})/i);
-    if (match && match[1] && match[2]) {
+    const match = /\$([0-9,]{2,7})\s*(?:-|to)\s*\$([0-9,]{2,7})/i.exec(
+      targetText,
+    );
+    if (match?.[1] && match[2]) {
       const min = parseInt(match[1].replace(/,/g, ''), 10);
       const max = parseInt(match[2].replace(/,/g, ''), 10);
       if (!isNaN(min) && !isNaN(max)) {
@@ -250,16 +344,16 @@ export class JobNormalizationService {
       return new Date();
     }
 
-    const daysMatch = lower.match(/([0-9]+)\s*day/);
-    if (daysMatch && daysMatch[1]) {
+    const daysMatch = /([0-9]+)\s*day/.exec(lower);
+    if (daysMatch?.[1]) {
       const days = parseInt(daysMatch[1], 10);
       const d = new Date();
       d.setDate(d.getDate() - days);
       return d;
     }
 
-    const hoursMatch = lower.match(/([0-9]+)\s*hour/);
-    if (hoursMatch && hoursMatch[1]) {
+    const hoursMatch = /([0-9]+)\s*hour/.exec(lower);
+    if (hoursMatch?.[1]) {
       const hours = parseInt(hoursMatch[1], 10);
       const d = new Date();
       d.setHours(d.getHours() - hours);

@@ -48,6 +48,8 @@ export interface CreateJobInput {
   location: string;
   isRemote?: boolean;
   remotePolicy?: string;
+  seniority?: string;
+  experienceRequirements?: import('@repo/types').ExperienceRequirements;
   employmentType?: string;
   salaryMin?: number;
   salaryMax?: number;
@@ -58,6 +60,7 @@ export interface CreateJobInput {
   preferredSkills?: string[];
   postedAt?: Date;
   expiresAt?: Date;
+  normalizedMetadata?: Record<string, unknown>;
 }
 
 /** Query filters for listing canonical jobs. */

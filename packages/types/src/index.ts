@@ -249,6 +249,12 @@ export interface ResumeVersion {
 
 /* ── Canonical Job Domain Types ───────────────────────────────────────── */
 
+export interface ExperienceRequirements {
+  minYears?: number;
+  maxYears?: number;
+  text?: string;
+}
+
 /** Canonical job record ingested from a source adapter. Not workspace-owned;
  * shared across workspaces. Workspace-specific concerns live in WorkspaceJobState. */
 export interface CanonicalJob {
@@ -262,6 +268,8 @@ export interface CanonicalJob {
   location: string;
   isRemote: boolean;
   remotePolicy?: "REMOTE" | "HYBRID" | "ONSITE";
+  seniority?: string;
+  experienceRequirements?: ExperienceRequirements;
   employmentType?: string;
   salaryMin?: number;
   salaryMax?: number;
@@ -369,6 +377,8 @@ export interface JobOpportunity {
   location: string;
   isRemote: boolean;
   remotePolicy?: string;
+  seniority?: string;
+  experienceRequirements?: ExperienceRequirements;
   employmentType?: string;
   salaryRange?: string;
   description?: string;
@@ -410,6 +420,37 @@ export interface JobOpportunity {
     notes?: string;
     appliedAt?: string;
   };
+}
+
+export interface JobAnalysisResult {
+  jobId: string;
+  role: string;
+  seniority: string;
+  experienceRequirements?: ExperienceRequirements;
+  locationPolicy: {
+    location: string;
+    isRemote: boolean;
+    remotePolicy?: string;
+  };
+  skills: {
+    requiredSkills: string[];
+    preferredSkills: string[];
+    matchedSkills: string[];
+    missingSkills: string[];
+    skillMatchPercentage: number;
+  };
+  gaps: {
+    missingRequiredSkills: string[];
+    missingPreferredSkills: string[];
+    experienceGap?: string;
+    seniorityAlignment: "aligned" | "under_qualified" | "over_qualified";
+  };
+  targetingRecommendations: {
+    prioritySkillNames: string[];
+    recommendedSectionOrder: ResumeSection[];
+    suggestedFocus: string;
+  };
+  analyzedAt: string;
 }
 
 export interface AIRecommendation {

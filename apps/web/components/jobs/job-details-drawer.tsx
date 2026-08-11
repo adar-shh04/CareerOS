@@ -1,7 +1,7 @@
 "use client";
 
-import type { JobOpportunity } from "@repo/types";
-import { Building2, Calendar, CheckCircle2, DollarSign, ExternalLink, Globe, MapPin, X, Bookmark } from "lucide-react";
+import type { JobOpportunity, ResumeProfile, ResumeVersion } from "@repo/types";
+import { Building2, Calendar, CheckCircle2, DollarSign, ExternalLink, Globe, MapPin, X, Bookmark, Sparkles, FileText } from "lucide-react";
 import React, { useState } from "react";
 
 import { JobMatchBadge } from "./job-match-badge";
@@ -10,12 +10,15 @@ interface JobDetailsDrawerProps {
   job: JobOpportunity | null;
   onClose: () => void;
   onJobUpdated?: (updatedJob: JobOpportunity) => void;
+  onNavigateToResume?: (version: ResumeVersion, profile: ResumeProfile) => void;
 }
 
-export function JobDetailsDrawer({ job, onClose, onJobUpdated }: JobDetailsDrawerProps) {
+export function JobDetailsDrawer({ job, onClose, onJobUpdated, onNavigateToResume }: JobDetailsDrawerProps) {
   const [saved, setSaved] = useState(false);
   const [matching, setMatching] = useState(false);
   const [matchError, setMatchError] = useState<string | null>(null);
+  const [creatingResume, setCreatingResume] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   if (!job) return null;
 
@@ -39,6 +42,29 @@ export function JobDetailsDrawer({ job, onClose, onJobUpdated }: JobDetailsDrawe
       setMatchError(e instanceof Error ? e.message : "Matching failed");
     } finally {
       setMatching(false);
+    }
+  };
+
+  const handleCreateTargetedResume = async () => {
+    setCreatingResume(true);
+    setCreateError(null);
+    try {
+      const res = await fetch(`/api/jobs/${job.id}/targeted-resume`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Failed to create targeted resume");
+      }
+      const data = await res.json();
+      if (onNavigateToResume) {
+        onNavigateToResume(data.version, data.profile);
+      }
+    } catch (e) {
+      setCreateError(e instanceof Error ? e.message : "Generation failed");
+    } finally {
+      setCreatingResume(false);
     }
   };
 
@@ -225,37 +251,47 @@ export function JobDetailsDrawer({ job, onClose, onJobUpdated }: JobDetailsDrawe
         </div>
 
         {/* Action Footer */}
-        <div className="pt-4 border-t border-white/10 flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setSaved(!saved)}
-            className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl border text-xs font-semibold transition-all ${
-              saved
-                ? "bg-purple-500/20 text-purple-300 border-purple-500/40"
-                : "bg-slate-800 text-slate-300 border-white/10 hover:border-white/20"
-            }`}
-          >
-            <Bookmark className="w-4 h-4" />
-            {saved ? "Saved" : "Save Job"}
-          </button>
-
-          {job.sourceUrl ? (
-            <a
-              href={job.sourceUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="flex-1 flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-bold text-xs shadow-lg shadow-indigo-500/25 transition-all"
-            >
-              Apply Directly <ExternalLink className="w-4 h-4" />
-            </a>
-          ) : (
-            <button
-              disabled
-              className="flex-1 flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-slate-800 text-slate-500 font-bold text-xs cursor-not-allowed"
-            >
-              Application Link Unavailable
-            </button>
+        <div className="pt-4 border-t border-white/10 space-y-3">
+          {createError && (
+            <p className="text-xs text-rose-400 bg-rose-500/10 p-2 rounded border border-rose-500/20">
+              {createError}
+            </p>
           )}
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleCreateTargetedResume}
+              disabled={creatingResume}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold text-xs shadow-lg shadow-emerald-500/20 transition-all disabled:opacity-50"
+            >
+              <Sparkles className="w-4 h-4" />
+              {creatingResume ? "Creating Targeted Resume..." : "Create Targeted Resume"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSaved(!saved)}
+              className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl border text-xs font-semibold transition-all ${
+                saved
+                  ? "bg-purple-500/20 text-purple-300 border-purple-500/40"
+                  : "bg-slate-800 text-slate-300 border-white/10 hover:border-white/20"
+              }`}
+            >
+              <Bookmark className="w-4 h-4" />
+              {saved ? "Saved" : "Save Job"}
+            </button>
+
+            {job.sourceUrl ? (
+              <a
+                href={job.sourceUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs border border-white/10 transition-all"
+              >
+                Apply <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            ) : null}
+          </div>
         </div>
       </div>
     </div>

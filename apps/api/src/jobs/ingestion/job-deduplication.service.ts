@@ -1,5 +1,5 @@
-import { createHash } from 'crypto';
 import { Injectable } from '@nestjs/common';
+import { createHash } from 'crypto';
 
 import type { CreateJobInput } from '../jobs.types';
 

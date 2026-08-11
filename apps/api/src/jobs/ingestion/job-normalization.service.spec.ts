@@ -95,4 +95,24 @@ describe('JobNormalizationService', () => {
     expect(normalized.salaryCurrency).toBe('USD');
     expect(normalized.salaryRange).toBe('$180,000 - $240,000');
   });
+
+  it('should extract seniority and experience requirements from title and description', () => {
+    const raw: RawIngestedJob = {
+      externalId: 'test-6',
+      source: 'linkedin-apify',
+      company: 'OpenAI',
+      title: 'Senior Infrastructure Engineer',
+      location: 'San Francisco, CA',
+      description:
+        'Requires 5+ years of experience with Kubernetes and distributed systems.',
+    };
+
+    const normalized = service.normalize(raw);
+
+    expect(normalized.seniority).toBe('Senior');
+    expect(normalized.experienceRequirements).toEqual({
+      minYears: 5,
+      text: '5+ years',
+    });
+  });
 });

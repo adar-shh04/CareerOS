@@ -13,16 +13,23 @@
     "target": "ES2023",
     "sourceMap": true,
     "outDir": "./dist",
-    "baseUrl": "./",
-    "paths": {
-      "@repo/types": ["../../packages/types/src/index.ts"]
-    },
+    "rootDir": "./src",
     "incremental": true,
+    "tsBuildInfoFile": "./dist/tsconfig.build.tsbuildinfo",
     "skipLibCheck": true,
     "strictNullChecks": true,
     "forceConsistentCasingInFileNames": true,
     "noImplicitAny": true,
     "strictBindCallApply": true,
     "noFallthroughCasesInSwitch": true
-  }
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "test",
+    "prisma",
+    "prisma.config.ts",
+    "profile-proof.ts"
+  ]
 }

@@ -47,7 +47,7 @@ async function parseResponse<T>(response: Response): Promise<T> {
 }
 
 export async function completeOnboarding(
-  accessToken: string,
+  sessionCookie: string,
   input: {
     name: string;
     workspaceName: string;
@@ -59,7 +59,7 @@ export async function completeOnboarding(
     {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        Cookie: sessionCookie,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(input),
@@ -70,14 +70,14 @@ export async function completeOnboarding(
 }
 
 export async function fetchByokStatus(
-  accessToken: string,
+  sessionCookie: string,
   workspaceId: string,
 ): Promise<ByokCredentialSummary[]> {
   const response = await fetch(
     `${getApiBaseUrl()}/workspaces/${workspaceId}/byok`,
     {
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        Cookie: sessionCookie,
       },
       cache: "no-store",
     },
@@ -87,7 +87,7 @@ export async function fetchByokStatus(
 }
 
 export async function storeByokCredential(
-  accessToken: string,
+  sessionCookie: string,
   workspaceId: string,
   input: { provider: string; apiKey: string },
 ): Promise<unknown> {
@@ -96,7 +96,7 @@ export async function storeByokCredential(
     {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        Cookie: sessionCookie,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(input),
@@ -109,14 +109,14 @@ export async function storeByokCredential(
 /* ── Master Career Profile API ────────────────────────────────────────── */
 
 export async function fetchCareerProfile(
-  accessToken: string,
+  sessionCookie: string,
   workspaceId: string,
 ): Promise<MasterCareerProfile> {
   const response = await fetch(
     `${getApiBaseUrl()}/workspaces/${workspaceId}/career-profile`,
     {
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        Cookie: sessionCookie,
       },
       cache: "no-store",
     },
@@ -126,7 +126,7 @@ export async function fetchCareerProfile(
 }
 
 export async function saveCareerProfile(
-  accessToken: string,
+  sessionCookie: string,
   workspaceId: string,
   input: MasterCareerProfileInput,
 ): Promise<MasterCareerProfile> {
@@ -135,7 +135,7 @@ export async function saveCareerProfile(
     {
       method: "PUT",
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        Cookie: sessionCookie,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(input),
@@ -148,14 +148,14 @@ export async function saveCareerProfile(
 /* ── Resume Profiles & Versions API ───────────────────────────────────── */
 
 export async function listResumeProfiles(
-  accessToken: string,
+  sessionCookie: string,
   workspaceId: string,
 ): Promise<ResumeProfile[]> {
   const response = await fetch(
     `${getApiBaseUrl()}/workspaces/${workspaceId}/resume-profiles`,
     {
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        Cookie: sessionCookie,
       },
       cache: "no-store",
     },
@@ -165,7 +165,7 @@ export async function listResumeProfiles(
 }
 
 export async function createResumeProfile(
-  accessToken: string,
+  sessionCookie: string,
   workspaceId: string,
   input: ResumeProfileInput,
 ): Promise<ResumeProfile> {
@@ -174,7 +174,7 @@ export async function createResumeProfile(
     {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        Cookie: sessionCookie,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(input),
@@ -185,7 +185,7 @@ export async function createResumeProfile(
 }
 
 export async function listResumeVersions(
-  accessToken: string,
+  sessionCookie: string,
   workspaceId: string,
   profileId: string,
 ): Promise<ResumeVersion[]> {
@@ -193,7 +193,7 @@ export async function listResumeVersions(
     `${getApiBaseUrl()}/workspaces/${workspaceId}/resume-profiles/${profileId}/versions`,
     {
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        Cookie: sessionCookie,
       },
       cache: "no-store",
     },
@@ -203,7 +203,7 @@ export async function listResumeVersions(
 }
 
 export async function createResumeVersion(
-  accessToken: string,
+  sessionCookie: string,
   workspaceId: string,
   profileId: string,
   input: CreateResumeVersionInput,
@@ -213,7 +213,7 @@ export async function createResumeVersion(
     {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        Cookie: sessionCookie,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(input),
@@ -234,7 +234,7 @@ export interface ListJobsParams {
 }
 
 export async function listJobs(
-  accessToken: string,
+  sessionCookie: string,
   workspaceId: string,
   params: ListJobsParams = {},
 ): Promise<JobOpportunity[]> {
@@ -249,7 +249,7 @@ export async function listJobs(
   const response = await fetch(
     `${getApiBaseUrl()}/workspaces/${workspaceId}/jobs${search}`,
     {
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: { Cookie: sessionCookie },
       cache: "no-store",
     },
   );
@@ -258,14 +258,14 @@ export async function listJobs(
 }
 
 export async function getJob(
-  accessToken: string,
+  sessionCookie: string,
   workspaceId: string,
   jobId: string,
 ): Promise<CanonicalJob> {
   const response = await fetch(
     `${getApiBaseUrl()}/workspaces/${workspaceId}/jobs/${jobId}`,
     {
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: { Cookie: sessionCookie },
       cache: "no-store",
     },
   );
@@ -277,7 +277,7 @@ export async function getJob(
  * Trigger real job ingestion via external source adapter (e.g. Apify/LinkedIn).
  */
 export async function ingestJobs(
-  accessToken: string,
+  sessionCookie: string,
   workspaceId: string,
   params?: { query?: string; location?: string; limit?: number; source?: string },
 ): Promise<{
@@ -293,7 +293,7 @@ export async function ingestJobs(
     {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        Cookie: sessionCookie,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(params ?? {}),
@@ -311,7 +311,7 @@ export async function ingestJobs(
 }
 
 export async function triggerJobMatch(
-  accessToken: string,
+  sessionCookie: string,
   workspaceId: string,
   jobId: string,
   options?: { resumeProfileId?: string; weights?: Partial<JobMatchingWeights> },
@@ -321,7 +321,7 @@ export async function triggerJobMatch(
     {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        Cookie: sessionCookie,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(options ?? {}),
@@ -329,4 +329,52 @@ export async function triggerJobMatch(
   );
 
   return parseResponse<JobOpportunity>(response);
+}
+
+export async function createTargetedResumeForJob(
+  sessionCookie: string,
+  workspaceId: string,
+  jobId: string,
+  options?: { resumeProfileId?: string },
+): Promise<{
+  version: ResumeVersion;
+  analysis: import("@repo/types").JobAnalysisResult;
+  profile: ResumeProfile;
+}> {
+  const response = await fetch(
+    `${getApiBaseUrl()}/workspaces/${workspaceId}/jobs/${jobId}/targeted-resume`,
+    {
+      method: "POST",
+      headers: {
+        Cookie: sessionCookie,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(options ?? {}),
+    },
+  );
+
+  return parseResponse<{
+    version: ResumeVersion;
+    analysis: import("@repo/types").JobAnalysisResult;
+    profile: ResumeProfile;
+  }>(response);
+}
+
+export async function fetchJobAnalysis(
+  sessionCookie: string,
+  workspaceId: string,
+  jobId: string,
+): Promise<import("@repo/types").JobAnalysisResult> {
+  const response = await fetch(
+    `${getApiBaseUrl()}/workspaces/${workspaceId}/jobs/${jobId}/analysis`,
+    {
+      headers: {
+        Cookie: sessionCookie,
+      },
+      cache: "no-store",
+    },
+  );
+
+  return parseResponse<import("@repo/types").JobAnalysisResult>(response);
+
 }

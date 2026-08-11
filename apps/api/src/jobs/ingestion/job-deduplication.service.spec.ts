@@ -1,5 +1,5 @@
-import { JobDeduplicationService } from './job-deduplication.service';
 import type { CreateJobInput } from '../jobs.types';
+import { JobDeduplicationService } from './job-deduplication.service';
 
 describe('JobDeduplicationService', () => {
   let service: JobDeduplicationService;

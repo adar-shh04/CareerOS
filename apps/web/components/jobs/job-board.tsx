@@ -1,6 +1,6 @@
 "use client";
 
-import type { JobOpportunity } from "@repo/types";
+import type { JobOpportunity, ResumeProfile, ResumeVersion } from "@repo/types";
 import { Briefcase, RefreshCw, Sparkles } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -9,7 +9,11 @@ import { JobFilters } from "./job-filters";
 import { JobList } from "./job-list";
 import { JobSearch } from "./job-search";
 
-export function JobBoard() {
+interface JobBoardProps {
+  onNavigateToResume?: (version: ResumeVersion, profile: ResumeProfile) => void;
+}
+
+export function JobBoard({ onNavigateToResume }: JobBoardProps = {}) {
   const [jobs, setJobs] = useState<JobOpportunity[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -151,6 +155,12 @@ export function JobBoard() {
           setJobs((prevJobs) =>
             prevJobs.map((j) => (j.id === updatedJob.id ? updatedJob : j)),
           );
+        }}
+        onNavigateToResume={(version, profile) => {
+          setSelectedJob(null);
+          if (onNavigateToResume) {
+            onNavigateToResume(version, profile);
+          }
         }}
       />
     </div>
