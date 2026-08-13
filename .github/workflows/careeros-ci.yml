@@ -21,7 +21,8 @@ jobs:
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
-          
+        with:
+          version: 9.0.0
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -46,7 +47,10 @@ jobs:
           pnpm --filter careeros-api exec tsc -v
           pnpm --filter careeros-api exec prisma -v
 
-      - name: Check API compilation
+      - name: Build shared types
+        run: pnpm --filter @repo/types build
+
+      - name: Check api compilation
         run: pnpm --filter careeros-api exec tsc --noEmit
 
       - name: Lint
