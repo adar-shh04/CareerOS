@@ -87,7 +87,9 @@ export class ApifyLinkedInAdapter implements JobSourceAdapter {
     index: number,
   ): RawIngestedJob {
     const externalId =
-      item.id ?? item.jobId ?? `apify-li-${String(Date.now())}-${String(index)}`;
+      item.id ??
+      item.jobId ??
+      `apify-li-${String(Date.now())}-${String(index)}`;
     const company = item.companyName ?? item.company ?? 'Unknown Company';
     const title = item.title ?? 'Software Engineer';
     const location = item.location ?? 'Remote';

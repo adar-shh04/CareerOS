@@ -20,7 +20,7 @@ export class WorkspaceService {
     workspaceId: string | null,
     dto: CompleteOnboardingDto,
   ) {
-    let membership = workspaceId
+    const membership = workspaceId
       ? await this.prisma.client.member.findUnique({
           where: {
             organizationId_userId: {

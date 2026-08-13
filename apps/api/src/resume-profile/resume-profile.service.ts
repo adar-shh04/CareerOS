@@ -194,7 +194,8 @@ export class ResumeProfileService {
 
     this.validatePriorityIdsAgainstMaster(resumeProfile, masterProfile);
 
-    const selectedRecordIds = input.selectedRecordIds ?? this.buildSelectedRecordIds(resumeProfile);
+    const selectedRecordIds =
+      input.selectedRecordIds ?? this.buildSelectedRecordIds(resumeProfile);
     const timestamp = new Date().toISOString();
 
     const version: ResumeVersion = {

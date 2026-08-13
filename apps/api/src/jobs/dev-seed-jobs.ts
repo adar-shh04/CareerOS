@@ -169,7 +169,9 @@ async function seed(): Promise<void> {
     }
   }
 
-  console.log(`\nDone. Created: ${String(created)}, Updated: ${String(updated)}.`);
+  console.log(
+    `\nDone. Created: ${String(created)}, Updated: ${String(updated)}.`,
+  );
 }
 
 seed()

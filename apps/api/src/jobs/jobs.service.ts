@@ -362,8 +362,6 @@ export class JobsService {
       )
       .map((e) => e.id);
 
-    
-
     const version = await this.resumeProfileService.createVersion(
       workspaceId,
       targetProfile.id,
