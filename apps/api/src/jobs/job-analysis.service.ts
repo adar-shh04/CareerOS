@@ -26,15 +26,15 @@ export class JobAnalysisService {
       match.matchedSkills.map((s) => s.toLowerCase()),
     );
 
-    const missingRequiredSkills = (job.requiredSkills ?? []).filter(
+    const missingRequiredSkills = job.requiredSkills.filter(
       (s) => !matchedSkillsSet.has(s.toLowerCase()),
     );
 
-    const missingPreferredSkills = (job.preferredSkills ?? []).filter(
+    const missingPreferredSkills = job.preferredSkills.filter(
       (s) => !matchedSkillsSet.has(s.toLowerCase()),
     );
 
-    const totalRequired = job.requiredSkills?.length ?? 0;
+    const totalRequired = job.requiredSkills.length;
     const matchedCount = match.matchedSkills.length;
     const skillMatchPercentage =
       totalRequired > 0
@@ -50,19 +50,16 @@ export class JobAnalysisService {
 
     if (profileYears < reqMinYears) {
       seniorityAlignment = 'under_qualified';
-      experienceGap = `Job specifies ${job.experienceRequirements?.text ?? `${reqMinYears}+ years`}, profile has ~${profileYears} years.`;
+      experienceGap = `Job specifies ${job.experienceRequirements?.text ?? `${reqMinYears}+ years`}, profile has ~${String(profileYears)} years.`;
     } else if (profileYears > reqMinYears + 5) {
       seniorityAlignment = 'over_qualified';
-      experienceGap = `Profile has ~${profileYears} years of experience, exceeding requirement of ${job.experienceRequirements?.text ?? `${reqMinYears} years`}.`;
+      experienceGap = `Profile has ~${String(profileYears)} years of experience, exceeding requirement of ${job.experienceRequirements?.text ?? `${reqMinYears} years`}.`;
     } else {
-      experienceGap = `Experience aligned (~${profileYears} years vs ${job.experienceRequirements?.text ?? `${reqMinYears}+ years`} required).`;
+      experienceGap = `Experience aligned (~${String(profileYears)} years vs ${job.experienceRequirements?.text ?? `${reqMinYears}+ years`} required).`;
     }
 
     const prioritySkillNames = Array.from(
-      new Set([
-        ...match.matchedSkills,
-        ...(job.requiredSkills ?? []).slice(0, 5),
-      ]),
+      new Set([...match.matchedSkills, ...job.requiredSkills.slice(0, 5)]),
     );
 
     const recommendedSectionOrder: ResumeSection[] = [
@@ -89,8 +86,8 @@ export class JobAnalysisService {
         remotePolicy: job.remotePolicy,
       },
       skills: {
-        requiredSkills: job.requiredSkills ?? [],
-        preferredSkills: job.preferredSkills ?? [],
+        requiredSkills: job.requiredSkills,
+        preferredSkills: job.preferredSkills,
         matchedSkills: match.matchedSkills,
         missingSkills: match.missingSkills,
         skillMatchPercentage,

@@ -75,7 +75,7 @@ export class JobNormalizationService {
     const title = this.normalizeTitle(raw.title);
     const company = this.normalizeCompany(raw.company);
     const location = this.normalizeLocation(raw.location);
-    const description = raw.description?.trim() ?? '';
+    const description = raw.description.trim();
 
     const { isRemote, remotePolicy } = this.determineRemotePolicy(
       raw.isRemote,

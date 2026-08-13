@@ -77,7 +77,7 @@ export class JobIngestionService {
       if (existing) {
         const updated = await this.repository.upsertCanonicalJob({
           ...normalizedInput,
-          externalId: existing.externalId || normalizedInput.externalId,
+          externalId: existing.externalId ?? normalizedInput.externalId,
         });
         updatedCount++;
         canonicalJobs.push(updated);

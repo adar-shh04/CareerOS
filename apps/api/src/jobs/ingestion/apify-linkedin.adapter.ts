@@ -78,7 +78,7 @@ export class ApifyLinkedInAdapter implements JobSourceAdapter {
     }
 
     return items
-      .filter((item) => item.title && (item.companyName || item.company))
+      .filter((item) => item.title && (item.companyName ?? item.company))
       .map((item, index) => this.mapApifyItemToRawJob(item, index));
   }
 
