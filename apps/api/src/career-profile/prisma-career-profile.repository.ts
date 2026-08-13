@@ -36,7 +36,7 @@ export class PrismaCareerProfileRepository implements CareerProfileRepository {
     workspaceId: string,
   ): Promise<MasterCareerProfile | undefined> {
     const profile = await this.prisma.client.masterCareerProfile.findUnique({
-      where: { workspaceId },
+      where: { organizationId: workspaceId },
       include: careerProfileInclude,
     });
 
@@ -45,7 +45,7 @@ export class PrismaCareerProfileRepository implements CareerProfileRepository {
 
   async save(profile: MasterCareerProfile): Promise<MasterCareerProfile> {
     return this.prisma.client.$transaction(async (transaction) => {
-      const workspace = await transaction.workspace.findUnique({
+      const workspace = await transaction.organization.findUnique({
         where: { id: profile.workspaceId },
         select: { id: true },
       });
@@ -57,7 +57,7 @@ export class PrismaCareerProfileRepository implements CareerProfileRepository {
       }
 
       const existing = await transaction.masterCareerProfile.findUnique({
-        where: { workspaceId: profile.workspaceId },
+        where: { organizationId: profile.workspaceId },
         select: { id: true, version: true },
       });
 
@@ -73,7 +73,7 @@ export class PrismaCareerProfileRepository implements CareerProfileRepository {
       const updated = await transaction.masterCareerProfile.updateMany({
         where: {
           id: profile.id,
-          workspaceId: profile.workspaceId,
+          organizationId: profile.workspaceId,
           version: profile.version - 1,
         },
         data: {
@@ -158,7 +158,7 @@ export class PrismaCareerProfileRepository implements CareerProfileRepository {
   ): Prisma.MasterCareerProfileCreateInput {
     return {
       id: profile.id,
-      workspace: { connect: { id: profile.workspaceId } },
+      organization: { connect: { id: profile.workspaceId } },
       fullName: profile.identity.fullName,
       headline: profile.identity.headline,
       location: profile.identity.location,
@@ -182,7 +182,7 @@ export class PrismaCareerProfileRepository implements CareerProfileRepository {
   private toDomain(profile: PersistedCareerProfile): MasterCareerProfile {
     return {
       id: profile.id,
-      workspaceId: profile.workspaceId,
+      workspaceId: profile.organizationId,
       version: profile.version,
       createdAt: profile.createdAt.toISOString(),
       updatedAt: profile.updatedAt.toISOString(),

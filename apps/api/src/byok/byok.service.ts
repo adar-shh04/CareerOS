@@ -26,7 +26,7 @@ export class ByokService {
     workspaceId: string,
   ): Promise<ByokCredentialSummary[]> {
     const credentials = await this.prisma.client.byokCredential.findMany({
-      where: { workspaceId },
+      where: { organizationId: workspaceId },
       orderBy: { provider: 'asc' },
     });
 
@@ -53,13 +53,13 @@ export class ByokService {
 
     const credential = await this.prisma.client.byokCredential.upsert({
       where: {
-        workspaceId_provider: {
-          workspaceId,
+        organizationId_provider: {
+          organizationId: workspaceId,
           provider,
         },
       },
       create: {
-        workspaceId,
+        organizationId: workspaceId,
         provider,
         encryptedKey: encrypted.encryptedKey,
         iv: encrypted.iv,
@@ -86,8 +86,8 @@ export class ByokService {
   ): Promise<void> {
     const existing = await this.prisma.client.byokCredential.findUnique({
       where: {
-        workspaceId_provider: {
-          workspaceId,
+        organizationId_provider: {
+          organizationId: workspaceId,
           provider,
         },
       },
@@ -108,8 +108,8 @@ export class ByokService {
   ): Promise<string> {
     const credential = await this.prisma.client.byokCredential.findUnique({
       where: {
-        workspaceId_provider: {
-          workspaceId,
+        organizationId_provider: {
+          organizationId: workspaceId,
           provider,
         },
       },

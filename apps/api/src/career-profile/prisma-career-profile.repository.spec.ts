@@ -18,9 +18,9 @@ describeWithDatabase('PrismaCareerProfileRepository', () => {
 
   afterAll(async () => {
     await prismaService.client.masterCareerProfile.deleteMany({
-      where: { workspaceId: { in: [workspaceId, otherWorkspaceId] } },
+      where: { organizationId: { in: [workspaceId, otherWorkspaceId] } },
     });
-    await prismaService.client.workspace.deleteMany({
+    await prismaService.client.organization.deleteMany({
       where: { id: { in: [workspaceId, otherWorkspaceId] } },
     });
     await prismaService.onModuleDestroy();
@@ -36,19 +36,17 @@ describeWithDatabase('PrismaCareerProfileRepository', () => {
       },
     });
 
-    await prismaService.client.workspace.createMany({
+    await prismaService.client.organization.createMany({
       data: [
         {
           id: workspaceId,
           name: 'Repository test workspace',
           slug: `workspace-${workspaceId}`,
-          ownerId,
         },
         {
           id: otherWorkspaceId,
           name: 'Other repository test workspace',
           slug: `workspace-${otherWorkspaceId}`,
-          ownerId,
         },
       ],
     });

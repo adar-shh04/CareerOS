@@ -13,7 +13,7 @@ import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
 @Injectable()
 export class BetterAuthGuard implements CanActivate {
-  constructor(private readonly reflector: Reflector) {}
+  constructor(private readonly reflector: Reflector) { }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
@@ -57,9 +57,6 @@ export class BetterAuthGuard implements CanActivate {
       workspaceId: activeOrganizationId,
     };
 
-    // Same shape @CurrentUser() has always returned — nothing downstream
-    // of the guard (career-profile, resume-profile, byok, workspace) needs
-    // to change.
     (request as Request & { user: AuthenticatedUser }).user = user;
 
     return true;

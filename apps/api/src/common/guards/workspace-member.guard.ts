@@ -25,11 +25,11 @@ export class WorkspaceMemberGuard implements CanActivate {
       throw new ForbiddenException('Workspace access denied.');
     }
 
-    const membership = await this.prisma.client.workspaceMember.findUnique({
+    const membership = await this.prisma.client.member.findUnique({
       where: {
-        userId_workspaceId: {
+        organizationId_userId: {
+          organizationId: workspaceId,
           userId: user.id,
-          workspaceId,
         },
       },
     });

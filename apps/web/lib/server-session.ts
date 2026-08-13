@@ -86,23 +86,10 @@ export async function getServerSession(): Promise<ServerSession | null> {
     const organizationsUrl =
       `${apiBaseUrl}/api/auth/organization/list`;
 
-    console.log("[server-session] active org missing, listing organizations");
-
-    console.log(
-      "[server-session] organizations URL:",
-      organizationsUrl,
-    );
-
     const organizationsResponse = await fetch(organizationsUrl, {
       headers: { cookie },
       cache: "no-store",
     });
-
-    console.log(
-      "[server-session] organizations response:",
-      organizationsResponse.status,
-      organizationsResponse.statusText,
-    );
 
     if (!organizationsResponse.ok) {
       console.error(
@@ -119,11 +106,6 @@ export async function getServerSession(): Promise<ServerSession | null> {
       slug: string;
     }>;
 
-    console.log(
-      "[server-session] organizations:",
-      organizations,
-    );
-
     workspaceId = organizations[0]?.id ?? null;
   }
 
@@ -139,8 +121,6 @@ export async function getServerSession(): Promise<ServerSession | null> {
     headers: { cookie },
     cache: "no-store",
   });
-
-
 
   const org = orgResponse.ok
     ? ((await orgResponse.json()) as {

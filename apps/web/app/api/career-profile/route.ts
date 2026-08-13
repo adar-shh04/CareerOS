@@ -12,11 +12,20 @@ export async function GET() {
   }
 
   try {
-    const profile = await fetchCareerProfile(session.token, session.workspace.id);
+    const profile = await fetchCareerProfile(
+      session.token,
+      session.workspace.id,
+    );
+
     return NextResponse.json(profile);
   } catch (error) {
+    console.error("[career-profile route] API error:", error);
+
     const message =
-      error instanceof Error ? error.message : "Unable to fetch career profile.";
+      error instanceof Error
+        ? error.message
+        : "Unable to fetch career profile.";
+
     return NextResponse.json({ message }, { status: 400 });
   }
 }

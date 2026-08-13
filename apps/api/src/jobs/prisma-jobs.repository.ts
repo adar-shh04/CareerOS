@@ -147,8 +147,8 @@ export class PrismaJobsRepository {
 
     const row = await this.prisma.client.jobMatch.upsert({
       where: {
-        workspaceId_jobId_resumeProfileId: {
-          workspaceId,
+        organizationId_jobId_resumeProfileId: {
+          organizationId: workspaceId,
           jobId,
           resumeProfileId: targetResumeProfileId,
         },
@@ -156,7 +156,7 @@ export class PrismaJobsRepository {
       update: data,
       create: {
         jobId,
-        workspaceId,
+        organizationId: workspaceId,
         resumeProfileId: resumeProfileId ?? null,
         ...data,
       },
@@ -174,8 +174,8 @@ export class PrismaJobsRepository {
     const targetResumeProfileId = resumeProfileId ?? '';
     const row = await this.prisma.client.jobMatch.findUnique({
       where: {
-        workspaceId_jobId_resumeProfileId: {
-          workspaceId,
+        organizationId_jobId_resumeProfileId: {
+          organizationId: workspaceId,
           jobId,
           resumeProfileId: targetResumeProfileId,
         },
@@ -191,7 +191,7 @@ export class PrismaJobsRepository {
   ): Promise<StoredJobMatch[]> {
     const rows = await this.prisma.client.jobMatch.findMany({
       where: {
-        workspaceId,
+        organizationId: workspaceId,
         ...(resumeProfileId !== undefined ? { resumeProfileId } : {}),
       },
       orderBy: { overallScore: 'desc' },
@@ -218,7 +218,7 @@ export class PrismaJobsRepository {
     >
   > {
     const rows = await this.prisma.client.workspaceJobState.findMany({
-      where: { workspaceId, jobId: { in: jobIds } },
+      where: { organizationId: workspaceId, jobId: { in: jobIds } },
       select: {
         jobId: true,
         status: true,
@@ -265,7 +265,7 @@ export class PrismaJobsRepository {
     return {
       id: row.id,
       jobId: row.jobId,
-      workspaceId: row.workspaceId,
+      workspaceId: row.organizationId,
       resumeProfileId: row.resumeProfileId ?? undefined,
       overallScore: row.overallScore,
       skillScore: row.skillScore,

@@ -92,30 +92,7 @@ export const auth = betterAuth({
     // header on sign-in — see apps/web/lib/auth-client.ts.
     bearer(),
 
-    // This is the key remap: Better Auth's "organization" concept IS our
-    // existing Workspace/WorkspaceMember tables, not a new parallel set.
     organization({
-      schema: {
-        organization: {
-          modelName: 'workspace',
-          fields: {
-            name: 'name',
-            slug: 'slug',
-            logo: 'logo',
-          },
-        },
-        member: {
-          modelName: 'workspaceMember',
-          fields: {
-            organizationId: 'workspaceId',
-            userId: 'userId',
-            role: 'role',
-          },
-        },
-      },
-      // Every new user needs exactly one workspace, created at signup —
-      // this replaces the $transaction block that used to live in
-      // auth.service.ts#register.
       organizationCreation: {
         disabled: false,
         beforeCreate: ({

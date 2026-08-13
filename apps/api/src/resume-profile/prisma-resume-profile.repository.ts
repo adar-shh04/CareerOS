@@ -31,7 +31,7 @@ export class PrismaResumeProfileRepository implements ResumeProfileRepository {
 
   async listByWorkspace(workspaceId: string): Promise<ResumeProfile[]> {
     const profiles = await this.prisma.client.resumeProfile.findMany({
-      where: { workspaceId },
+      where: { organizationId: workspaceId },
       orderBy: { createdAt: 'asc' },
     });
 
@@ -43,7 +43,7 @@ export class PrismaResumeProfileRepository implements ResumeProfileRepository {
     profileId: string,
   ): Promise<ResumeProfile | undefined> {
     const profile = await this.prisma.client.resumeProfile.findFirst({
-      where: { id: profileId, workspaceId },
+      where: { id: profileId, organizationId: workspaceId },
     });
 
     return profile ? this.toProfileDomain(profile) : undefined;
@@ -65,7 +65,7 @@ export class PrismaResumeProfileRepository implements ResumeProfileRepository {
     const updated = await this.prisma.client.resumeProfile.update({
       where: {
         id: profile.id,
-        workspaceId: profile.workspaceId,
+        organizationId: profile.workspaceId,
       },
       data: this.toProfileUpdateData(profile),
     });
@@ -75,7 +75,7 @@ export class PrismaResumeProfileRepository implements ResumeProfileRepository {
 
   async delete(workspaceId: string, profileId: string): Promise<void> {
     await this.prisma.client.resumeProfile.deleteMany({
-      where: { id: profileId, workspaceId },
+      where: { id: profileId, organizationId: workspaceId },
     });
   }
 
@@ -84,7 +84,7 @@ export class PrismaResumeProfileRepository implements ResumeProfileRepository {
     profileId: string,
   ): Promise<ResumeVersion[]> {
     const versions = await this.prisma.client.resumeVersion.findMany({
-      where: { workspaceId, resumeProfileId: profileId },
+      where: { organizationId: workspaceId, resumeProfileId: profileId },
       orderBy: { createdAt: 'desc' },
     });
 
@@ -99,7 +99,7 @@ export class PrismaResumeProfileRepository implements ResumeProfileRepository {
     const version = await this.prisma.client.resumeVersion.findFirst({
       where: {
         id: versionId,
-        workspaceId,
+        organizationId: workspaceId,
         resumeProfileId: profileId,
       },
     });
@@ -119,7 +119,7 @@ export class PrismaResumeProfileRepository implements ResumeProfileRepository {
     transaction: Prisma.TransactionClient,
     workspaceId: string,
   ): Promise<void> {
-    const workspace = await transaction.workspace.findUnique({
+    const workspace = await transaction.organization.findUnique({
       where: { id: workspaceId },
       select: { id: true },
     });
@@ -136,7 +136,7 @@ export class PrismaResumeProfileRepository implements ResumeProfileRepository {
   ): ResumeProfile {
     return {
       id: profile.id,
-      workspaceId: profile.workspaceId,
+      workspaceId: profile.organizationId,
       name: profile.name,
       roleFocus: profile.roleFocus ?? undefined,
       visibleSections: profile.visibleSections as ResumeSection[],
@@ -163,7 +163,7 @@ export class PrismaResumeProfileRepository implements ResumeProfileRepository {
   ): ResumeVersion {
     return {
       id: version.id,
-      workspaceId: version.workspaceId,
+      workspaceId: version.organizationId,
       resumeProfileId: version.resumeProfileId,
       targetCompany: version.targetCompany ?? undefined,
       targetRole: version.targetRole ?? undefined,
@@ -208,7 +208,7 @@ export class PrismaResumeProfileRepository implements ResumeProfileRepository {
       styleSettings: toInputJsonValue(profile.styleSettings),
       createdAt: new Date(profile.createdAt),
       updatedAt: new Date(profile.updatedAt),
-      workspace: { connect: { id: profile.workspaceId } },
+      organization: { connect: { id: profile.workspaceId } },
     };
   }
 
@@ -238,7 +238,7 @@ export class PrismaResumeProfileRepository implements ResumeProfileRepository {
   ): Prisma.ResumeVersionCreateInput {
     return {
       id: version.id,
-      workspaceId: version.workspaceId,
+      organizationId: version.workspaceId,
       targetCompany: version.targetCompany,
       targetRole: version.targetRole,
       masterProfileSnapshot: toInputJsonValue(version.masterProfileSnapshot),

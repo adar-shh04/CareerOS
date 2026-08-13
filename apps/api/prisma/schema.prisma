@@ -18,17 +18,17 @@ enum ResumeOutputFormat {
 /// Prisma adapter + organization plugin expect — see auth/better-auth.instance.ts
 /// for the `modelName`/`fields` remap that points Better Auth at this table.
 model User {
-  id              String            @id @default(uuid()) @db.Uuid
-  email           String            @unique
-  emailVerified   Boolean           @default(false) @map("email_verified")
-  name            String?
-  avatar          String?
-  createdAt       DateTime          @default(now()) @map("created_at")
-  updatedAt       DateTime          @updatedAt @map("updated_at")
-  ownedWorkspaces Workspace[]       @relation("WorkspaceOwner")
-  memberships     WorkspaceMember[]
-  sessions        Session[]
-  accounts        Account[]
+  id            String       @id @default(uuid()) @db.Uuid
+  email         String       @unique
+  emailVerified Boolean      @default(false) @map("email_verified")
+  name          String?
+  avatar        String?
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+  memberships   Member[]
+  invitations   Invitation[] @relation("InviterUser")
+  sessions      Session[]
+  accounts      Account[]
 
   @@map("users")
 }
@@ -86,63 +86,72 @@ model Verification {
   @@map("verifications")
 }
 
-/// Doubles as Better Auth's "organization" model (remapped — see
-/// better-auth.instance.ts). Untouched otherwise: still owns byokKeys,
-/// careerProfile, resumeProfiles exactly as before.
-model Workspace {
+/// Better Auth canonical organization model.
+model Organization {
   id             String               @id @default(uuid()) @db.Uuid
   name           String
   slug           String               @unique
   logo           String?
-  ownerId        String               @map("owner_id") @db.Uuid
   createdAt      DateTime             @default(now()) @map("created_at")
-  updatedAt      DateTime             @updatedAt @map("updated_at")
-  owner          User                 @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  members        WorkspaceMember[]
+  metadata       String?
+  members        Member[]
+  invitations    Invitation[]
   byokKeys       ByokCredential[]
   careerProfile  MasterCareerProfile?
   resumeProfiles ResumeProfile[]
   jobStates      WorkspaceJobState[]
   jobMatches     JobMatch[]
 
-  @@map("workspaces")
+  @@map("organizations")
 }
 
-/// Doubles as Better Auth's "member" model (remapped). `role` moves from
-/// the old WorkspaceRole enum to a plain string: Better Auth's org plugin
-/// defaults to "owner" | "admin" | "member" (lowercase). Anywhere that
-/// read WorkspaceRole.OWNER etc. now reads/writes the string "owner".
-model WorkspaceMember {
-  id          String    @id @default(uuid()) @db.Uuid
-  userId      String    @map("user_id") @db.Uuid
-  workspaceId String    @map("workspace_id") @db.Uuid
-  role        String    @default("member")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+/// Better Auth canonical organization member model.
+model Member {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  userId         String       @map("user_id") @db.Uuid
+  role           String       @default("member")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, workspaceId])
-  @@map("workspace_members")
+  @@unique([organizationId, userId])
+  @@map("members")
+}
+
+/// Better Auth canonical organization invitation model.
+model Invitation {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  email          String
+  role           String?
+  status         String       @default("pending")
+  expiresAt      DateTime     @map("expires_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  inviterId      String       @map("inviter_id") @db.Uuid
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation("InviterUser", fields: [inviterId], references: [id], onDelete: Cascade)
+
+  @@map("invitations")
 }
 
 model ByokCredential {
-  id           String    @id @default(uuid()) @db.Uuid
-  workspaceId  String    @map("workspace_id") @db.Uuid
-  provider     String
-  encryptedKey String    @map("encrypted_key")
-  iv           String
-  authTag      String    @map("auth_tag")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
-  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  provider       String
+  encryptedKey   String       @map("encrypted_key")
+  iv             String
+  authTag        String       @map("auth_tag")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  @@unique([workspaceId, provider])
+  @@unique([organizationId, provider])
   @@map("byok_credentials")
 }
-
 model MasterCareerProfile {
   id             String               @id @default(uuid()) @db.Uuid
-  workspaceId    String               @unique @map("workspace_id") @db.Uuid
+  organizationId String               @unique @map("organization_id") @db.Uuid
   fullName       String               @map("full_name")
   headline       String?
   location       String?
@@ -152,7 +161,7 @@ model MasterCareerProfile {
   createdAt      DateTime             @default(now()) @map("created_at")
   updatedAt      DateTime             @updatedAt @map("updated_at")
   deletedAt      DateTime?            @map("deleted_at")
-  workspace      Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   education      EducationEntry[]
   experiences    ExperienceEntry[]
   projects       ProjectEntry[]
@@ -322,7 +331,7 @@ model CareerLink {
 
 model ResumeProfile {
   id                       String          @id @default(uuid()) @db.Uuid
-  workspaceId              String          @map("workspace_id") @db.Uuid
+  organizationId           String          @map("organization_id") @db.Uuid
   name                     String
   roleFocus                String?         @map("role_focus")
   visibleSections          String[]        @default([]) @map("visible_sections")
@@ -338,17 +347,17 @@ model ResumeProfile {
   styleSettings            Json            @default("{}") @map("style_settings")
   createdAt                DateTime        @default(now()) @map("created_at")
   updatedAt                DateTime        @updatedAt @map("updated_at")
-  workspace                Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  organization             Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   versions                 ResumeVersion[]
   matches                  JobMatch[]
 
-  @@index([workspaceId])
+  @@index([organizationId])
   @@map("resume_profiles")
 }
 
 model ResumeVersion {
   id                  String             @id @default(uuid()) @db.Uuid
-  workspaceId         String             @map("workspace_id") @db.Uuid
+  organizationId      String             @map("organization_id") @db.Uuid
   resumeProfileId     String             @map("resume_profile_id") @db.Uuid
   targetCompany       String?            @map("target_company")
   targetRole          String?            @map("target_role")
@@ -364,7 +373,7 @@ model ResumeVersion {
   createdAt           DateTime           @default(now()) @map("created_at")
   resumeProfile       ResumeProfile      @relation(fields: [resumeProfileId], references: [id], onDelete: Cascade)
 
-  @@index([workspaceId])
+  @@index([organizationId])
   @@index([resumeProfileId])
   @@map("resume_versions")
 }
@@ -403,21 +412,21 @@ model Job {
 }
 
 model WorkspaceJobState {
-  id          String    @id @default(uuid()) @db.Uuid
-  workspaceId String    @map("workspace_id") @db.Uuid
-  jobId       String    @map("job_id") @db.Uuid
-  status      String    @default("discovered")
-  isSaved     Boolean   @default(false) @map("is_saved")
-  isDismissed Boolean   @default(false) @map("is_dismissed")
-  notes       String?
-  appliedAt   DateTime? @map("applied_at")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  job         Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  jobId          String       @map("job_id") @db.Uuid
+  status         String       @default("discovered")
+  isSaved        Boolean      @default(false) @map("is_saved")
+  isDismissed    Boolean      @default(false) @map("is_dismissed")
+  notes          String?
+  appliedAt      DateTime?    @map("applied_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  job            Job          @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
-  @@unique([workspaceId, jobId])
-  @@index([workspaceId])
+  @@unique([organizationId, jobId])
+  @@index([organizationId])
   @@index([jobId])
   @@map("workspace_job_states")
 }
@@ -425,7 +434,7 @@ model WorkspaceJobState {
 model JobMatch {
   id              String         @id @default(uuid()) @db.Uuid
   jobId           String         @map("job_id") @db.Uuid
-  workspaceId     String         @map("workspace_id") @db.Uuid
+  organizationId  String         @map("organization_id") @db.Uuid
   resumeProfileId String?        @map("resume_profile_id") @db.Uuid
   overallScore    Float          @map("overall_score")
   skillScore      Float          @map("skill_score")
@@ -441,11 +450,11 @@ model JobMatch {
   createdAt       DateTime       @default(now()) @map("created_at")
   updatedAt       DateTime       @updatedAt @map("updated_at")
   job             Job            @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  workspace       Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  organization    Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   resumeProfile   ResumeProfile? @relation(fields: [resumeProfileId], references: [id], onDelete: SetNull)
 
-  @@unique([workspaceId, jobId, resumeProfileId])
-  @@index([workspaceId])
+  @@unique([organizationId, jobId, resumeProfileId])
+  @@index([organizationId])
   @@index([jobId])
   @@map("job_matches")
 }
