@@ -36,7 +36,60 @@ export function ResumePreview({
     );
   }
 
-  const { identity, experiences, education, skills, projects, certifications, links } = profileData;
+  const {
+  identity,
+  experiences,
+  education,
+  skills,
+  projects,
+  certifications,
+  links,
+  } = profileData;
+
+// Targeted versions contain immutable evidence-selection metadata.
+// We use it to prioritize relevant records without removing
+// legitimate career evidence from the resume.
+  const selectedRecordIds = selectedVersion?.selectedRecordIds;
+
+  const priorityExperienceIds = new Set(
+    selectedRecordIds?.experienceIds ?? selectedProfile?.priorityExperienceIds ?? [],
+  );
+
+  const priorityProjectIds = new Set(
+    selectedRecordIds?.projectIds ?? selectedProfile?.priorityProjectIds ?? [],
+  );
+
+  const prioritySkillIds = new Set(
+    selectedRecordIds?.skillIds ?? selectedProfile?.prioritySkillIds ?? [],
+  );
+
+  const priorityCertificationIds = new Set(
+    selectedRecordIds?.certificationIds ??
+      selectedProfile?.priorityCertificationIds ??
+      [],
+  );
+
+  const prioritize = <T extends { id: string }>(
+    records: T[] | undefined,
+    priorityIds: Set<string>,
+  ): T[] => {
+    if (!records?.length || priorityIds.size === 0) {
+      return records ?? [];
+    }
+
+    return [...records].sort(
+      (a, b) =>
+        Number(priorityIds.has(b.id)) - Number(priorityIds.has(a.id)),
+    );
+  };
+
+  const orderedExperiences = prioritize(experiences, priorityExperienceIds);
+  const orderedProjects = prioritize(projects, priorityProjectIds);
+  const orderedSkills = prioritize(skills, prioritySkillIds);
+  const orderedCertifications = prioritize(
+    certifications,
+    priorityCertificationIds,
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -133,7 +186,7 @@ export function ResumePreview({
                 Experience
               </h2>
               <div className="space-y-4">
-                {experiences.map((exp) => (
+                {orderedExperiences.map((exp) => (
                   <div key={exp.id} className="space-y-1">
                     <div className="flex justify-between items-baseline">
                       <div className="font-bold text-slate-900">
@@ -175,7 +228,7 @@ export function ResumePreview({
                 Projects
               </h2>
               <div className="space-y-3">
-                {projects.map((proj) => (
+                {orderedProjects.map((proj) => (
                   <div key={proj.id} className="space-y-1">
                     <div className="flex justify-between items-baseline">
                       <div className="font-bold text-slate-900">
@@ -236,7 +289,7 @@ export function ResumePreview({
                   Certifications
                 </h2>
                 <div className="space-y-2">
-                  {certifications.map((cert) => (
+                  {orderedCertifications.map((cert) => (
                     <div key={cert.id}>
                       <div className="font-bold text-slate-900 text-xs">{cert.name}</div>
                       <div className="text-xs text-slate-600">
@@ -256,7 +309,7 @@ export function ResumePreview({
                 Technical Skills
               </h2>
               <div className="flex flex-wrap gap-1.5 text-xs text-slate-800">
-                {skills.map((skill) => (
+                {orderedSkills.map((skill) => (
                   <span
                     key={skill.id}
                     className="px-2 py-0.5 bg-slate-100 border border-slate-300 rounded text-[11px] font-medium"

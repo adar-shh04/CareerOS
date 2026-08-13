@@ -69,6 +69,7 @@ export interface CreateResumeVersionInput {
   targetRole?: string;
   outputFormat?: ResumeOutputFormat;
   templateVersion?: string;
+  selectedRecordIds?: SelectedRecordIds;
   jobAnalysisEvidence?: Record<string, unknown>;
   matchResult?: Record<string, unknown>;
   confidence?: number;

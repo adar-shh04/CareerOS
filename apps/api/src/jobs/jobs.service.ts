@@ -362,36 +362,7 @@ export class JobsService {
       )
       .map((e) => e.id);
 
-    if (
-      prioritySkillIds.length > 0 ||
-      priorityProjectIds.length > 0 ||
-      priorityExperienceIds.length > 0
-    ) {
-      await this.resumeProfileService.update(workspaceId, targetProfile.id, {
-        name: targetProfile.name,
-        roleFocus: targetProfile.roleFocus ?? job.title,
-        visibleSections: targetProfile.visibleSections,
-        sectionOrder: targetProfile.sectionOrder,
-        summaryGuidance: `Tailored for ${job.title} at ${job.company}. Emphasizing ${matchOutput.matchedSkills.slice(0, 3).join(', ')}.`,
-        prioritySkillIds: Array.from(
-          new Set([...targetProfile.prioritySkillIds, ...prioritySkillIds]),
-        ),
-        priorityProjectIds: Array.from(
-          new Set([...targetProfile.priorityProjectIds, ...priorityProjectIds]),
-        ),
-        priorityExperienceIds: Array.from(
-          new Set([
-            ...targetProfile.priorityExperienceIds,
-            ...priorityExperienceIds,
-          ]),
-        ),
-        priorityAchievementIds: targetProfile.priorityAchievementIds,
-        priorityCertificationIds: targetProfile.priorityCertificationIds,
-        highlightRules: targetProfile.highlightRules,
-        templateId: targetProfile.templateId,
-        styleSettings: targetProfile.styleSettings,
-      });
-    }
+    
 
     const version = await this.resumeProfileService.createVersion(
       workspaceId,
@@ -400,6 +371,13 @@ export class JobsService {
         targetCompany: job.company,
         targetRole: job.title,
         outputFormat: 'html',
+        selectedRecordIds: {
+          skillIds: prioritySkillIds,
+          projectIds: priorityProjectIds,
+          experienceIds: priorityExperienceIds,
+          achievementIds: [],
+          certificationIds: [],
+        },
         jobAnalysisEvidence: analysis as unknown as Record<string, unknown>,
         matchResult: matchOutput as unknown as Record<string, unknown>,
         confidence: matchOutput.confidence,
