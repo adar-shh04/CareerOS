@@ -1,7 +1,14 @@
 "use client";
 
 import type { ResumeVersion } from "@repo/types";
-import { ArrowRight, CheckCircle, Diff, HelpCircle, History, Minus, Plus } from "lucide-react";
+import {
+  ArrowRight,
+  CheckCircle,
+  Diff,
+  History,
+  Minus,
+  Plus,
+} from "lucide-react";
 import React, { useState } from "react";
 
 interface ResumeVersionComparisonProps {
@@ -28,18 +35,22 @@ export function ResumeVersionComparison({ versions }: ResumeVersionComparisonPro
   }
 
   // Calculate real differences between versionA and versionB masterProfileSnapshot
-  const skillsA = new Set((versionA?.masterProfileSnapshot?.skills ?? []).map((s) => s.name));
-  const skillsB = new Set((versionB?.masterProfileSnapshot?.skills ?? []).map((s) => s.name));
+  const skillsA = new Set(
+    (versionA ? versionA.masterProfileSnapshot.skills : []).map((s) => s.name),
+  );
+  const skillsB = new Set(
+    (versionB ? versionB.masterProfileSnapshot.skills : []).map((s) => s.name),
+  );
 
   const addedSkills = Array.from(skillsB).filter((s) => !skillsA.has(s));
   const removedSkills = Array.from(skillsA).filter((s) => !skillsB.has(s));
   const unchangedSkills = Array.from(skillsA).filter((s) => skillsB.has(s));
 
-  const experiencesA = (versionA?.masterProfileSnapshot?.experiences ?? []);
-  const experiencesB = (versionB?.masterProfileSnapshot?.experiences ?? []);
+  const experiencesA = versionA ? versionA.masterProfileSnapshot.experiences : [];
+  const experiencesB = versionB ? versionB.masterProfileSnapshot.experiences : [];
 
-  const projectsA = (versionA?.masterProfileSnapshot?.projects ?? []);
-  const projectsB = (versionB?.masterProfileSnapshot?.projects ?? []);
+  const projectsA = versionA ? versionA.masterProfileSnapshot.projects : [];
+  const projectsB = versionB ? versionB.masterProfileSnapshot.projects : [];
 
   return (
     <div className="flex flex-col gap-6">
@@ -66,7 +77,7 @@ export function ResumeVersionComparison({ versions }: ResumeVersionComparisonPro
             >
               {versions.map((v, idx) => (
                 <option key={v.id} value={v.id}>
-                  #{versions.length - idx}: {v.targetCompany ? `${v.targetCompany} — ` : ""}{v.targetRole || "General"}
+                  #{versions.length - idx}: {v.targetCompany ? `${v.targetCompany} — ` : ""}{v.targetRole ?? "General"}
                 </option>
               ))}
             </select>
@@ -84,7 +95,7 @@ export function ResumeVersionComparison({ versions }: ResumeVersionComparisonPro
             >
               {versions.map((v, idx) => (
                 <option key={v.id} value={v.id}>
-                  #{versions.length - idx}: {v.targetCompany ? `${v.targetCompany} — ` : ""}{v.targetRole || "General"}
+                  #{versions.length - idx}: {v.targetCompany ? `${v.targetCompany} — ` : ""}{v.targetRole ?? "General"}
                 </option>
               ))}
             </select>
@@ -103,7 +114,7 @@ export function ResumeVersionComparison({ versions }: ResumeVersionComparisonPro
                   Base Snapshot
                 </span>
                 <h4 className="text-base font-bold text-white mt-0.5">
-                  {versionA.targetCompany ? `${versionA.targetCompany} — ` : ""}{versionA.targetRole || "General Application"}
+                  {versionA.targetCompany ? `${versionA.targetCompany} — ` : ""}{versionA.targetRole ?? "General Application"}
                 </h4>
                 <div className="text-xs text-slate-400 mt-0.5">
                   Format: <span className="uppercase text-slate-300 font-semibold">{versionA.outputFormat}</span> • {new Date(versionA.createdAt).toLocaleDateString()}
@@ -152,7 +163,7 @@ export function ResumeVersionComparison({ versions }: ResumeVersionComparisonPro
                   Target Snapshot
                 </span>
                 <h4 className="text-base font-bold text-white mt-0.5">
-                  {versionB.targetCompany ? `${versionB.targetCompany} — ` : ""}{versionB.targetRole || "General Application"}
+                  {versionB.targetCompany ? `${versionB.targetCompany} — ` : ""}{versionB.targetRole ?? "General Application"}
                 </h4>
                 <div className="text-xs text-slate-400 mt-0.5">
                   Format: <span className="uppercase text-slate-300 font-semibold">{versionB.outputFormat}</span> • {new Date(versionB.createdAt).toLocaleDateString()}

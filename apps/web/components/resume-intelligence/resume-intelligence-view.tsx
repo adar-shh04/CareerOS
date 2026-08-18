@@ -42,7 +42,7 @@ export function ResumeIntelligenceView({ initialVersion, initialProfile }: Resum
   const [versions, setVersions] = useState<ResumeVersion[]>(
     initialVersion ? [initialVersion] : [],
   );
-  const [selectedVersion, setSelectedVersion] = useState<ResumeVersion | null>(
+  const [selectedVersion] = useState<ResumeVersion | null>(
     initialVersion ?? null,
   );
   const [loadingVersions, setLoadingVersions] = useState(false);

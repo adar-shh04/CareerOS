@@ -100,11 +100,11 @@ export async function getServerSession(): Promise<ServerSession | null> {
       return null;
     }
 
-    const organizations = (await organizationsResponse.json()) as Array<{
+    const organizations = (await organizationsResponse.json()) as {
       id: string;
       name: string;
       slug: string;
-    }>;
+    }[];
 
     workspaceId = organizations[0]?.id ?? null;
   }

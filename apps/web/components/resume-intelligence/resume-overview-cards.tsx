@@ -5,7 +5,14 @@ import type {
   ResumeProfile,
   ResumeVersion,
 } from "@repo/types";
-import { CheckCircle2, AlertCircle, Layers, History, Sparkles, User } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  History,
+  Layers,
+  Sparkles,
+  User,
+} from "lucide-react";
 import React from "react";
 
 interface ResumeOverviewCardsProps {
@@ -22,10 +29,10 @@ export function ResumeOverviewCards({
   // Check if master profile has meaningful data
   const hasMasterData = Boolean(
     masterProfile &&
-      (masterProfile.identity?.fullName ||
-        (masterProfile.experiences && masterProfile.experiences.length > 0) ||
-        (masterProfile.skills && masterProfile.skills.length > 0) ||
-        (masterProfile.education && masterProfile.education.length > 0))
+      (masterProfile.identity.fullName ||
+        masterProfile.experiences.length > 0 ||
+        masterProfile.skills.length > 0 ||
+        masterProfile.education.length > 0)
   );
 
   // Latest version resolution
@@ -130,11 +137,11 @@ export function ResumeOverviewCards({
           {latestVersion ? (
             <div>
               <div className="text-sm font-semibold text-white truncate max-w-[180px]">
-                {latestVersion.targetRole || latestVersion.targetCompany || `Snapshot #${versions.length}`}
+                {latestVersion.targetRole ?? latestVersion.targetCompany ?? `Snapshot #${String(versions.length)}`}
               </div>
               <div className="text-xs text-slate-400 mt-0.5 truncate">
                 {latestVersion.targetCompany ? `${latestVersion.targetCompany} • ` : ""}
-                {formatDate(latestVersion.createdAt) || "Recently"}
+                {formatDate(latestVersion.createdAt) ?? "Recently"}
               </div>
             </div>
           ) : (

@@ -1,7 +1,11 @@
 "use client";
 
-import type { MasterCareerProfile, ResumeProfile, ResumeVersion } from "@repo/types";
-import { Download, Printer, FileText, User } from "lucide-react";
+import type {
+  MasterCareerProfile,
+  ResumeProfile,
+  ResumeVersion,
+} from "@repo/types";
+import { FileText, Printer, User } from "lucide-react";
 import React, { useRef } from "react";
 
 interface ResumePreviewProps {
@@ -24,7 +28,7 @@ export function ResumePreview({
     window.print();
   };
 
-  if (!profileData || !profileData.identity?.fullName) {
+  if (!profileData?.identity.fullName) {
     return (
       <div className="glass-panel p-12 text-center rounded-xl border border-white/10 bg-slate-900/60 backdrop-blur-md">
         <User className="w-12 h-12 text-purple-400 mx-auto mb-3" />
@@ -101,7 +105,7 @@ export function ResumePreview({
             <h3 className="font-bold text-white text-base">Live Resume Studio</h3>
             {selectedVersion && (
               <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                Snapshot: {selectedVersion.targetCompany || selectedVersion.targetRole || "Version"}
+                Snapshot: {selectedVersion.targetCompany ?? selectedVersion.targetRole ?? "Version"}
               </span>
             )}
           </div>
@@ -147,7 +151,7 @@ export function ResumePreview({
                   <span>{identity.location}</span>
                 </>
               )}
-              {links && links.length > 0 && (
+              {links.length > 0 && (
                 <>
                   {links.map((link) => (
                     <React.Fragment key={link.id}>
@@ -180,7 +184,7 @@ export function ResumePreview({
           )}
 
           {/* Work Experience */}
-          {experiences && experiences.length > 0 && (
+          {experiences.length > 0 && (
             <section className="mb-6">
               <h2 className="text-xs font-bold text-slate-900 tracking-wider uppercase border-b border-slate-300 pb-1 mb-3">
                 Experience
@@ -222,7 +226,7 @@ export function ResumePreview({
           )}
 
           {/* Projects */}
-          {projects && projects.length > 0 && (
+          {projects.length > 0 && (
             <section className="mb-6">
               <h2 className="text-xs font-bold text-slate-900 tracking-wider uppercase border-b border-slate-300 pb-1 mb-3">
                 Projects
@@ -263,7 +267,7 @@ export function ResumePreview({
 
           {/* Education & Certifications */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
-            {education && education.length > 0 && (
+            {education.length > 0 && (
               <section>
                 <h2 className="text-xs font-bold text-slate-900 tracking-wider uppercase border-b border-slate-300 pb-1 mb-2">
                   Education
@@ -272,7 +276,7 @@ export function ResumePreview({
                   {education.map((edu) => (
                     <div key={edu.id}>
                       <div className="font-bold text-slate-900 text-xs">
-                        {edu.degree || edu.institution}
+                        {edu.degree ?? edu.institution}
                       </div>
                       <div className="text-xs text-slate-600">
                         {edu.institution} {edu.endDate ? `(${edu.endDate})` : ""}
@@ -283,7 +287,7 @@ export function ResumePreview({
               </section>
             )}
 
-            {certifications && certifications.length > 0 && (
+            {certifications.length > 0 && (
               <section>
                 <h2 className="text-xs font-bold text-slate-900 tracking-wider uppercase border-b border-slate-300 pb-1 mb-2">
                   Certifications
@@ -303,7 +307,7 @@ export function ResumePreview({
           </div>
 
           {/* Skills */}
-          {skills && skills.length > 0 && (
+          {skills.length > 0 && (
             <section className="mb-4">
               <h2 className="text-xs font-bold text-slate-900 tracking-wider uppercase border-b border-slate-300 pb-1 mb-2">
                 Technical Skills

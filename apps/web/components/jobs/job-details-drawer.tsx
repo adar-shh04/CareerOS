@@ -1,7 +1,16 @@
 "use client";
 
 import type { JobOpportunity, ResumeProfile, ResumeVersion } from "@repo/types";
-import { Building2, Calendar, CheckCircle2, DollarSign, ExternalLink, Globe, MapPin, X, Bookmark, Sparkles, FileText } from "lucide-react";
+import {
+  Bookmark,
+  Building2,
+  DollarSign,
+  ExternalLink,
+  Globe,
+  MapPin,
+  Sparkles,
+  X,
+} from "lucide-react";
 import React, { useState } from "react";
 
 import { JobMatchBadge } from "./job-match-badge";
@@ -31,10 +40,10 @@ export function JobDetailsDrawer({ job, onClose, onJobUpdated, onNavigateToResum
         headers: { "Content-Type": "application/json" },
       });
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || "Failed to calculate match");
+        const err = (await res.json()) as { message?: string };
+        throw new Error(err.message ?? "Failed to calculate match");
       }
-      const updated: JobOpportunity = await res.json();
+      const updated = (await res.json()) as JobOpportunity;
       if (onJobUpdated) {
         onJobUpdated(updated);
       }
@@ -54,10 +63,13 @@ export function JobDetailsDrawer({ job, onClose, onJobUpdated, onNavigateToResum
         headers: { "Content-Type": "application/json" },
       });
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || "Failed to create targeted resume");
+        const err = (await res.json()) as { message?: string };
+        throw new Error(err.message ?? "Failed to create targeted resume");
       }
-      const data = await res.json();
+      const data = (await res.json()) as {
+        version: ResumeVersion;
+        profile: ResumeProfile;
+      };
       if (onNavigateToResume) {
         onNavigateToResume(data.version, data.profile);
       }
@@ -109,7 +121,9 @@ export function JobDetailsDrawer({ job, onClose, onJobUpdated, onNavigateToResum
                 {job.matchScore != null && <JobMatchBadge score={job.matchScore} />}
                 <button
                   type="button"
-                  onClick={handleRunMatch}
+                  onClick={() => {
+                    void handleRunMatch();
+                  }}
                   disabled={matching}
                   className="px-2.5 py-1 rounded bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/40 text-indigo-200 text-xs font-semibold transition-colors disabled:opacity-50"
                 >
@@ -130,7 +144,7 @@ export function JobDetailsDrawer({ job, onClose, onJobUpdated, onNavigateToResum
               </p>
             ) : (
               <p className="text-xs text-slate-400 italic">
-                Click "Run Match" to evaluate compatibility against your Master Career Profile.
+                Click &quot;Run Match&quot; to evaluate compatibility against your Master Career Profile.
               </p>
             )}
 
@@ -212,7 +226,7 @@ export function JobDetailsDrawer({ job, onClose, onJobUpdated, onNavigateToResum
               Skills Breakdown
             </h4>
 
-            {job.requiredSkills && job.requiredSkills.length > 0 && (
+            {job.requiredSkills.length > 0 && (
               <div>
                 <span className="block text-xs text-slate-400 mb-1.5 font-medium">
                   ✓ Required Skills
@@ -260,7 +274,9 @@ export function JobDetailsDrawer({ job, onClose, onJobUpdated, onNavigateToResum
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={handleCreateTargetedResume}
+              onClick={() => {
+                void handleCreateTargetedResume();
+              }}
               disabled={creatingResume}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold text-xs shadow-lg shadow-emerald-500/20 transition-all disabled:opacity-50"
             >

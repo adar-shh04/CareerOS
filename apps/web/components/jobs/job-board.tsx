@@ -97,7 +97,9 @@ export function JobBoard({ onNavigateToResume }: JobBoardProps = {}) {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={handleIngestJobs}
+            onClick={() => {
+              void handleIngestJobs();
+            }}
             disabled={ingesting}
             className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border border-indigo-500/30 text-indigo-200 text-xs font-semibold hover:border-indigo-500/50 transition-colors disabled:opacity-50"
           >
@@ -107,7 +109,9 @@ export function JobBoard({ onNavigateToResume }: JobBoardProps = {}) {
 
           <button
             type="button"
-            onClick={() => fetchJobs(searchQuery)}
+            onClick={() => {
+              void fetchJobs(searchQuery);
+            }}
             className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-900/60 border border-white/10 text-slate-300 text-xs font-semibold hover:border-white/20 transition-colors"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
@@ -121,7 +125,9 @@ export function JobBoard({ onNavigateToResume }: JobBoardProps = {}) {
         <JobSearch
           value={searchQuery}
           onChange={setSearchQuery}
-          onSearch={() => fetchJobs(searchQuery)}
+          onSearch={() => {
+            void fetchJobs(searchQuery);
+          }}
         />
         <JobFilters
           remoteOnly={remoteOnly}

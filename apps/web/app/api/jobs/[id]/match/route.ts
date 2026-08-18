@@ -1,3 +1,4 @@
+import type { JobMatchingWeights } from "@repo/types";
 import { NextResponse } from "next/server";
 
 import { triggerJobMatch } from "@/lib/api";
@@ -15,7 +16,10 @@ export async function POST(
 
   try {
     const { id } = await params;
-    const body = await request.json().catch(() => ({}));
+    const body = (await request.json().catch(() => ({}))) as {
+      resumeProfileId?: string;
+      weights?: Partial<JobMatchingWeights>;
+    };
     const updatedJob = await triggerJobMatch(
       session.token,
       session.workspace.id,

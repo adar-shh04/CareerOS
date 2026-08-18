@@ -15,7 +15,9 @@ export async function POST(
 
   try {
     const { id } = await params;
-    const body = await request.json().catch(() => ({}));
+    const body = (await request.json().catch(() => ({}))) as {
+      resumeProfileId?: string;
+    };
     const result = await createTargetedResumeForJob(
       session.token,
       session.workspace.id,

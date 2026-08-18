@@ -1,7 +1,14 @@
 "use client";
 
 import type { JobOpportunity } from "@repo/types";
-import { Building2, Calendar, CheckCircle2, DollarSign, MapPin, ExternalLink, Globe } from "lucide-react";
+import {
+  Building2,
+  Calendar,
+  DollarSign,
+  ExternalLink,
+  Globe,
+  MapPin,
+} from "lucide-react";
 import React from "react";
 
 import { JobMatchBadge } from "./job-match-badge";

@@ -11,7 +11,12 @@ export async function POST(request: Request) {
   }
 
   try {
-    const body = await request.json().catch(() => ({}));
+    const body = (await request.json().catch(() => ({}))) as {
+      query?: string;
+      location?: string;
+      limit?: number;
+      source?: string;
+    };
     const result = await ingestJobs(
       session.token,
       session.workspace.id,

@@ -24,7 +24,7 @@ export function DashboardShell({
         style={{
           flex: 1,
           width: "100%",
-          maxWidth: `${maxWidth}px`,
+          maxWidth: `${String(maxWidth)}px`,
           margin: "0 auto",
           padding: "2rem",
         }}

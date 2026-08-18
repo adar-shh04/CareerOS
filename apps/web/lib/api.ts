@@ -3,6 +3,7 @@ import type {
   ByokCredentialSummary,
   CanonicalJob,
   CreateResumeVersionInput,
+  JobAnalysisResult,
   JobMatchingWeights,
   JobOpportunity,
   MasterCareerProfile,
@@ -33,9 +34,9 @@ async function parseResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const message =
       typeof payload === "object" &&
-      payload !== null &&
-      "message" in payload &&
-      payload.message
+        payload !== null &&
+        "message" in payload &&
+        payload.message
         ? Array.isArray(payload.message)
           ? payload.message.join(", ")
           : payload.message
@@ -338,7 +339,7 @@ export async function createTargetedResumeForJob(
   options?: { resumeProfileId?: string },
 ): Promise<{
   version: ResumeVersion;
-  analysis: import("@repo/types").JobAnalysisResult;
+  analysis: JobAnalysisResult;
   profile: ResumeProfile;
 }> {
   const response = await fetch(
@@ -355,7 +356,7 @@ export async function createTargetedResumeForJob(
 
   return parseResponse<{
     version: ResumeVersion;
-    analysis: import("@repo/types").JobAnalysisResult;
+    analysis: JobAnalysisResult;
     profile: ResumeProfile;
   }>(response);
 }
@@ -364,7 +365,7 @@ export async function fetchJobAnalysis(
   sessionCookie: string,
   workspaceId: string,
   jobId: string,
-): Promise<import("@repo/types").JobAnalysisResult> {
+): Promise<JobAnalysisResult> {
   const response = await fetch(
     `${getApiBaseUrl()}/workspaces/${workspaceId}/jobs/${jobId}/analysis`,
     {
@@ -375,6 +376,5 @@ export async function fetchJobAnalysis(
     },
   );
 
-  return parseResponse<import("@repo/types").JobAnalysisResult>(response);
-
+  return parseResponse<JobAnalysisResult>(response);
 }
