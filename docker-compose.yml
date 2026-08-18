@@ -22,10 +22,7 @@ services:
       PORT: 3000
       DATABASE_URL: postgresql://careeros:careeros@postgres:5432/careeros
       REDIS_URL: redis://redis:6379
-      JWT_SECRET: ${JWT_SECRET:-change-me-jwt-secret-at-least-32-characters}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change-me-refresh-secret-32-chars-min}
-      JWT_ACCESS_EXPIRES_IN: 15m
-      JWT_REFRESH_EXPIRES_IN: 7d
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-change-me-better-auth-secret-32-chars-min}
       BYOK_ENCRYPTION_KEY: ${BYOK_ENCRYPTION_KEY:-Bwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww=}
       CORS_ORIGIN: http://localhost:3000
     depends_on:

@@ -18,6 +18,8 @@ export function JobBoard({ onNavigateToResume }: JobBoardProps = {}) {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [remoteOnly, setRemoteOnly] = useState(false);
+  const [savedOnly, setSavedOnly] = useState(false);
+  const [showDismissed, setShowDismissed] = useState(false);
   const [selectedSkill, setSelectedSkill] = useState("");
   const [selectedJob, setSelectedJob] = useState<JobOpportunity | null>(null);
 
@@ -49,12 +51,15 @@ export function JobBoard({ onNavigateToResume }: JobBoardProps = {}) {
 
   const filteredJobs = useMemo(() => {
     return jobs.filter((job) => {
+      // By default hide dismissed jobs unless user enabled showDismissed
+      if (!showDismissed && job.workspaceState?.isDismissed) return false;
+      if (savedOnly && !job.workspaceState?.isSaved) return false;
       if (remoteOnly && !job.isRemote) return false;
       if (selectedSkill && !job.requiredSkills.includes(selectedSkill))
         return false;
       return true;
     });
-  }, [jobs, remoteOnly, selectedSkill]);
+  }, [jobs, remoteOnly, savedOnly, showDismissed, selectedSkill]);
 
   const [ingesting, setIngesting] = useState(false);
 
@@ -132,6 +137,10 @@ export function JobBoard({ onNavigateToResume }: JobBoardProps = {}) {
         <JobFilters
           remoteOnly={remoteOnly}
           onToggleRemoteOnly={setRemoteOnly}
+          savedOnly={savedOnly}
+          onToggleSavedOnly={setSavedOnly}
+          showDismissed={showDismissed}
+          onToggleShowDismissed={setShowDismissed}
           selectedSkill={selectedSkill}
           onSelectSkill={setSelectedSkill}
           availableSkills={availableSkills}

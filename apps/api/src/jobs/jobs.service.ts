@@ -12,7 +12,11 @@ import { ResumeProfileService } from '../resume-profile/resume-profile.service';
 import { JobIngestionService } from './ingestion/job-ingestion.service';
 import { JobAnalysisService } from './job-analysis.service';
 import { JobMatchingService } from './job-matching.service';
-import type { CreateJobInput, ListJobsQuery } from './jobs.types';
+import type {
+  CreateJobInput,
+  ListJobsQuery,
+  StoredJobMatch,
+} from './jobs.types';
 import { PrismaJobsRepository } from './prisma-jobs.repository';
 
 /**
@@ -35,8 +39,11 @@ export class JobsService {
   // ── Listing ────────────────────────────────────────────────────────────
 
   /**
-   * List jobs for a workspace, merging in stored match results and workspace
-   * interaction state.  Does NOT run matching — use computeAndPersistMatch.
+   * List jobs for a workspace, automatically ensuring match results are computed
+   * and merging in stored match results and workspace interaction state.
+   *
+   * Results are sorted by overall match score descending, with deterministic
+   * tie-breaking (postedAt desc, createdAt desc, id).
    */
   async listByWorkspace(
     workspaceId: string,
@@ -47,10 +54,12 @@ export class JobsService {
 
     const jobIds = jobs.map((j) => j.id);
 
-    // Load stored matches for this workspace (no specific profile — profile-agnostic).
-    const storedMatches =
-      await this.repository.listJobMatchesForWorkspace(workspaceId);
-    const matchMap = new Map(storedMatches.map((m) => [m.jobId, m]));
+    // Automatically ensure jobs have fresh match results (bounded by query batch limit).
+    const matchMap = await this.ensureJobMatches(
+      workspaceId,
+      jobs,
+      query?.limit ?? 50,
+    );
 
     // Load workspace interaction states in one query.
     const stateMap = await this.repository.findWorkspaceStatesForJobs(
@@ -58,12 +67,41 @@ export class JobsService {
       jobIds,
     );
 
-    return jobs.map((job): JobOpportunity => {
+    const opportunities = jobs.map((job): JobOpportunity => {
       const m = matchMap.get(job.id);
       const s = stateMap.get(job.id);
 
+      const matchEvidence =
+        m?.evidence ??
+        (m
+          ? {
+              matchedSkills: m.matchedSkills,
+              missingSkills: m.missingSkills,
+              matchedPreferredSkills: [],
+              profileSkillCount: 0,
+              requiredSkillCount: job.requiredSkills.length,
+              experienceYears: 0,
+            }
+          : undefined);
+
       return {
         ...this.toOpportunity(job),
+        matchScore: m ? Math.round(m.overallScore * 100) : undefined,
+        whyFits: m?.explanation ?? undefined,
+        missingSkills: m?.missingSkills ?? undefined,
+        matchEvidence: m
+          ? {
+              skillScore: Math.round(m.skillScore * 100),
+              roleScore: Math.round(m.roleScore * 100),
+              experienceScore: Math.round(m.experienceScore * 100),
+              locationScore: Math.round(m.locationScore * 100),
+              seniorityScore: Math.round(m.seniorityScore * 100),
+              matchedSkills: m.matchedSkills,
+              missingSkills: m.missingSkills,
+              reasons: m.explanation ? [m.explanation] : [],
+              confidence: m.confidence,
+            }
+          : undefined,
         match: m
           ? {
               overallScore: m.overallScore,
@@ -78,7 +116,7 @@ export class JobsService {
               missingSkills: m.missingSkills,
               confidence: m.confidence,
               explanation: m.explanation,
-              evidence: m.evidence ?? {
+              evidence: matchEvidence ?? {
                 matchedSkills: m.matchedSkills,
                 missingSkills: m.missingSkills,
                 matchedPreferredSkills: [],
@@ -86,6 +124,7 @@ export class JobsService {
                 requiredSkillCount: job.requiredSkills.length,
                 experienceYears: 0,
               },
+              profileVersion: m.profileVersion ?? undefined,
             }
           : undefined,
         workspaceState: s
@@ -104,16 +143,92 @@ export class JobsService {
           : undefined,
       };
     });
+
+    // Sort by overall match score descending, then postedAt desc, createdAt desc, id asc
+    return opportunities.sort((a, b) => {
+      const scoreA = a.match?.overallScore ?? -1;
+      const scoreB = b.match?.overallScore ?? -1;
+      if (scoreA !== scoreB) {
+        return scoreB - scoreA;
+      }
+      if (a.postedAt && b.postedAt && a.postedAt !== b.postedAt) {
+        return new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime();
+      }
+      return a.id.localeCompare(b.id);
+    });
   }
 
-  // ── Matching (explicit, separate from listing) ─────────────────────────
+  // ── Auto-Matching Orchestration ────────────────────────────────────────
+
+  /**
+   * Ensure provided jobs have fresh match results for the given workspace.
+   * Unmatched or stale jobs (where profileVersion !== masterProfile.version) are
+   * matched against the workspace's MasterCareerProfile and persisted.
+   *
+   * Bounded explicitly by maxBatchSize to prevent unbounded synchronous execution.
+   */
+  async ensureJobMatches(
+    workspaceId: string,
+    jobs: CanonicalJob[],
+    maxBatchSize = 50,
+  ): Promise<Map<string, StoredJobMatch>> {
+    const masterProfile =
+      await this.careerProfileService.findByWorkspace(workspaceId);
+    if (!masterProfile) {
+      // User has not completed/created a profile yet; return existing stored matches or empty
+      const stored =
+        await this.repository.listJobMatchesForWorkspace(workspaceId);
+      return new Map(stored.map((m) => [m.jobId, m]));
+    }
+
+    const storedMatches =
+      await this.repository.listJobMatchesForWorkspace(workspaceId);
+    const matchMap = new Map(storedMatches.map((m) => [m.jobId, m]));
+
+    // Find jobs that need matching: either missing match or stale profileVersion
+    const jobsNeedingMatch = jobs.filter((job) => {
+      const existing = matchMap.get(job.id);
+      if (!existing) return true;
+      if (
+        existing.profileVersion !== undefined &&
+        existing.profileVersion !== null &&
+        existing.profileVersion !== masterProfile.version
+      ) {
+        return true;
+      }
+      return false;
+    });
+
+    // Bound batch size explicitly
+    const batchToProcess = jobsNeedingMatch.slice(0, maxBatchSize);
+
+    for (const job of batchToProcess) {
+      const output = this.matchingService.match({
+        job,
+        masterProfile,
+        weights: DEFAULT_MATCHING_WEIGHTS,
+      });
+
+      const stored = await this.repository.upsertJobMatch(
+        job.id,
+        workspaceId,
+        output,
+        undefined,
+        masterProfile.version,
+      );
+
+      matchMap.set(job.id, stored);
+    }
+
+    return matchMap;
+  }
+
+  // ── Matching (explicit re-computation with overrides) ──────────────────
 
   /**
    * Run the deterministic matching engine for one job × workspace, optionally
-   * scoped to a specific ResumeProfile.  Persists the result and returns the
-   * enriched JobOpportunity.
-   *
-   * Weights default to DEFAULT_MATCHING_WEIGHTS but callers can pass overrides.
+   * scoped to a specific ResumeProfile or with custom weight overrides.
+   * Persists the result and returns the enriched JobOpportunity.
    */
   async computeAndPersistMatch(
     jobId: string,
@@ -160,6 +275,7 @@ export class JobsService {
       workspaceId,
       output,
       resumeProfileId,
+      masterProfile.version,
     );
 
     this.logger.log(
@@ -167,17 +283,156 @@ export class JobsService {
         `${String(Math.round(output.overallScore * 100))}/100`,
     );
 
+    return this.getEnrichedOpportunity(workspaceId, jobId);
+  }
+
+  // ── Workspace Job Interactions (Save, Dismiss, Restore, Notes) ─────────
+
+  async saveJob(workspaceId: string, jobId: string): Promise<JobOpportunity> {
+    const job = await this.repository.findJobById(jobId);
+    if (!job) throw new NotFoundException(`Job ${jobId} not found.`);
+
+    await this.repository.upsertWorkspaceJobState(workspaceId, jobId, {
+      isSaved: true,
+      status: 'saved',
+    });
+
+    return this.getEnrichedOpportunity(workspaceId, jobId);
+  }
+
+  async dismissJob(
+    workspaceId: string,
+    jobId: string,
+  ): Promise<JobOpportunity> {
+    const job = await this.repository.findJobById(jobId);
+    if (!job) throw new NotFoundException(`Job ${jobId} not found.`);
+
+    await this.repository.upsertWorkspaceJobState(workspaceId, jobId, {
+      isDismissed: true,
+      status: 'dismissed',
+    });
+
+    return this.getEnrichedOpportunity(workspaceId, jobId);
+  }
+
+  async restoreJob(
+    workspaceId: string,
+    jobId: string,
+  ): Promise<JobOpportunity> {
+    const job = await this.repository.findJobById(jobId);
+    if (!job) throw new NotFoundException(`Job ${jobId} not found.`);
+
+    await this.repository.upsertWorkspaceJobState(workspaceId, jobId, {
+      isDismissed: false,
+      status: 'discovered',
+    });
+
+    return this.getEnrichedOpportunity(workspaceId, jobId);
+  }
+
+  async updateJobState(
+    workspaceId: string,
+    jobId: string,
+    data: {
+      status?: JobOpportunity['workspaceState'] extends infer T
+        ? T extends { status: infer S }
+          ? S
+          : never
+        : never;
+      notes?: string;
+      appliedAt?: string;
+    },
+  ): Promise<JobOpportunity> {
+    const job = await this.repository.findJobById(jobId);
+    if (!job) throw new NotFoundException(`Job ${jobId} not found.`);
+
+    await this.repository.upsertWorkspaceJobState(workspaceId, jobId, {
+      status: data.status,
+      notes: data.notes,
+      appliedAt: data.appliedAt ? new Date(data.appliedAt) : undefined,
+    });
+
+    return this.getEnrichedOpportunity(workspaceId, jobId);
+  }
+
+  async getEnrichedOpportunity(
+    workspaceId: string,
+    jobId: string,
+  ): Promise<JobOpportunity> {
+    const job = await this.repository.findJobById(jobId);
+    if (!job) throw new NotFoundException(`Job ${jobId} not found.`);
+
+    const match = await this.repository.findJobMatch(jobId, workspaceId);
+    const state = await this.repository.findWorkspaceJobState(
+      workspaceId,
+      jobId,
+    );
+
+    const matchEvidence =
+      match?.evidence ??
+      (match
+        ? {
+            matchedSkills: match.matchedSkills,
+            missingSkills: match.missingSkills,
+            matchedPreferredSkills: [],
+            profileSkillCount: 0,
+            requiredSkillCount: job.requiredSkills.length,
+            experienceYears: 0,
+          }
+        : undefined);
+
     return {
       ...this.toOpportunity(job),
-      match: {
-        overallScore: output.overallScore,
-        dimensionScores: output.dimensionScores,
-        matchedSkills: output.matchedSkills,
-        missingSkills: output.missingSkills,
-        confidence: output.confidence,
-        explanation: output.explanation,
-        evidence: output.evidence,
-      },
+      matchScore: match ? Math.round(match.overallScore * 100) : undefined,
+      whyFits: match?.explanation ?? undefined,
+      missingSkills: match?.missingSkills ?? undefined,
+      matchEvidence: match
+        ? {
+            skillScore: Math.round(match.skillScore * 100),
+            roleScore: Math.round(match.roleScore * 100),
+            experienceScore: Math.round(match.experienceScore * 100),
+            locationScore: Math.round(match.locationScore * 100),
+            seniorityScore: Math.round(match.seniorityScore * 100),
+            matchedSkills: match.matchedSkills,
+            missingSkills: match.missingSkills,
+            reasons: match.explanation ? [match.explanation] : [],
+            confidence: match.confidence,
+          }
+        : undefined,
+      match: match
+        ? {
+            overallScore: match.overallScore,
+            dimensionScores: {
+              skill: match.skillScore,
+              role: match.roleScore,
+              experience: match.experienceScore,
+              location: match.locationScore,
+              seniority: match.seniorityScore,
+            },
+            matchedSkills: match.matchedSkills,
+            missingSkills: match.missingSkills,
+            confidence: match.confidence,
+            explanation: match.explanation,
+            evidence: matchEvidence ?? {
+              matchedSkills: match.matchedSkills,
+              missingSkills: match.missingSkills,
+              matchedPreferredSkills: [],
+              profileSkillCount: 0,
+              requiredSkillCount: job.requiredSkills.length,
+              experienceYears: 0,
+            },
+            profileVersion: match.profileVersion ?? undefined,
+          }
+        : undefined,
+      workspaceState: state
+        ? {
+            status: state.status,
+            isSaved: state.isSaved,
+            isDismissed: state.isDismissed,
+            notes: state.notes ?? undefined,
+            appliedAt: state.appliedAt ?? undefined,
+          }
+        : undefined,
     };
   }
 

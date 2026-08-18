@@ -243,6 +243,11 @@ Exit Criteria
 
 Resume can be uploaded, edited, versioned and exported.
 
+Implemented and verified in the current repository state:
+- Structured Master Career Profile and Resume Profiles implemented with Prisma schema and CRUD services.
+- Immutable targeted ResumeVersion generation implemented, grounded against MasterCareerProfile records and structured job analysis evidence.
+- Verified through unit tests: `pnpm --filter careeros-api test -- --runInBand src/resume-profile/resume-profile.service.spec.ts`.
+
 ---
 
 # 9. Job Engine
@@ -265,6 +270,14 @@ Tasks
 Exit Criteria
 
 Job database updates automatically.
+
+Implemented and verified in the current repository state:
+- Real LinkedIn/Apify ingestion adapter with realistic offline sample fallback.
+- Normalization pipeline extracting salary ranges, workplace type, and required/preferred skills.
+- SHA-256 fingerprint generation and persistence for deduplication.
+- Deterministic explainable multi-dimensional job matching engine (`overallScore`, `skill`, `role`, `experience`, `location`, `seniority`).
+- Workspace job interaction states (`isSaved`, `isDismissed`, `notes`, `status`).
+- Verified through test suites: `job-normalization.service.spec.ts`, `job-deduplication.service.spec.ts`, `job-matching.service.spec.ts`, `apify-linkedin.adapter.spec.ts`.
 
 ---
 

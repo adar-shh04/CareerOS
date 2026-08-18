@@ -46,3 +46,7 @@ apps/api/src/generated/prisma/
 
 # Agent / IDE tooling (local only, not shared)
 .sixth/
+
+#docs for agent info
+docs
+

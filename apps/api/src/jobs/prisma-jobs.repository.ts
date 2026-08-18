@@ -1,8 +1,18 @@
 import { Injectable } from '@nestjs/common';
-import type { CanonicalJob, JobMatchEvidence } from '@repo/types';
+import type {
+  CanonicalJob,
+  JobMatchEvidence,
+  WorkspaceJobState,
+  WorkspaceJobStatus,
+} from '@repo/types';
 
 import { PrismaService } from '../database/prisma.service';
-import type { Job, JobMatch, Prisma } from '../generated/prisma/client';
+import type {
+  Job,
+  JobMatch,
+  Prisma,
+  WorkspaceJobState as PrismaWorkspaceJobState,
+} from '../generated/prisma/client';
 import type {
   CreateJobInput,
   ListJobsQuery,
@@ -18,8 +28,8 @@ export class PrismaJobsRepository {
   // ── Canonical Jobs ─────────────────────────────────────────────────────
 
   /**
-   * Upsert a canonical job by (source, externalId). If externalId is absent
-   * the record is always inserted (manual/one-off jobs).
+   * Upsert a canonical job by (source, externalId) or by fingerprint.
+   * If externalId is absent but fingerprint is present, deduplicates by fingerprint.
    */
   async upsertCanonicalJob(input: CreateJobInput): Promise<CanonicalJob> {
     const data = {
@@ -28,6 +38,7 @@ export class PrismaJobsRepository {
       company: input.company,
       title: input.title,
       location: input.location,
+      fingerprint: input.fingerprint ?? null,
       isRemote: input.isRemote ?? false,
       remotePolicy: input.remotePolicy ?? null,
       employmentType: input.employmentType ?? null,
@@ -54,6 +65,19 @@ export class PrismaJobsRepository {
         create: { ...data, externalId: input.externalId },
       });
       return this.mapJob(row);
+    }
+
+    if (input.fingerprint) {
+      const existing = await this.prisma.client.job.findUnique({
+        where: { fingerprint: input.fingerprint },
+      });
+      if (existing) {
+        const row = await this.prisma.client.job.update({
+          where: { id: existing.id },
+          data,
+        });
+        return this.mapJob(row);
+      }
     }
 
     const row = await this.prisma.client.job.create({ data });
@@ -102,7 +126,7 @@ export class PrismaJobsRepository {
   async findJobBySourceOrFingerprint(
     source: string,
     externalId?: string,
-    _fingerprint?: string,
+    fingerprint?: string,
   ): Promise<CanonicalJob | null> {
     if (externalId) {
       const existing = await this.prisma.client.job.findUnique({
@@ -113,21 +137,29 @@ export class PrismaJobsRepository {
       if (existing) return this.mapJob(existing);
     }
 
+    if (fingerprint) {
+      const existing = await this.prisma.client.job.findUnique({
+        where: { fingerprint },
+      });
+      if (existing) return this.mapJob(existing);
+    }
+
     return null;
   }
 
   // ── Job Matches ────────────────────────────────────────────────────────
 
   /**
-   * Upsert a persisted job match. The unique key is
-   * (workspaceId, jobId, resumeProfileId). When resumeProfileId is null/empty the
-   * match is profile-agnostic (raw MasterCareerProfile).
+   * Upsert a persisted job match.
+   * When resumeProfileId is provided, matches are keyed by (organizationId, jobId, resumeProfileId).
+   * When resumeProfileId is null/undefined, match is profile-agnostic (raw MasterCareerProfile).
    */
   async upsertJobMatch(
     jobId: string,
     workspaceId: string,
     output: MatchOutput,
     resumeProfileId?: string,
+    profileVersion?: number,
   ): Promise<StoredJobMatch> {
     const data = {
       overallScore: output.overallScore,
@@ -141,23 +173,50 @@ export class PrismaJobsRepository {
       confidence: output.confidence,
       explanation: output.explanation,
       evidence: output.evidence as unknown as Prisma.InputJsonValue,
+      profileVersion: profileVersion ?? null,
     };
 
-    const targetResumeProfileId = resumeProfileId ?? '';
-
-    const row = await this.prisma.client.jobMatch.upsert({
-      where: {
-        organizationId_jobId_resumeProfileId: {
-          organizationId: workspaceId,
-          jobId,
-          resumeProfileId: targetResumeProfileId,
+    if (resumeProfileId) {
+      const row = await this.prisma.client.jobMatch.upsert({
+        where: {
+          organizationId_jobId_resumeProfileId: {
+            organizationId: workspaceId,
+            jobId,
+            resumeProfileId,
+          },
         },
+        update: data,
+        create: {
+          jobId,
+          organizationId: workspaceId,
+          resumeProfileId,
+          ...data,
+        },
+      });
+      return this.mapMatch(row);
+    }
+
+    const existing = await this.prisma.client.jobMatch.findFirst({
+      where: {
+        organizationId: workspaceId,
+        jobId,
+        resumeProfileId: null,
       },
-      update: data,
-      create: {
+    });
+
+    if (existing) {
+      const row = await this.prisma.client.jobMatch.update({
+        where: { id: existing.id },
+        data,
+      });
+      return this.mapMatch(row);
+    }
+
+    const row = await this.prisma.client.jobMatch.create({
+      data: {
         jobId,
         organizationId: workspaceId,
-        resumeProfileId: resumeProfileId ?? null,
+        resumeProfileId: null,
         ...data,
       },
     });
@@ -171,14 +230,24 @@ export class PrismaJobsRepository {
     workspaceId: string,
     resumeProfileId?: string,
   ): Promise<StoredJobMatch | null> {
-    const targetResumeProfileId = resumeProfileId ?? '';
-    const row = await this.prisma.client.jobMatch.findUnique({
-      where: {
-        organizationId_jobId_resumeProfileId: {
-          organizationId: workspaceId,
-          jobId,
-          resumeProfileId: targetResumeProfileId,
+    if (resumeProfileId) {
+      const row = await this.prisma.client.jobMatch.findUnique({
+        where: {
+          organizationId_jobId_resumeProfileId: {
+            organizationId: workspaceId,
+            jobId,
+            resumeProfileId,
+          },
         },
+      });
+      return row ? this.mapMatch(row) : null;
+    }
+
+    const row = await this.prisma.client.jobMatch.findFirst({
+      where: {
+        organizationId: workspaceId,
+        jobId,
+        resumeProfileId: null,
       },
     });
     return row ? this.mapMatch(row) : null;
@@ -192,7 +261,9 @@ export class PrismaJobsRepository {
     const rows = await this.prisma.client.jobMatch.findMany({
       where: {
         organizationId: workspaceId,
-        ...(resumeProfileId !== undefined ? { resumeProfileId } : {}),
+        ...(resumeProfileId !== undefined
+          ? { resumeProfileId }
+          : { resumeProfileId: null }),
       },
       orderBy: { overallScore: 'desc' },
     });
@@ -200,6 +271,71 @@ export class PrismaJobsRepository {
   }
 
   // ── Workspace Job State ────────────────────────────────────────────────
+
+  /** Retrieve workspace-scoped state for a single job. */
+  async findWorkspaceJobState(
+    workspaceId: string,
+    jobId: string,
+  ): Promise<WorkspaceJobState | null> {
+    const row = await this.prisma.client.workspaceJobState.findUnique({
+      where: {
+        organizationId_jobId: {
+          organizationId: workspaceId,
+          jobId,
+        },
+      },
+    });
+    return row ? this.mapWorkspaceJobState(row) : null;
+  }
+
+  /** Upsert workspace-scoped interaction state (save, dismiss, restore, notes, status). */
+  async upsertWorkspaceJobState(
+    workspaceId: string,
+    jobId: string,
+    data: {
+      status?: WorkspaceJobStatus;
+      isSaved?: boolean;
+      isDismissed?: boolean;
+      notes?: string | null;
+      appliedAt?: Date | null;
+    },
+  ): Promise<WorkspaceJobState> {
+    const updateData: {
+      status?: string;
+      isSaved?: boolean;
+      isDismissed?: boolean;
+      notes?: string | null;
+      appliedAt?: Date | null;
+    } = {};
+
+    if (data.status !== undefined) updateData.status = data.status;
+    if (data.isSaved !== undefined) updateData.isSaved = data.isSaved;
+    if (data.isDismissed !== undefined)
+      updateData.isDismissed = data.isDismissed;
+    if (data.notes !== undefined) updateData.notes = data.notes;
+    if (data.appliedAt !== undefined) updateData.appliedAt = data.appliedAt;
+
+    const row = await this.prisma.client.workspaceJobState.upsert({
+      where: {
+        organizationId_jobId: {
+          organizationId: workspaceId,
+          jobId,
+        },
+      },
+      update: updateData,
+      create: {
+        organizationId: workspaceId,
+        jobId,
+        status: data.status ?? 'discovered',
+        isSaved: data.isSaved ?? false,
+        isDismissed: data.isDismissed ?? false,
+        notes: data.notes ?? null,
+        appliedAt: data.appliedAt ?? null,
+      },
+    });
+
+    return this.mapWorkspaceJobState(row);
+  }
 
   /** Retrieve workspace-scoped state for a set of jobIds in one query. */
   async findWorkspaceStatesForJobs(
@@ -238,6 +374,7 @@ export class PrismaJobsRepository {
     return {
       id: row.id,
       externalId: row.externalId ?? undefined,
+      fingerprint: row.fingerprint ?? undefined,
       source: row.source,
       sourceUrl: row.sourceUrl ?? undefined,
       company: row.company,
@@ -278,8 +415,26 @@ export class PrismaJobsRepository {
       confidence: row.confidence,
       explanation: row.explanation,
       evidence: row.evidence as JobMatchEvidence | null,
+      profileVersion: row.profileVersion ?? undefined,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
+    };
+  }
+
+  private mapWorkspaceJobState(
+    row: PrismaWorkspaceJobState,
+  ): WorkspaceJobState {
+    return {
+      id: row.id,
+      workspaceId: row.organizationId,
+      jobId: row.jobId,
+      status: row.status as WorkspaceJobStatus,
+      isSaved: row.isSaved,
+      isDismissed: row.isDismissed,
+      notes: row.notes ?? undefined,
+      appliedAt: row.appliedAt?.toISOString() ?? undefined,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
     };
   }
 }

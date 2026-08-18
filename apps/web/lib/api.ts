@@ -11,6 +11,7 @@ import type {
   ResumeProfile,
   ResumeProfileInput,
   ResumeVersion,
+  WorkspaceJobStatus,
 } from "@repo/types";
 
 import { getApiBaseUrl } from "./config";
@@ -377,4 +378,86 @@ export async function fetchJobAnalysis(
   );
 
   return parseResponse<JobAnalysisResult>(response);
+}
+
+export async function saveJob(
+  sessionCookie: string,
+  workspaceId: string,
+  jobId: string,
+): Promise<JobOpportunity> {
+  const response = await fetch(
+    `${getApiBaseUrl()}/workspaces/${workspaceId}/jobs/${jobId}/save`,
+    {
+      method: "POST",
+      headers: {
+        Cookie: sessionCookie,
+        "Content-Type": "application/json",
+      },
+    },
+  );
+
+  return parseResponse<JobOpportunity>(response);
+}
+
+export async function dismissJob(
+  sessionCookie: string,
+  workspaceId: string,
+  jobId: string,
+): Promise<JobOpportunity> {
+  const response = await fetch(
+    `${getApiBaseUrl()}/workspaces/${workspaceId}/jobs/${jobId}/dismiss`,
+    {
+      method: "POST",
+      headers: {
+        Cookie: sessionCookie,
+        "Content-Type": "application/json",
+      },
+    },
+  );
+
+  return parseResponse<JobOpportunity>(response);
+}
+
+export async function restoreJob(
+  sessionCookie: string,
+  workspaceId: string,
+  jobId: string,
+): Promise<JobOpportunity> {
+  const response = await fetch(
+    `${getApiBaseUrl()}/workspaces/${workspaceId}/jobs/${jobId}/restore`,
+    {
+      method: "POST",
+      headers: {
+        Cookie: sessionCookie,
+        "Content-Type": "application/json",
+      },
+    },
+  );
+
+  return parseResponse<JobOpportunity>(response);
+}
+
+export async function updateJobState(
+  sessionCookie: string,
+  workspaceId: string,
+  jobId: string,
+  input: {
+    status?: WorkspaceJobStatus;
+    notes?: string;
+    appliedAt?: string;
+  },
+): Promise<JobOpportunity> {
+  const response = await fetch(
+    `${getApiBaseUrl()}/workspaces/${workspaceId}/jobs/${jobId}/state`,
+    {
+      method: "PATCH",
+      headers: {
+        Cookie: sessionCookie,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(input),
+    },
+  );
+
+  return parseResponse<JobOpportunity>(response);
 }

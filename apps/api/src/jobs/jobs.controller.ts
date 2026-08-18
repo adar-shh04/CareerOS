@@ -6,11 +6,16 @@ import {
   HttpStatus,
   NotFoundException,
   Param,
+  Patch,
   Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
-import type { JobMatchingWeights, JobOpportunity } from '@repo/types';
+import type {
+  JobMatchingWeights,
+  JobOpportunity,
+  WorkspaceJobStatus,
+} from '@repo/types';
 
 import { WorkspaceMemberGuard } from '../common/guards/workspace-member.guard';
 import { JobsService } from './jobs.service';
@@ -23,8 +28,8 @@ export class JobsController {
 
   /**
    * GET /workspaces/:workspaceId/jobs
-   * List canonical jobs with stored match results and workspace state merged in.
-   * Matching is NOT triggered here — call POST .../jobs/:jobId/match to run it.
+   * List canonical jobs with auto-computed match results (ranked by match score desc)
+   * and workspace interaction state merged in.
    */
   @Get()
   async listJobs(
@@ -47,7 +52,7 @@ export class JobsController {
 
   /**
    * GET /workspaces/:workspaceId/jobs/:jobId
-   * Retrieve a single canonical job by ID (no match data — use the match endpoint).
+   * Retrieve a single canonical job by ID.
    */
   @Get(':jobId')
   async getJob(
@@ -107,6 +112,63 @@ export class JobsController {
       body?.resumeProfileId,
       body?.weights,
     );
+  }
+
+  /**
+   * POST /workspaces/:workspaceId/jobs/:jobId/save
+   * Save a job for this workspace.
+   */
+  @Post(':jobId/save')
+  @HttpCode(HttpStatus.OK)
+  async saveJob(
+    @Param('workspaceId') workspaceId: string,
+    @Param('jobId') jobId: string,
+  ): Promise<JobOpportunity> {
+    return this.jobsService.saveJob(workspaceId, jobId);
+  }
+
+  /**
+   * POST /workspaces/:workspaceId/jobs/:jobId/dismiss
+   * Dismiss a job for this workspace.
+   */
+  @Post(':jobId/dismiss')
+  @HttpCode(HttpStatus.OK)
+  async dismissJob(
+    @Param('workspaceId') workspaceId: string,
+    @Param('jobId') jobId: string,
+  ): Promise<JobOpportunity> {
+    return this.jobsService.dismissJob(workspaceId, jobId);
+  }
+
+  /**
+   * POST /workspaces/:workspaceId/jobs/:jobId/restore
+   * Restore a previously dismissed job for this workspace.
+   */
+  @Post(':jobId/restore')
+  @HttpCode(HttpStatus.OK)
+  async restoreJob(
+    @Param('workspaceId') workspaceId: string,
+    @Param('jobId') jobId: string,
+  ): Promise<JobOpportunity> {
+    return this.jobsService.restoreJob(workspaceId, jobId);
+  }
+
+  /**
+   * PATCH /workspaces/:workspaceId/jobs/:jobId/state
+   * Update interaction state (status, notes, appliedAt) for a job in this workspace.
+   */
+  @Patch(':jobId/state')
+  async updateJobState(
+    @Param('workspaceId') workspaceId: string,
+    @Param('jobId') jobId: string,
+    @Body()
+    body?: {
+      status?: WorkspaceJobStatus;
+      notes?: string;
+      appliedAt?: string;
+    },
+  ): Promise<JobOpportunity> {
+    return this.jobsService.updateJobState(workspaceId, jobId, body ?? {});
   }
 
   /**

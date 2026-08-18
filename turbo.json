@@ -1,17 +1,23 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
   "ui": "tui",
-  "globalEnv": ["APIFY_API_TOKEN"],
+  "globalEnv": ["APIFY_API_TOKEN", "BETTER_AUTH_SECRET"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "env": ["DATABASE_URL", "JWT_SECRET", "JWT_ACCESS_SECRET", "JWT_REFRESH_SECRET", "BYOK_ENCRYPTION_KEY"],
+      "env": ["DATABASE_URL", "BYOK_ENCRYPTION_KEY", "BETTER_AUTH_SECRET"],
       "outputs": [".next/**", "!.next/cache/**", "!.next/dev/**", "dist/**"]
     },
     "lint": {
       "dependsOn": ["^lint"],
-      "env": ["NODE_ENV", "CAREEROS_API_URL", "CORS_ORIGIN", "PORT"]
+      "env": [
+        "NODE_ENV",
+        "CAREEROS_API_URL",
+        "CORS_ORIGIN",
+        "PORT",
+        "BETTER_AUTH_SECRET"
+      ]
     },
     "check-types": {
       "dependsOn": ["^check-types"],

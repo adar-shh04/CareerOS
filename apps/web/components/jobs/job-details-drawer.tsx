@@ -6,12 +6,14 @@ import {
   Building2,
   DollarSign,
   ExternalLink,
+  EyeOff,
   Globe,
   MapPin,
+  RotateCcw,
   Sparkles,
   X,
 } from "lucide-react";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 import { JobMatchBadge } from "./job-match-badge";
 
@@ -23,13 +25,86 @@ interface JobDetailsDrawerProps {
 }
 
 export function JobDetailsDrawer({ job, onClose, onJobUpdated, onNavigateToResume }: JobDetailsDrawerProps) {
-  const [saved, setSaved] = useState(false);
   const [matching, setMatching] = useState(false);
   const [matchError, setMatchError] = useState<string | null>(null);
   const [creatingResume, setCreatingResume] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [notes, setNotes] = useState(job?.workspaceState?.notes ?? "");
+  const [savingNotes, setSavingNotes] = useState(false);
+
+  useEffect(() => {
+    setNotes(job?.workspaceState?.notes ?? "");
+  }, [job]);
 
   if (!job) return null;
+
+  const isSaved = job.workspaceState?.isSaved ?? false;
+  const isDismissed = job.workspaceState?.isDismissed ?? false;
+
+  const handleSaveToggle = async () => {
+    setActionLoading(true);
+    try {
+      if (isSaved) {
+        // Toggle saved off via state update
+        const res = await fetch(`/api/jobs/${job.id}/state`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isSaved: false, status: "discovered" }),
+        });
+        if (res.ok) {
+          const updated = (await res.json()) as JobOpportunity;
+          onJobUpdated?.(updated);
+        }
+      } else {
+        const res = await fetch(`/api/jobs/${job.id}/save`, { method: "POST" });
+        if (res.ok) {
+          const updated = (await res.json()) as JobOpportunity;
+          onJobUpdated?.(updated);
+        }
+      }
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDismissToggle = async () => {
+    setActionLoading(true);
+    try {
+      if (isDismissed) {
+        const res = await fetch(`/api/jobs/${job.id}/restore`, { method: "POST" });
+        if (res.ok) {
+          const updated = (await res.json()) as JobOpportunity;
+          onJobUpdated?.(updated);
+        }
+      } else {
+        const res = await fetch(`/api/jobs/${job.id}/dismiss`, { method: "POST" });
+        if (res.ok) {
+          const updated = (await res.json()) as JobOpportunity;
+          onJobUpdated?.(updated);
+        }
+      }
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleSaveNotes = async () => {
+    setSavingNotes(true);
+    try {
+      const res = await fetch(`/api/jobs/${job.id}/state`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notes }),
+      });
+      if (res.ok) {
+        const updated = (await res.json()) as JobOpportunity;
+        onJobUpdated?.(updated);
+      }
+    } finally {
+      setSavingNotes(false);
+    }
+  };
 
   const handleRunMatch = async () => {
     setMatching(true);
@@ -262,6 +337,31 @@ export function JobDetailsDrawer({ job, onClose, onJobUpdated, onNavigateToResum
               </div>
             )}
           </div>
+
+          {/* User Notes Section */}
+          <div className="space-y-2 pt-3 border-t border-white/5">
+            <div className="flex justify-between items-center">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                Personal Notes & Strategy
+              </h4>
+              <button
+                type="button"
+                onClick={() => {
+                  void handleSaveNotes();
+                }}
+                disabled={savingNotes}
+                className="text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 disabled:opacity-50"
+              >
+                {savingNotes ? "Saving..." : "Save Notes"}
+              </button>
+            </div>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Add key contacts, custom follow-ups, or notes for this job..."
+              className="w-full h-20 p-2.5 rounded-lg bg-slate-800/60 border border-white/10 text-slate-200 text-xs focus:border-indigo-500/50 focus:outline-none resize-none"
+            />
+          </div>
         </div>
 
         {/* Action Footer */}
@@ -271,30 +371,49 @@ export function JobDetailsDrawer({ job, onClose, onJobUpdated, onNavigateToResum
               {createError}
             </p>
           )}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => {
                 void handleCreateTargetedResume();
               }}
               disabled={creatingResume}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold text-xs shadow-lg shadow-emerald-500/20 transition-all disabled:opacity-50"
+              className="flex-1 flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold text-xs shadow-lg shadow-emerald-500/20 transition-all disabled:opacity-50"
             >
               <Sparkles className="w-4 h-4" />
-              {creatingResume ? "Creating Targeted Resume..." : "Create Targeted Resume"}
+              {creatingResume ? "Targeting..." : "Create Targeted Resume"}
             </button>
 
             <button
               type="button"
-              onClick={() => setSaved(!saved)}
-              className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl border text-xs font-semibold transition-all ${
-                saved
+              onClick={() => {
+                void handleSaveToggle();
+              }}
+              disabled={actionLoading}
+              className={`flex items-center gap-1 px-3 py-2.5 rounded-xl border text-xs font-semibold transition-all disabled:opacity-50 ${
+                isSaved
                   ? "bg-purple-500/20 text-purple-300 border-purple-500/40"
                   : "bg-slate-800 text-slate-300 border-white/10 hover:border-white/20"
               }`}
             >
-              <Bookmark className="w-4 h-4" />
-              {saved ? "Saved" : "Save Job"}
+              <Bookmark className={`w-3.5 h-3.5 ${isSaved ? "fill-purple-400 text-purple-400" : ""}`} />
+              {isSaved ? "Saved" : "Save"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                void handleDismissToggle();
+              }}
+              disabled={actionLoading}
+              className={`flex items-center gap-1 px-3 py-2.5 rounded-xl border text-xs font-semibold transition-all disabled:opacity-50 ${
+                isDismissed
+                  ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                  : "bg-slate-800 text-slate-400 border-white/10 hover:text-white hover:border-white/20"
+              }`}
+            >
+              {isDismissed ? <RotateCcw className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+              {isDismissed ? "Restore" : "Dismiss"}
             </button>
 
             {job.sourceUrl ? (
@@ -302,7 +421,7 @@ export function JobDetailsDrawer({ job, onClose, onJobUpdated, onNavigateToResum
                 href={job.sourceUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs border border-white/10 transition-all"
+                className="flex items-center justify-center gap-1 px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs border border-white/10 transition-all"
               >
                 Apply <ExternalLink className="w-3.5 h-3.5" />
               </a>

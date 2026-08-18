@@ -2,10 +2,12 @@
 
 import type { JobOpportunity } from "@repo/types";
 import {
+  Bookmark,
   Building2,
   Calendar,
   DollarSign,
   ExternalLink,
+  EyeOff,
   Globe,
   MapPin,
 } from "lucide-react";
@@ -58,7 +60,19 @@ export function JobCard({ job, onSelect }: JobCardProps) {
           </div>
         </div>
 
-        {job.matchScore && <JobMatchBadge score={job.matchScore} />}
+        <div className="flex items-center gap-2">
+          {job.workspaceState?.isSaved && (
+            <span className="inline-flex items-center gap-1 text-purple-300 font-semibold px-2 py-0.5 rounded bg-purple-500/10 border border-purple-500/30 text-[10px]">
+              <Bookmark className="w-3 h-3 fill-purple-400/40 text-purple-400" /> Saved
+            </span>
+          )}
+          {job.workspaceState?.isDismissed && (
+            <span className="inline-flex items-center gap-1 text-amber-300 font-semibold px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-[10px]">
+              <EyeOff className="w-3 h-3 text-amber-400" /> Dismissed
+            </span>
+          )}
+          {job.matchScore != null && <JobMatchBadge score={job.matchScore} />}
+        </div>
       </div>
 
       {job.whyFits && (

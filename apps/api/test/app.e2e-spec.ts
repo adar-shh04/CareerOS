@@ -47,6 +47,38 @@ describe('AppController (e2e)', () => {
       .expect(401);
   });
 
+  it('requires authentication for jobs routes', () => {
+    return request(app.getHttpServer())
+      .get('/workspaces/00000000-0000-4000-8000-000000000000/jobs')
+      .expect(401);
+  });
+
+  it('requires authentication for workspace job state mutation routes', async () => {
+    await request(app.getHttpServer())
+      .post(
+        '/workspaces/00000000-0000-4000-8000-000000000000/jobs/00000000-0000-4000-8000-000000000001/save',
+      )
+      .expect(401);
+
+    await request(app.getHttpServer())
+      .post(
+        '/workspaces/00000000-0000-4000-8000-000000000000/jobs/00000000-0000-4000-8000-000000000001/dismiss',
+      )
+      .expect(401);
+
+    await request(app.getHttpServer())
+      .post(
+        '/workspaces/00000000-0000-4000-8000-000000000000/jobs/00000000-0000-4000-8000-000000000001/restore',
+      )
+      .expect(401);
+
+    await request(app.getHttpServer())
+      .patch(
+        '/workspaces/00000000-0000-4000-8000-000000000000/jobs/00000000-0000-4000-8000-000000000001/state',
+      )
+      .expect(401);
+  });
+
   afterEach(async () => {
     await app.close();
   });

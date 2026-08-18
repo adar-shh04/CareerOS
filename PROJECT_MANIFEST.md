@@ -1,8 +1,8 @@
 # CareerOS Project Manifest
 
 **Product:** CareerOS — Your AI Career Intelligence Platform  
-**Stage:** Phase 0 complete; Phase 1 foundation next  
-**Last updated:** 2026-07-21
+**Stage:** Phase 1 Foundation & Job Radar Vertical Slice complete  
+**Last updated:** 2026-08-18
 
 ## Purpose
 

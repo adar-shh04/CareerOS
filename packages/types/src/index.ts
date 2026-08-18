@@ -260,6 +260,7 @@ export interface ExperienceRequirements {
 export interface CanonicalJob {
   id: string;
   externalId?: string;
+  fingerprint?: string;
   /** Identifier for the source adapter that produced this job (e.g. "manual", "linkedin-apify"). */
   source: string;
   sourceUrl?: string;
@@ -345,6 +346,7 @@ export interface JobMatchResult {
   /** Human-readable explanation derived deterministically from profile + job data. Never LLM-generated here. */
   explanation: string;
   evidence: JobMatchEvidence;
+  profileVersion?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -411,6 +413,7 @@ export interface JobOpportunity {
     confidence: number;
     explanation: string;
     evidence: JobMatchEvidence;
+    profileVersion?: number;
   };
   /** Workspace-scoped interaction state. Absent when no state record exists. */
   workspaceState?: {

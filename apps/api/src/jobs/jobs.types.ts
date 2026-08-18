@@ -45,6 +45,7 @@ export interface MatchOutput {
 /** Shape for creating or upserting a canonical job record. */
 export interface CreateJobInput {
   externalId?: string;
+  fingerprint?: string;
   source?: string;
   sourceUrl?: string;
   company: string;
@@ -93,6 +94,7 @@ export interface StoredJobMatch {
   confidence: number;
   explanation: string;
   evidence: JobMatchEvidence | null;
+  profileVersion?: number | null;
   createdAt: Date;
   updatedAt: Date;
 }

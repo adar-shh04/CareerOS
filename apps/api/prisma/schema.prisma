@@ -381,6 +381,7 @@ model ResumeVersion {
 model Job {
   id                 String               @id @default(uuid()) @db.Uuid
   externalId         String?              @map("external_id")
+  fingerprint        String?
   source             String               @default("manual")
   sourceUrl          String?              @map("source_url")
   company            String
@@ -406,6 +407,7 @@ model Job {
   matches            JobMatch[]
 
   @@unique([source, externalId])
+  @@unique([fingerprint])
   @@index([company])
   @@index([title])
   @@map("jobs")
@@ -447,6 +449,7 @@ model JobMatch {
   confidence      Float          @default(1.0)
   explanation     String
   evidence        Json?
+  profileVersion  Int?           @map("profile_version")
   createdAt       DateTime       @default(now()) @map("created_at")
   updatedAt       DateTime       @updatedAt @map("updated_at")
   job             Job            @relation(fields: [jobId], references: [id], onDelete: Cascade)
