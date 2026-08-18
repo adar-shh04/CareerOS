@@ -36,9 +36,9 @@ export class JobsController {
     @Query('offset') offset?: string,
   ): Promise<JobOpportunity[]> {
     const listQuery: ListJobsQuery = {
-      query: query?.trim() || undefined,
+      query: query?.trim() ? query.trim() : undefined,
       remoteOnly: remoteOnly === 'true',
-      skill: skill?.trim() || undefined,
+      skill: skill?.trim() ? skill.trim() : undefined,
       limit: limit ? parseInt(limit, 10) : 50,
       offset: offset ? parseInt(offset, 10) : 0,
     };

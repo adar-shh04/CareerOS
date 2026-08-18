@@ -102,7 +102,7 @@ export class PrismaJobsRepository {
   async findJobBySourceOrFingerprint(
     source: string,
     externalId?: string,
-    fingerprint?: string,
+    _fingerprint?: string,
   ): Promise<CanonicalJob | null> {
     if (externalId) {
       const existing = await this.prisma.client.job.findUnique({

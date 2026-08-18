@@ -164,7 +164,7 @@ export class JobsService {
 
     this.logger.log(
       `Matched job ${job.title} @ ${job.company} for workspace ${workspaceId}: ` +
-        `${Math.round(output.overallScore * 100)}/100`,
+        `${String(Math.round(output.overallScore * 100))}/100`,
     );
 
     return {
@@ -193,9 +193,9 @@ export class JobsService {
     },
   ) {
     const result = await this.ingestionService.ingest({
-      query: params.query || 'Software Engineer',
+      query: params.query ?? 'Software Engineer',
       location: params.location,
-      limit: params.limit || 20,
+      limit: params.limit ?? 20,
       source: params.source,
     });
 
@@ -322,9 +322,7 @@ export class JobsService {
       ? await this.resumeProfileService.findById(workspaceId, resumeProfileId)
       : await this.recommendResumeProfile(workspaceId, jobId);
 
-    if (!targetProfile) {
-      targetProfile = await this.recommendResumeProfile(workspaceId, jobId);
-    }
+    targetProfile ??= await this.recommendResumeProfile(workspaceId, jobId);
 
     const matchOutput = this.matchingService.match({
       job,
@@ -342,11 +340,11 @@ export class JobsService {
       matchOutput.matchedSkills.map((s) => s.toLowerCase()),
     );
 
-    const prioritySkillIds = (masterProfile.skills ?? [])
+    const prioritySkillIds = masterProfile.skills
       .filter((s) => matchedSkillNames.has(s.name.toLowerCase()))
       .map((s) => s.id);
 
-    const priorityProjectIds = (masterProfile.projects ?? [])
+    const priorityProjectIds = masterProfile.projects
       .filter((p) =>
         (p.technologies ?? []).some((tech) =>
           matchedSkillNames.has(tech.toLowerCase()),
@@ -354,7 +352,7 @@ export class JobsService {
       )
       .map((p) => p.id);
 
-    const priorityExperienceIds = (masterProfile.experiences ?? [])
+    const priorityExperienceIds = masterProfile.experiences
       .filter((e) =>
         (e.technologies ?? []).some((tech) =>
           matchedSkillNames.has(tech.toLowerCase()),

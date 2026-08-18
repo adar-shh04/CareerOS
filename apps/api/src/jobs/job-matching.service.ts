@@ -120,11 +120,11 @@ export class JobMatchingService {
     );
 
     const normalizedProfileSkills = new Set(
-      [...profileSkillNames].map(this.normalize),
+      [...profileSkillNames].map((s) => this.normalize(s)),
     );
 
-    const required = job.requiredSkills.map(this.normalize);
-    const preferred = job.preferredSkills.map(this.normalize);
+    const required = job.requiredSkills.map((s) => this.normalize(s));
+    const preferred = job.preferredSkills.map((s) => this.normalize(s));
 
     const matched: string[] = [];
     const missing: string[] = [];
@@ -200,7 +200,7 @@ export class JobMatchingService {
 
     // Pull role signals: most recent experience titles + resume profile roleFocus.
     const roleSources: string[] = [
-      ...(profile.experiences ?? []).map((e) => this.normalize(e.title)),
+      ...profile.experiences.map((e) => this.normalize(e.title)),
     ];
 
     if (resumeProfile?.roleFocus) {
@@ -262,7 +262,7 @@ export class JobMatchingService {
     // Remote job always scores 1 — location is irrelevant.
     if (job.isRemote || job.remotePolicy === 'REMOTE') return 1.0;
 
-    const profileLocation = this.normalize(profile.identity?.location ?? '');
+    const profileLocation = this.normalize(profile.identity.location ?? '');
     const jobLocation = this.normalize(job.location);
 
     if (!profileLocation) return 0.5; // Unknown — neutral.
@@ -345,7 +345,7 @@ export class JobMatchingService {
     if (skillCount === 0) score -= 0.3;
     else if (skillCount < 3) score -= 0.15;
 
-    if ((profile.experiences?.length ?? 0) === 0) score -= 0.2;
+    if (profile.experiences.length === 0) score -= 0.2;
 
     // Penalise when the job has no required skills listed.
     if (job.requiredSkills.length === 0) score -= 0.15;
@@ -372,10 +372,12 @@ export class JobMatchingService {
     const matched = ctx.skillResult.matched.length;
     const missing = ctx.skillResult.missing;
 
-    const parts: string[] = [`${pct}/100 overall match score.`];
+    const parts: string[] = [`${String(pct)}/100 overall match score.`];
 
     if (required > 0) {
-      parts.push(`${matched}/${required} required skills matched.`);
+      parts.push(
+        `${String(matched)}/${String(required)} required skills matched.`,
+      );
     }
 
     if (ctx.skillResult.matchedPreferred.length > 0) {
@@ -398,7 +400,7 @@ export class JobMatchingService {
 
     const years = this.estimateExperienceYears(ctx.masterProfile);
     if (years > 0) {
-      parts.push(`~${years} years of estimated experience.`);
+      parts.push(`~${String(years)} years of estimated experience.`);
     }
 
     if (ctx.locationScore === 1.0) {
@@ -413,7 +415,7 @@ export class JobMatchingService {
   }
 
   private estimateExperienceYears(profile: MasterCareerProfile): number {
-    const experiences = profile.experiences ?? [];
+    const experiences = profile.experiences;
     let totalMonths = 0;
 
     for (const exp of experiences) {
@@ -443,13 +445,13 @@ export class JobMatchingService {
 
   private collectProfileSkillNames(profile: MasterCareerProfile): Set<string> {
     const names = new Set<string>();
-    (profile.skills ?? []).forEach((s) => names.add(s.name));
-    (profile.technologies ?? []).forEach((t) => names.add(t.name));
+    profile.skills.forEach((s) => names.add(s.name));
+    profile.technologies.forEach((t) => names.add(t.name));
     // Also pick up technologies listed on experiences and projects.
-    (profile.experiences ?? []).forEach((e) => {
+    profile.experiences.forEach((e) => {
       (e.technologies ?? []).forEach((t) => names.add(t));
     });
-    (profile.projects ?? []).forEach((p) => {
+    profile.projects.forEach((p) => {
       (p.technologies ?? []).forEach((t) => names.add(t));
     });
     return names;

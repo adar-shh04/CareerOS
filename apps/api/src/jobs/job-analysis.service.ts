@@ -50,12 +50,12 @@ export class JobAnalysisService {
 
     if (profileYears < reqMinYears) {
       seniorityAlignment = 'under_qualified';
-      experienceGap = `Job specifies ${job.experienceRequirements?.text ?? `${reqMinYears}+ years`}, profile has ~${String(profileYears)} years.`;
+      experienceGap = `Job specifies ${job.experienceRequirements?.text ?? `${String(reqMinYears)}+ years`}, profile has ~${String(profileYears)} years.`;
     } else if (profileYears > reqMinYears + 5) {
       seniorityAlignment = 'over_qualified';
-      experienceGap = `Profile has ~${String(profileYears)} years of experience, exceeding requirement of ${job.experienceRequirements?.text ?? `${reqMinYears} years`}.`;
+      experienceGap = `Profile has ~${String(profileYears)} years of experience, exceeding requirement of ${job.experienceRequirements?.text ?? `${String(reqMinYears)} years`}.`;
     } else {
-      experienceGap = `Experience aligned (~${String(profileYears)} years vs ${job.experienceRequirements?.text ?? `${reqMinYears}+ years`} required).`;
+      experienceGap = `Experience aligned (~${String(profileYears)} years vs ${job.experienceRequirements?.text ?? `${String(reqMinYears)}+ years`} required).`;
     }
 
     const prioritySkillNames = Array.from(
@@ -108,7 +108,7 @@ export class JobAnalysisService {
   }
 
   private estimateExperienceYears(profile: MasterCareerProfile): number {
-    const experiences = profile.experiences ?? [];
+    const experiences = profile.experiences;
     let totalMonths = 0;
 
     for (const exp of experiences) {

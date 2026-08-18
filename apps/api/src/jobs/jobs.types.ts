@@ -1,10 +1,14 @@
 import type {
   CanonicalJob,
+  ExperienceRequirements,
   JobMatchDimensionScores,
   JobMatchEvidence,
   JobMatchingWeights,
   WorkspaceJobState,
 } from '@repo/types';
+
+import type { MasterCareerProfile } from '../career-profile/career-profile.types';
+import type { ResumeProfile } from '../resume-profile/resume-profile.types';
 
 export type { CanonicalJob, JobMatchingWeights, WorkspaceJobState };
 
@@ -20,9 +24,9 @@ export const DEFAULT_WEIGHTS: JobMatchingWeights = {
 export interface MatchInput {
   job: CanonicalJob;
   /** Full MasterCareerProfile from the jobs.types module (imported from career-profile domain) */
-  masterProfile: import('../career-profile/career-profile.types').MasterCareerProfile;
+  masterProfile: MasterCareerProfile;
   /** Optional — when provided the engine also weighs priority skill/experience/project IDs. */
-  resumeProfile?: import('../resume-profile/resume-profile.types').ResumeProfile;
+  resumeProfile?: ResumeProfile;
   weights?: JobMatchingWeights;
 }
 
@@ -49,7 +53,7 @@ export interface CreateJobInput {
   isRemote?: boolean;
   remotePolicy?: string;
   seniority?: string;
-  experienceRequirements?: import('@repo/types').ExperienceRequirements;
+  experienceRequirements?: ExperienceRequirements;
   employmentType?: string;
   salaryMin?: number;
   salaryMax?: number;
