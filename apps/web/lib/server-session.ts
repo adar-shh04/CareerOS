@@ -110,7 +110,16 @@ export async function getServerSession(): Promise<ServerSession | null> {
   }
 
   if (!workspaceId) {
-    return null;
+    return {
+      token: cookie,
+      user: payload.user,
+      workspace: {
+        id: "",
+        name: "Workspace",
+        slug: "",
+      },
+      needsOnboarding: true,
+    };
   }
 
   const orgUrl =
@@ -124,10 +133,10 @@ export async function getServerSession(): Promise<ServerSession | null> {
 
   const org = orgResponse.ok
     ? ((await orgResponse.json()) as {
-      id: string;
-      name: string;
-      slug: string;
-    })
+        id: string;
+        name: string;
+        slug: string;
+      })
     : null;
 
   return {

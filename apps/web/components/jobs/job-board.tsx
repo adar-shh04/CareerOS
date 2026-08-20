@@ -22,17 +22,38 @@ export function JobBoard({ onNavigateToResume }: JobBoardProps = {}) {
   const [showDismissed, setShowDismissed] = useState(false);
   const [selectedSkill, setSelectedSkill] = useState("");
   const [selectedJob, setSelectedJob] = useState<JobOpportunity | null>(null);
+  const [error, setError] = useState<{ status: number; message: string } | null>(
+    null,
+  );
 
   const fetchJobs = useCallback(async (query?: string) => {
     setLoading(true);
+    setError(null);
     try {
       const params = query ? `?query=${encodeURIComponent(query)}` : "";
       const response = await fetch(`/api/jobs${params}`, { cache: "no-store" });
       if (response.ok) {
         const data = (await response.json()) as JobOpportunity[];
         setJobs(data);
+      } else {
+        const body = (await response.json().catch(() => ({}))) as {
+          message?: string;
+        };
+        setError({
+          status: response.status,
+          message:
+            body.message ??
+            (response.status === 401
+              ? "Your session could not be verified. Please sign in again."
+              : "Failed to load job opportunities."),
+        });
+        setJobs([]);
       }
     } catch {
+      setError({
+        status: 0,
+        message: "Network error — please check your connection and retry.",
+      });
       setJobs([]);
     } finally {
       setLoading(false);
@@ -151,6 +172,7 @@ export function JobBoard({ onNavigateToResume }: JobBoardProps = {}) {
       <JobList
         jobs={filteredJobs}
         loading={loading}
+        error={error}
         onSelectJob={setSelectedJob}
         query={searchQuery}
         onResetQuery={() => {
@@ -158,6 +180,9 @@ export function JobBoard({ onNavigateToResume }: JobBoardProps = {}) {
           setSelectedSkill("");
           setRemoteOnly(false);
           void fetchJobs("");
+        }}
+        onRetry={() => {
+          void fetchJobs(searchQuery);
         }}
       />
 

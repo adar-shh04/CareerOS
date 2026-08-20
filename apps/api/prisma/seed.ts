@@ -40,14 +40,14 @@ async function main(): Promise<void> {
 
   const user = await prisma.user.findUniqueOrThrow({
     where: { email: demoEmail },
-    include: { memberships: { include: { workspace: true } } },
+    include: { memberships: { include: { organization: true } } },
   });
-  const workspace = user.memberships[0]?.workspace;
+  const organization = user.memberships[0]?.organization;
 
-  if (workspace) {
+  if (organization) {
     await prisma.masterCareerProfile.create({
       data: {
-        workspaceId: workspace.id,
+        organizationId: organization.id,
         fullName: demoName,
         headline: 'Staff Fullstack & AI Engineer',
         location: 'San Francisco, CA',
@@ -59,7 +59,7 @@ async function main(): Promise<void> {
   console.log('Seed complete.');
   console.log(`  Demo user: ${demoEmail}`);
   console.log(`  Demo password: ${demoPassword}`);
-  console.log(`  Workspace: ${workspace?.name ?? '(none created)'}`);
+  console.log(`  Workspace: ${organization?.name ?? '(none created)'}`);
 }
 
 main()

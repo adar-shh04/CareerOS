@@ -50,3 +50,4 @@ apps/api/src/generated/prisma/
 #docs for agent info
 docs
 
+.playwright-mcp

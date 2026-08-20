@@ -122,27 +122,60 @@ export const auth = betterAuth({
     }),
   ],
 
-  //databaseHooks: {
-  //  user: {
-  //  create: {
-  //  after: async (user) => {
-  //  // Auto-create the user's first workspace, mirroring the old
-  // register() flow (one workspace per new account, owner role).
-  //await auth.api.createOrganization({
-  //body: {
-  //name: user.name
-  //? `${user.name}'s Workspace`
-  //: 'My Career Workspace',
-  //slug: `${slugify(
-  //user.name || user.email.split('@')[0],
-  //)}-${Date.now().toString(36)}`,
-  //userId: user.id,
-  //},
-  //});
-  //},
-  //},
-  //},
-  //},
+  databaseHooks: {
+    user: {
+      create: {
+        after: async (user) => {
+          // Auto-create the user's first workspace, mirroring the old
+          // register() flow (one workspace per new account, owner role).
+          const workspaceName = user.name
+            ? `${user.name}'s Workspace`
+            : 'My Career Workspace';
+          const slug = `${slugify(user.name || user.email.split('@')[0])}-${Date.now().toString(36)}`;
+
+          const org = await prisma.organization.create({
+            data: {
+              name: workspaceName,
+              slug,
+              members: {
+                create: {
+                  userId: user.id,
+                  role: 'owner',
+                },
+              },
+            },
+          });
+
+          // Immediately bind the new workspace to any sessions created during autoSignIn
+          await prisma.session.updateMany({
+            where: { userId: user.id },
+            data: { activeOrganizationId: org.id },
+          });
+        },
+      },
+    },
+    session: {
+      create: {
+        before: async (session) => {
+          // Ensure every new session has an activeOrganizationId resolved
+          if (!session.activeOrganizationId) {
+            const member = await prisma.member.findFirst({
+              where: { userId: session.userId },
+              include: { organization: true },
+            });
+            if (member) {
+              return {
+                data: {
+                  ...session,
+                  activeOrganizationId: member.organizationId,
+                },
+              };
+            }
+          }
+        },
+      },
+    },
+  },
 });
 
 export type Auth = typeof auth;

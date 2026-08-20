@@ -1,7 +1,7 @@
 import type { MasterCareerProfileInput } from "@repo/types";
 import { NextResponse } from "next/server";
 
-import { fetchCareerProfile, saveCareerProfile } from "@/lib/api";
+import { ApiError, fetchCareerProfile, saveCareerProfile } from "@/lib/api";
 import { getServerSession } from "@/lib/server-session";
 
 export async function GET() {
@@ -19,14 +19,13 @@ export async function GET() {
 
     return NextResponse.json(profile);
   } catch (error) {
-    console.error("[career-profile route] API error:", error);
-
+    const status = error instanceof ApiError ? error.status : 400;
     const message =
       error instanceof Error
         ? error.message
         : "Unable to fetch career profile.";
 
-    return NextResponse.json({ message }, { status: 400 });
+    return NextResponse.json({ message }, { status });
   }
 }
 

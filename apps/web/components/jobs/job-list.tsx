@@ -5,25 +5,40 @@ import React from "react";
 
 import { JobCard } from "./job-card";
 import { JobEmptyState } from "./job-empty-state";
+import { JobErrorState } from "./job-error-state";
 import { JobSkeleton } from "./job-skeleton";
 
 interface JobListProps {
   jobs: JobOpportunity[];
   loading: boolean;
+  error?: { status: number; message: string } | null;
   onSelectJob: (job: JobOpportunity) => void;
   query?: string;
   onResetQuery?: () => void;
+  onRetry?: () => void;
 }
 
 export function JobList({
   jobs,
   loading,
+  error,
   onSelectJob,
   query,
   onResetQuery,
+  onRetry,
 }: JobListProps) {
   if (loading) {
     return <JobSkeleton />;
+  }
+
+  if (error) {
+    return (
+      <JobErrorState
+        status={error.status}
+        message={error.message}
+        onRetry={onRetry}
+      />
+    );
   }
 
   if (jobs.length === 0) {

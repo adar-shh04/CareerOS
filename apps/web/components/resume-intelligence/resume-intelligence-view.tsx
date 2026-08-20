@@ -47,6 +47,8 @@ export function ResumeIntelligenceView({ initialVersion, initialProfile }: Resum
   );
   const [loadingVersions, setLoadingVersions] = useState(false);
 
+  const [error, setError] = useState<{ status: number; message: string } | null>(null);
+
   /* ── Load Master Career Profile ────────────────────────────────────── */
   const loadMasterProfile = useCallback(async () => {
     try {
@@ -54,15 +56,21 @@ export function ResumeIntelligenceView({ initialVersion, initialProfile }: Resum
       if (response.ok) {
         const data = (await response.json()) as MasterCareerProfile;
         setMasterProfile(data);
+      } else if (response.status === 401) {
+        setError({
+          status: 401,
+          message: "Session expired. Please sign in again.",
+        });
       }
     } catch {
-      /* silently ignore empty profiles */
+      /* network error handled in loadProfiles */
     }
   }, []);
 
   /* ── Load Resume Profiles ──────────────────────────────────────────── */
   const loadProfiles = useCallback(async () => {
     setLoadingProfiles(true);
+    setError(null);
     try {
       const response = await fetch("/api/resume-profiles", { cache: "no-store" });
       if (response.ok) {
@@ -74,9 +82,24 @@ export function ResumeIntelligenceView({ initialVersion, initialProfile }: Resum
             setSelectedProfileId(firstProfile.id);
           }
         }
+      } else {
+        const body = (await response.json().catch(() => ({}))) as {
+          message?: string;
+        };
+        setError({
+          status: response.status,
+          message:
+            body.message ??
+            (response.status === 401
+              ? "Authentication required. Please sign in."
+              : "Failed to load resume profiles."),
+        });
       }
     } catch {
-      /* ignore */
+      setError({
+        status: 0,
+        message: "Network error — unable to load resume profiles.",
+      });
     } finally {
       setLoadingProfiles(false);
     }
@@ -251,6 +274,42 @@ export function ResumeIntelligenceView({ initialVersion, initialProfile }: Resum
           })}
         </div>
       </div>
+
+      {/* Error Banner */}
+      {error && (
+        <div
+          style={{
+            padding: "0.875rem 1.25rem",
+            borderRadius: "0.5rem",
+            backgroundColor: "rgba(239, 68, 68, 0.12)",
+            border: "1px solid rgba(239, 68, 68, 0.3)",
+            color: "#fca5a5",
+            fontSize: "0.875rem",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <span>{error.message}</span>
+          <button
+            type="button"
+            onClick={() => {
+              void loadMasterProfile();
+              void loadProfiles();
+            }}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "#ffffff",
+              textDecoration: "underline",
+              cursor: "pointer",
+              fontSize: "0.85rem",
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* Overview Cards */}
       <ResumeOverviewCards
