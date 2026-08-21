@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { ingestJobs } from "@/lib/api";
+import { ApiError, ingestJobs } from "@/lib/api";
 import { getServerSession } from "@/lib/server-session";
 
 export async function POST(request: Request) {
@@ -25,8 +25,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json(result);
   } catch (error) {
+    const status = error instanceof ApiError ? error.status : 400;
     const message =
       error instanceof Error ? error.message : "Failed to trigger job ingestion.";
-    return NextResponse.json({ message }, { status: 400 });
+    return NextResponse.json({ message }, { status });
   }
 }

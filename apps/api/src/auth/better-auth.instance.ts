@@ -2,6 +2,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { bearer, organization } from 'better-auth/plugins';
+import { Pool } from 'pg';
 
 import { PrismaClient } from '../generated/prisma/client';
 
@@ -14,8 +15,9 @@ const connectionString =
   process.env.DATABASE_URL ??
   'postgresql://careeros:careeros@localhost:5432/careeros?schema=public';
 
+const pool = new Pool({ connectionString });
 const prisma = new PrismaClient({
-  adapter: new PrismaPg({ connectionString }),
+  adapter: new PrismaPg(pool),
 });
 
 function slugify(value: string): string {

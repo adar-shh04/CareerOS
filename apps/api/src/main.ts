@@ -6,7 +6,7 @@ import { toNodeHandler } from 'better-auth/node';
 import { AppModule } from './app.module';
 import { auth } from './auth/better-auth.instance';
 
-async function bootstrap() {
+export async function createApp(): Promise<NestExpressApplication> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     // Better Auth needs the raw (unparsed) request body for its handler,
     // so we disable Nest's default body parser and mount it selectively
@@ -38,6 +38,11 @@ async function bootstrap() {
     }),
   );
 
+  return app;
+}
+
+async function bootstrap() {
+  const app = await createApp();
   await app.listen(process.env.PORT ?? 3001);
 }
 void bootstrap();

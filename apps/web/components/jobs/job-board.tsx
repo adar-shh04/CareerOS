@@ -83,9 +83,11 @@ export function JobBoard({ onNavigateToResume }: JobBoardProps = {}) {
   }, [jobs, remoteOnly, savedOnly, showDismissed, selectedSkill]);
 
   const [ingesting, setIngesting] = useState(false);
+  const [ingestError, setIngestError] = useState<string | null>(null);
 
   const handleIngestJobs = async () => {
     setIngesting(true);
+    setIngestError(null);
     try {
       const response = await fetch("/api/jobs/ingest", {
         method: "POST",
@@ -94,9 +96,16 @@ export function JobBoard({ onNavigateToResume }: JobBoardProps = {}) {
       });
       if (response.ok) {
         await fetchJobs(searchQuery);
+      } else {
+        const body = (await response.json().catch(() => ({}))) as {
+          message?: string;
+        };
+        setIngestError(
+          body.message ?? "Live market job ingestion failed.",
+        );
       }
     } catch {
-      // Handled gracefully
+      setIngestError("Network error — could not reach ingestion service.");
     } finally {
       setIngesting(false);
     }
@@ -145,6 +154,20 @@ export function JobBoard({ onNavigateToResume }: JobBoardProps = {}) {
           </button>
         </div>
       </div>
+
+      {/* Ingestion Error Alert */}
+      {ingestError && (
+        <div className="flex items-center justify-between gap-3 p-3.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs">
+          <span>{ingestError}</span>
+          <button
+            type="button"
+            onClick={() => setIngestError(null)}
+            className="text-rose-400 hover:text-rose-200 font-bold px-1.5 py-0.5"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Controls Bar */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">

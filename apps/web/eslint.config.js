@@ -1,7 +1,7 @@
 import { nextJsConfig } from "@repo/eslint-config/next-js";
 
 /** @type {import("eslint").Linter.Config[]} */
-export default [
+const config = [
 	...nextJsConfig,
 	{
 		languageOptions: {
@@ -23,3 +23,5 @@ export default [
 		},
 	},
 ];
+
+export default config;

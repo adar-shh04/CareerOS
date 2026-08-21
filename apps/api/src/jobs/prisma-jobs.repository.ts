@@ -7,11 +7,11 @@ import type {
 } from '@repo/types';
 
 import { PrismaService } from '../database/prisma.service';
-import type {
-  Job,
-  JobMatch,
+import {
+  type Job,
+  type JobMatch,
   Prisma,
-  WorkspaceJobState as PrismaWorkspaceJobState,
+  type WorkspaceJobState as PrismaWorkspaceJobState,
 } from '../generated/prisma/client';
 import type {
   CreateJobInput,
@@ -30,6 +30,7 @@ export class PrismaJobsRepository {
   /**
    * Upsert a canonical job by (source, externalId) or by fingerprint.
    * If externalId is absent but fingerprint is present, deduplicates by fingerprint.
+   * Race-safe against concurrent ingestion runs.
    */
   async upsertCanonicalJob(input: CreateJobInput): Promise<CanonicalJob> {
     const data = {
@@ -53,35 +54,72 @@ export class PrismaJobsRepository {
       expiresAt: input.expiresAt ?? null,
     };
 
-    if (input.externalId) {
-      const row = await this.prisma.client.job.upsert({
-        where: {
-          source_externalId: {
-            source: data.source,
-            externalId: input.externalId,
+    // If neither externalId nor fingerprint is provided, create directly
+    if (!input.externalId && !input.fingerprint) {
+      const row = await this.prisma.client.job.create({ data });
+      return this.mapJob(row);
+    }
+
+    const findExisting = async (): Promise<Job | null> => {
+      if (input.externalId) {
+        const byExternalId = await this.prisma.client.job.findUnique({
+          where: {
+            source_externalId: {
+              source: data.source,
+              externalId: input.externalId,
+            },
           },
+        });
+        if (byExternalId) return byExternalId;
+      }
+      if (input.fingerprint) {
+        const byFingerprint = await this.prisma.client.job.findUnique({
+          where: { fingerprint: input.fingerprint },
+        });
+        if (byFingerprint) return byFingerprint;
+      }
+      return null;
+    };
+
+    const existing = await findExisting();
+    if (existing) {
+      const row = await this.prisma.client.job.update({
+        where: { id: existing.id },
+        data: {
+          ...data,
+          ...(input.externalId ? { externalId: input.externalId } : {}),
         },
-        update: data,
-        create: { ...data, externalId: input.externalId },
       });
       return this.mapJob(row);
     }
 
-    if (input.fingerprint) {
-      const existing = await this.prisma.client.job.findUnique({
-        where: { fingerprint: input.fingerprint },
+    try {
+      const row = await this.prisma.client.job.create({
+        data: {
+          ...data,
+          ...(input.externalId ? { externalId: input.externalId } : {}),
+        },
       });
-      if (existing) {
-        const row = await this.prisma.client.job.update({
-          where: { id: existing.id },
-          data,
-        });
-        return this.mapJob(row);
+      return this.mapJob(row);
+    } catch (error: unknown) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        const retryExisting = await findExisting();
+        if (retryExisting) {
+          const row = await this.prisma.client.job.update({
+            where: { id: retryExisting.id },
+            data: {
+              ...data,
+              ...(input.externalId ? { externalId: input.externalId } : {}),
+            },
+          });
+          return this.mapJob(row);
+        }
       }
+      throw error;
     }
-
-    const row = await this.prisma.client.job.create({ data });
-    return this.mapJob(row);
   }
 
   /** List canonical jobs. Optionally filter by text query, remote, or a single skill. */

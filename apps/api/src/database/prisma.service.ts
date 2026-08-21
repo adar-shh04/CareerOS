@@ -1,5 +1,6 @@
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
 
 import { PrismaClient } from '../generated/prisma/client';
 
@@ -17,8 +18,9 @@ export class PrismaService implements OnModuleDestroy {
         throw new DatabaseConfigurationError('DATABASE_URL is required.');
       }
 
+      const pool = new Pool({ connectionString });
       this.clientInstance = new PrismaClient({
-        adapter: new PrismaPg({ connectionString }),
+        adapter: new PrismaPg(pool),
       });
     }
 

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 
 import type { CanonicalJob } from '../jobs.types';
 import { PrismaJobsRepository } from '../prisma-jobs.repository';
@@ -38,9 +38,19 @@ export class JobIngestionService {
     this.adapters.set(apifyAdapter.sourceId, apifyAdapter);
   }
 
+  registerAdapter(adapter: JobSourceAdapter): void {
+    this.adapters.set(adapter.sourceId, adapter);
+  }
+
   async ingest(options: IngestionOptions): Promise<IngestionResult> {
     const sourceId = options.source ?? this.apifyAdapter.sourceId;
-    const adapter = this.adapters.get(sourceId) ?? this.apifyAdapter;
+    const adapter = this.adapters.get(sourceId);
+
+    if (!adapter) {
+      throw new BadRequestException(
+        `Job source adapter '${sourceId}' is not registered.`,
+      );
+    }
 
     this.logger.log(
       `Starting job ingestion via adapter '${adapter.sourceId}' for query '${options.query}' (location: ${options.location ?? 'any'})`,
