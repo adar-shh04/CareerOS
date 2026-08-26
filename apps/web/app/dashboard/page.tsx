@@ -1,5 +1,5 @@
-import CareerCommandCenter from "../page";
+import { DashboardOverview } from "@/components/dashboard/dashboard-overview";
 
 export default function DashboardPage() {
-  return <CareerCommandCenter />;
+  return <DashboardOverview />;
 }
