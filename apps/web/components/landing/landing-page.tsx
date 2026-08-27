@@ -1,6 +1,5 @@
-import Link from "next/link";
 import "./landing-page.module.css";
-import { ContactForm, FeedbackForm } from "../marketing/feedback-forms";
+
 import {
   ArrowRight,
   Check,
@@ -16,6 +15,9 @@ import {
   Target,
   TrendingUp,
 } from "lucide-react";
+import Link from "next/link";
+
+import { ContactForm, FeedbackForm } from "../marketing/feedback-forms";
 
 const modules = [
   { icon: Compass, title: "Career Profile", text: "Build a living source of truth for your experience, strengths, goals, and next direction." },

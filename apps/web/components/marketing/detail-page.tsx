@@ -1,5 +1,6 @@
+import { ArrowRight, BriefcaseBusiness, Check, Code2, Compass, FileText, Radar, Route, Target, TrendingUp, Upload } from 'lucide-react';
 import Link from 'next/link';
-import { ArrowRight, Check, Compass, FileText, Code2, BriefcaseBusiness, Radar, Route, Target, TrendingUp, Upload } from 'lucide-react';
+
 import styles from './detail-page.module.css';
 
 const features = [
