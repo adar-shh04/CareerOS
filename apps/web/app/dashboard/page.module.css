@@ -26,7 +26,7 @@
 
 .brandMark {
   align-items: center;
-  background: #b8f66b;
+  background: #0fa9b4;
   border-radius: 8px;
   color: #11261f;
   display: inline-flex;
@@ -156,13 +156,13 @@
 }
 
 .primaryButton {
-  background: #1c513d;
-  border: 1px solid #1c513d;
+  background: #0fa9b4;
+  border: 1px solid #0fa9b4;
   color: #ffffff;
 }
 
 .primaryButton:hover {
-  background: #123f2e;
+  background: #0b8e98;
 }
 
 .secondaryButton {
@@ -338,7 +338,7 @@
 
 .actionList li span {
   align-items: center;
-  background: #b8f66b;
+  background: #0fa9b4;
   border-radius: 50%;
   color: #173d2d;
   display: flex;
