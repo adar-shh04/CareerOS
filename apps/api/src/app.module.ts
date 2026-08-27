@@ -6,6 +6,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { ByokModule } from './byok/byok.module';
+import { FeedbackModule } from './feedback/feedback.module';
 import { CareerProfileModule } from './career-profile/career-profile.module';
 import { BetterAuthGuard } from './common/guards/better-auth.guard';
 import { DatabaseModule } from './database/database.module';
@@ -23,6 +24,7 @@ import { WorkspaceModule } from './workspace/workspace.module';
     AuthModule,
     WorkspaceModule,
     ByokModule,
+    FeedbackModule,
     CareerProfileModule,
     ResumeProfileModule,
     JobsModule,
