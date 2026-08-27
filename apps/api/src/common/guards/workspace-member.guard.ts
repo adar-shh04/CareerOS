@@ -19,9 +19,20 @@ export class WorkspaceMemberGuard implements CanActivate {
     }>();
 
     const user = request.user;
-    const workspaceId = request.params?.workspaceId;
+    let workspaceId = request.params?.workspaceId;
 
-    if (!user || !workspaceId) {
+    if (!user) {
+      throw new ForbiddenException('Workspace access denied.');
+    }
+
+    if (!workspaceId || workspaceId === 'current') {
+      workspaceId = user.workspaceId;
+      if (request.params) {
+        request.params.workspaceId = user.workspaceId;
+      }
+    }
+
+    if (!workspaceId) {
       throw new ForbiddenException('Workspace access denied.');
     }
 

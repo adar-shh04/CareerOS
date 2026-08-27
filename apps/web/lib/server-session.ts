@@ -114,7 +114,7 @@ export async function getServerSession(): Promise<ServerSession | null> {
       token: cookie,
       user: payload.user,
       workspace: {
-        id: "",
+        id: "current",
         name: "Workspace",
         slug: "",
       },

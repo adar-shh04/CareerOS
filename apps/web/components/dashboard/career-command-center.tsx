@@ -17,6 +17,7 @@ import { useRouter } from "next/navigation";
 import React, { useCallback, useEffect, useState } from "react";
 
 import { useAuth } from "../../providers/auth-provider";
+import { ApplicationTrackerView } from "../applications/application-tracker-view";
 import { JobBoard } from "../jobs/job-board";
 import { ResumeIntelligenceView } from "../resume-intelligence/resume-intelligence-view";
 
@@ -163,7 +164,7 @@ export default function CareerCommandCenter() {
   const { session, loading, logout } = useAuth();
 
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "resume" | "jobs" | "coach" | "skills"
+    "dashboard" | "resume" | "jobs" | "applications" | "coach" | "skills"
   >("dashboard");
   const [coachOpen, setCoachOpen] = useState(false);
   const [targetedVersion, setTargetedVersion] = useState<ResumeVersion | null>(null);
@@ -320,6 +321,7 @@ export default function CareerCommandCenter() {
               { id: "dashboard", label: "Command Center", icon: Compass },
               { id: "resume", label: "Resume Intelligence", icon: FileText },
               { id: "jobs", label: "Job Radar", icon: Briefcase },
+              { id: "applications", label: "Applications", icon: TrendingUp },
               { id: "coach", label: "AI Mentor", icon: Sparkles },
               { id: "skills", label: "Skill Roadmap", icon: Target },
             ].map((item) => {
@@ -335,6 +337,7 @@ export default function CareerCommandCenter() {
                         | "dashboard"
                         | "resume"
                         | "jobs"
+                        | "applications"
                         | "coach"
                         | "skills",
                     );
@@ -627,6 +630,10 @@ export default function CareerCommandCenter() {
           />
         ) : activeTab === "jobs" ? (
           <JobBoard onNavigateToResume={handleNavigateToResume} />
+        ) : activeTab === "applications" ? (
+          <ApplicationTrackerView
+            onGoToJobs={() => setActiveTab("jobs")}
+          />
         ) : (
           <div
             style={{
@@ -752,34 +759,92 @@ export default function CareerCommandCenter() {
               />
             </div>
 
-            <div
-              style={{
-                gridColumn: "span 4",
-                display: "flex",
-                flexDirection: "column",
-                gap: "1.5rem",
-              }}
-            >
-              <ComingSoonCard
-                icon={
-                  <Briefcase
-                    style={{ width: "18px", height: "18px", color: "#22d3ee" }}
-                  />
-                }
-                title="Intelligent Job Radar"
-                description="The Job Intelligence module will ingest, normalize, deduplicate, and rank job opportunities tailored to your profile and preferences."
-              />
+              <div
+                style={{
+                  gridColumn: "span 4",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "1.5rem",
+                }}
+              >
+                {/* Quick-access to Job Radar */}
+                <div className="glass-panel" style={{ padding: "1.5rem" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.6rem",
+                      marginBottom: "1rem",
+                    }}
+                  >
+                    <Briefcase
+                      style={{ width: "18px", height: "18px", color: "#22d3ee" }}
+                    />
+                    <h3 style={{ fontSize: "1.05rem", fontWeight: "700" }}>
+                      Job Radar
+                    </h3>
+                  </div>
+                  <p style={{ fontSize: "0.85rem", color: "#94a3b8", lineHeight: 1.5, marginBottom: "1rem" }}>
+                    Discover and save job opportunities matched to your profile.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("jobs")}
+                    style={{
+                      width: "100%",
+                      padding: "0.6rem",
+                      borderRadius: "0.5rem",
+                      background: "rgba(34,211,238,0.1)",
+                      border: "1px solid rgba(34,211,238,0.2)",
+                      color: "#22d3ee",
+                      fontWeight: "600",
+                      fontSize: "0.85rem",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Open Job Radar
+                  </button>
+                </div>
 
-              <ComingSoonCard
-                icon={
-                  <TrendingUp
-                    style={{ width: "18px", height: "18px", color: "#10b981" }}
-                  />
-                }
-                title="Application CRM"
-                description="Track the complete lifecycle of each application — from discovery through interviews to outcomes — in one unified view."
-              />
-            </div>
+                {/* Quick-access to Applications */}
+                <div className="glass-panel" style={{ padding: "1.5rem" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.6rem",
+                      marginBottom: "1rem",
+                    }}
+                  >
+                    <TrendingUp
+                      style={{ width: "18px", height: "18px", color: "#10b981" }}
+                    />
+                    <h3 style={{ fontSize: "1.05rem", fontWeight: "700" }}>
+                      Application Pipeline
+                    </h3>
+                  </div>
+                  <p style={{ fontSize: "0.85rem", color: "#94a3b8", lineHeight: 1.5, marginBottom: "1rem" }}>
+                    Track applications from discovery through offer.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("applications")}
+                    style={{
+                      width: "100%",
+                      padding: "0.6rem",
+                      borderRadius: "0.5rem",
+                      background: "rgba(16,185,129,0.1)",
+                      border: "1px solid rgba(16,185,129,0.2)",
+                      color: "#10b981",
+                      fontWeight: "600",
+                      fontSize: "0.85rem",
+                      cursor: "pointer",
+                    }}
+                  >
+                    View Pipeline
+                  </button>
+                </div>
+              </div>
           </div>
         )}
       </main>
@@ -849,7 +914,7 @@ export default function CareerCommandCenter() {
               </button>
             </div>
 
-            {/* Coming Soon Content */}
+            {/* AI requires BYOK */}
             <div
               style={{
                 flex: 1,
@@ -880,22 +945,6 @@ export default function CareerCommandCenter() {
               </div>
 
               <div>
-                <span
-                  style={{
-                    display: "inline-block",
-                    padding: "0.25rem 0.75rem",
-                    borderRadius: "999px",
-                    fontSize: "0.7rem",
-                    fontWeight: "700",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.08em",
-                    backgroundColor: "rgba(99, 102, 241, 0.12)",
-                    color: "#818cf8",
-                    marginBottom: "0.75rem",
-                  }}
-                >
-                  Coming Soon
-                </span>
                 <h4
                   style={{
                     fontSize: "1.15rem",
@@ -905,36 +954,46 @@ export default function CareerCommandCenter() {
                 >
                   AI Career Coach
                 </h4>
-                <p
-                  style={{
-                    color: "#94a3b8",
-                    fontSize: "0.85rem",
-                    lineHeight: "1.6",
-                    maxWidth: "320px",
-                  }}
-                >
-                  Your personal AI career advisor will provide resume
-                  optimization, skill gap analysis, and interview preparation —
-                  powered by your own AI keys via BYOK.
-                </p>
+                {byokStatus.configured ? (
+                  <p
+                    style={{
+                      color: "#94a3b8",
+                      fontSize: "0.85rem",
+                      lineHeight: "1.6",
+                      maxWidth: "320px",
+                    }}
+                  >
+                    AI provider is configured. Conversational coaching will be available in an upcoming release.
+                  </p>
+                ) : (
+                  <>
+                    <p
+                      style={{
+                        color: "#94a3b8",
+                        fontSize: "0.85rem",
+                        lineHeight: "1.6",
+                        maxWidth: "320px",
+                        marginBottom: "1rem",
+                      }}
+                    >
+                      AI-assisted insights require a configured provider. Add your API key in BYOK settings to enable personalized coaching.
+                    </p>
+                    <div
+                      style={{
+                        padding: "0.75rem 1rem",
+                        borderRadius: "0.75rem",
+                        backgroundColor: "rgba(245, 158, 11, 0.08)",
+                        border: "1px solid rgba(245, 158, 11, 0.2)",
+                        color: "#fbbf24",
+                        fontSize: "0.8rem",
+                        maxWidth: "320px",
+                      }}
+                    >
+                      Configure OpenAI or Anthropic via BYOK settings to unlock AI features.
+                    </div>
+                  </>
+                )}
               </div>
-
-              {!byokStatus.configured && (
-                <div
-                  style={{
-                    padding: "0.75rem 1rem",
-                    borderRadius: "0.75rem",
-                    backgroundColor: "rgba(245, 158, 11, 0.08)",
-                    border: "1px solid rgba(245, 158, 11, 0.2)",
-                    color: "#fbbf24",
-                    fontSize: "0.8rem",
-                    maxWidth: "320px",
-                  }}
-                >
-                  Configure an AI provider key in Settings to enable this
-                  feature when it launches.
-                </div>
-              )}
             </div>
           </div>
         </div>

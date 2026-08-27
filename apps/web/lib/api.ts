@@ -71,12 +71,17 @@ export async function completeOnboarding(
   return parseResponse<AuthSession>(response);
 }
 
+function getWorkspacePath(workspaceId: string): string {
+  const wsId = workspaceId && workspaceId.trim() !== "" ? workspaceId.trim() : "current";
+  return `${getApiBaseUrl()}/workspaces/${wsId}`;
+}
+
 export async function fetchByokStatus(
   sessionCookie: string,
   workspaceId: string,
 ): Promise<ByokCredentialSummary[]> {
   const response = await fetch(
-    `${getApiBaseUrl()}/workspaces/${workspaceId}/byok`,
+    `${getWorkspacePath(workspaceId)}/byok`,
     {
       headers: {
         Cookie: sessionCookie,
@@ -94,7 +99,7 @@ export async function storeByokCredential(
   input: { provider: string; apiKey: string },
 ): Promise<unknown> {
   const response = await fetch(
-    `${getApiBaseUrl()}/workspaces/${workspaceId}/byok`,
+    `${getWorkspacePath(workspaceId)}/byok`,
     {
       method: "POST",
       headers: {
@@ -115,7 +120,7 @@ export async function fetchCareerProfile(
   workspaceId: string,
 ): Promise<MasterCareerProfile> {
   const response = await fetch(
-    `${getApiBaseUrl()}/workspaces/${workspaceId}/career-profile`,
+    `${getWorkspacePath(workspaceId)}/career-profile`,
     {
       headers: {
         Cookie: sessionCookie,
@@ -133,7 +138,7 @@ export async function saveCareerProfile(
   input: MasterCareerProfileInput,
 ): Promise<MasterCareerProfile> {
   const response = await fetch(
-    `${getApiBaseUrl()}/workspaces/${workspaceId}/career-profile`,
+    `${getWorkspacePath(workspaceId)}/career-profile`,
     {
       method: "PUT",
       headers: {
@@ -154,7 +159,7 @@ export async function listResumeProfiles(
   workspaceId: string,
 ): Promise<ResumeProfile[]> {
   const response = await fetch(
-    `${getApiBaseUrl()}/workspaces/${workspaceId}/resume-profiles`,
+    `${getWorkspacePath(workspaceId)}/resume-profiles`,
     {
       headers: {
         Cookie: sessionCookie,
@@ -172,7 +177,7 @@ export async function createResumeProfile(
   input: ResumeProfileInput,
 ): Promise<ResumeProfile> {
   const response = await fetch(
-    `${getApiBaseUrl()}/workspaces/${workspaceId}/resume-profiles`,
+    `${getWorkspacePath(workspaceId)}/resume-profiles`,
     {
       method: "POST",
       headers: {
@@ -186,13 +191,70 @@ export async function createResumeProfile(
   return parseResponse<ResumeProfile>(response);
 }
 
+export async function fetchResumeProfile(
+  sessionCookie: string,
+  workspaceId: string,
+  profileId: string,
+): Promise<ResumeProfile> {
+  const response = await fetch(
+    `${getWorkspacePath(workspaceId)}/resume-profiles/${profileId}`,
+    {
+      headers: {
+        Cookie: sessionCookie,
+      },
+      cache: "no-store",
+    },
+  );
+
+  return parseResponse<ResumeProfile>(response);
+}
+
+export async function updateResumeProfile(
+  sessionCookie: string,
+  workspaceId: string,
+  profileId: string,
+  input: ResumeProfileInput,
+): Promise<ResumeProfile> {
+  const response = await fetch(
+    `${getWorkspacePath(workspaceId)}/resume-profiles/${profileId}`,
+    {
+      method: "PUT",
+      headers: {
+        Cookie: sessionCookie,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(input),
+    },
+  );
+
+  return parseResponse<ResumeProfile>(response);
+}
+
+export async function deleteResumeProfile(
+  sessionCookie: string,
+  workspaceId: string,
+  profileId: string,
+): Promise<{ deleted: boolean }> {
+  const response = await fetch(
+    `${getWorkspacePath(workspaceId)}/resume-profiles/${profileId}`,
+    {
+      method: "DELETE",
+      headers: {
+        Cookie: sessionCookie,
+      },
+    },
+  );
+
+  return parseResponse<{ deleted: boolean }>(response);
+}
+
 export async function listResumeVersions(
   sessionCookie: string,
   workspaceId: string,
   profileId: string,
 ): Promise<ResumeVersion[]> {
   const response = await fetch(
-    `${getApiBaseUrl()}/workspaces/${workspaceId}/resume-profiles/${profileId}/versions`,
+    `${getWorkspacePath(workspaceId)}/resume-profiles/${profileId}/versions`,
     {
       headers: {
         Cookie: sessionCookie,
@@ -211,7 +273,7 @@ export async function createResumeVersion(
   input: CreateResumeVersionInput,
 ): Promise<ResumeVersion> {
   const response = await fetch(
-    `${getApiBaseUrl()}/workspaces/${workspaceId}/resume-profiles/${profileId}/versions`,
+    `${getWorkspacePath(workspaceId)}/resume-profiles/${profileId}/versions`,
     {
       method: "POST",
       headers: {
@@ -249,7 +311,7 @@ export async function listJobs(
   const search = qs.toString() ? `?${qs.toString()}` : "";
 
   const response = await fetch(
-    `${getApiBaseUrl()}/workspaces/${workspaceId}/jobs${search}`,
+    `${getWorkspacePath(workspaceId)}/jobs${search}`,
     {
       headers: { Cookie: sessionCookie },
       cache: "no-store",
@@ -265,7 +327,7 @@ export async function getJob(
   jobId: string,
 ): Promise<CanonicalJob> {
   const response = await fetch(
-    `${getApiBaseUrl()}/workspaces/${workspaceId}/jobs/${jobId}`,
+    `${getWorkspacePath(workspaceId)}/jobs/${jobId}`,
     {
       headers: { Cookie: sessionCookie },
       cache: "no-store",
@@ -275,9 +337,6 @@ export async function getJob(
   return parseResponse<CanonicalJob>(response);
 }
 
-/**
- * Trigger real job ingestion via external source adapter (e.g. Apify/LinkedIn).
- */
 export async function ingestJobs(
   sessionCookie: string,
   workspaceId: string,
@@ -291,7 +350,7 @@ export async function ingestJobs(
   jobs: JobOpportunity[];
 }> {
   const response = await fetch(
-    `${getApiBaseUrl()}/workspaces/${workspaceId}/jobs/ingest`,
+    `${getWorkspacePath(workspaceId)}/jobs/ingest`,
     {
       method: "POST",
       headers: {
@@ -319,7 +378,7 @@ export async function triggerJobMatch(
   options?: { resumeProfileId?: string; weights?: Partial<JobMatchingWeights> },
 ): Promise<JobOpportunity> {
   const response = await fetch(
-    `${getApiBaseUrl()}/workspaces/${workspaceId}/jobs/${jobId}/match`,
+    `${getWorkspacePath(workspaceId)}/jobs/${jobId}/match`,
     {
       method: "POST",
       headers: {
@@ -342,9 +401,9 @@ export async function createTargetedResumeForJob(
   version: ResumeVersion;
   analysis: JobAnalysisResult;
   profile: ResumeProfile;
-}> {
+ }> {
   const response = await fetch(
-    `${getApiBaseUrl()}/workspaces/${workspaceId}/jobs/${jobId}/targeted-resume`,
+    `${getWorkspacePath(workspaceId)}/jobs/${jobId}/targeted-resume`,
     {
       method: "POST",
       headers: {
@@ -368,7 +427,7 @@ export async function fetchJobAnalysis(
   jobId: string,
 ): Promise<JobAnalysisResult> {
   const response = await fetch(
-    `${getApiBaseUrl()}/workspaces/${workspaceId}/jobs/${jobId}/analysis`,
+    `${getWorkspacePath(workspaceId)}/jobs/${jobId}/analysis`,
     {
       headers: {
         Cookie: sessionCookie,
@@ -386,7 +445,7 @@ export async function saveJob(
   jobId: string,
 ): Promise<JobOpportunity> {
   const response = await fetch(
-    `${getApiBaseUrl()}/workspaces/${workspaceId}/jobs/${jobId}/save`,
+    `${getWorkspacePath(workspaceId)}/jobs/${jobId}/save`,
     {
       method: "POST",
       headers: {
@@ -405,7 +464,7 @@ export async function dismissJob(
   jobId: string,
 ): Promise<JobOpportunity> {
   const response = await fetch(
-    `${getApiBaseUrl()}/workspaces/${workspaceId}/jobs/${jobId}/dismiss`,
+    `${getWorkspacePath(workspaceId)}/jobs/${jobId}/dismiss`,
     {
       method: "POST",
       headers: {
@@ -424,7 +483,7 @@ export async function restoreJob(
   jobId: string,
 ): Promise<JobOpportunity> {
   const response = await fetch(
-    `${getApiBaseUrl()}/workspaces/${workspaceId}/jobs/${jobId}/restore`,
+    `${getWorkspacePath(workspaceId)}/jobs/${jobId}/restore`,
     {
       method: "POST",
       headers: {
@@ -448,7 +507,7 @@ export async function updateJobState(
   },
 ): Promise<JobOpportunity> {
   const response = await fetch(
-    `${getApiBaseUrl()}/workspaces/${workspaceId}/jobs/${jobId}/state`,
+    `${getWorkspacePath(workspaceId)}/jobs/${jobId}/state`,
     {
       method: "PATCH",
       headers: {
@@ -460,4 +519,169 @@ export async function updateJobState(
   );
 
   return parseResponse<JobOpportunity>(response);
+}
+
+/* ── Resume Parsing & Import API ───────────────────────────────────────── */
+
+export async function parseResume(
+  sessionCookie: string,
+  workspaceId: string,
+  input: { resumeText: string },
+): Promise<MasterCareerProfileInput> {
+  const response = await fetch(
+    `${getWorkspacePath(workspaceId)}/resume-profiles/parse`,
+    {
+      method: "POST",
+      headers: {
+        Cookie: sessionCookie,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(input),
+    },
+  );
+
+  return parseResponse<MasterCareerProfileInput>(response);
+}
+
+/* ── Application Tracking API ──────────────────────────────────────────── */
+
+export interface TrackedApplication {
+  id: string;
+  organizationId: string;
+  jobId: string;
+  status: string;
+  notes: string | null;
+  appliedAt: string | null;
+  resumeProfileId: string | null;
+  resumeVersionId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ApplicationStatusHistory {
+  id: string;
+  applicationId: string;
+  status: string;
+  notes: string | null;
+  createdAt: string;
+}
+
+export interface ApplicationStats {
+  total: number;
+  saved: number;
+  applied: number;
+  interviewing: number;
+  offers: number;
+}
+
+export async function fetchApplications(
+  sessionCookie: string,
+  workspaceId: string,
+): Promise<TrackedApplication[]> {
+  const response = await fetch(
+    `${getWorkspacePath(workspaceId)}/applications`,
+    {
+      headers: { Cookie: sessionCookie },
+      cache: "no-store",
+    },
+  );
+
+  return parseResponse<TrackedApplication[]>(response);
+}
+
+export async function fetchApplicationsStats(
+  sessionCookie: string,
+  workspaceId: string,
+): Promise<ApplicationStats> {
+  // Derive stats client-side from applications list to avoid a separate endpoint
+  const apps = await fetchApplications(sessionCookie, workspaceId);
+  return {
+    total: apps.length,
+    saved: apps.filter((a) => a.status === "saved").length,
+    applied: apps.filter((a) => a.status === "applied").length,
+    interviewing: apps.filter(
+      (a) => a.status === "screening" || a.status === "interview",
+    ).length,
+    offers: apps.filter((a) => a.status === "offer").length,
+  };
+}
+
+export async function trackApplication(
+  sessionCookie: string,
+  workspaceId: string,
+  jobId: string,
+  status: string,
+): Promise<TrackedApplication> {
+  const response = await fetch(
+    `${getWorkspacePath(workspaceId)}/applications`,
+    {
+      method: "POST",
+      headers: {
+        Cookie: sessionCookie,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ jobId, status }),
+    },
+  );
+
+  return parseResponse<TrackedApplication>(response);
+}
+
+export async function updateApplicationState(
+  sessionCookie: string,
+  workspaceId: string,
+  applicationId: string,
+  input: {
+    status?: string;
+    notes?: string;
+    appliedAt?: string;
+  },
+): Promise<TrackedApplication> {
+  const response = await fetch(
+    `${getWorkspacePath(workspaceId)}/applications/${applicationId}`,
+    {
+      method: "PATCH",
+      headers: {
+        Cookie: sessionCookie,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(input),
+    },
+  );
+
+  return parseResponse<TrackedApplication>(response);
+}
+
+export async function deleteApplication(
+  sessionCookie: string,
+  workspaceId: string,
+  applicationId: string,
+): Promise<void> {
+  const response = await fetch(
+    `${getWorkspacePath(workspaceId)}/applications/${applicationId}`,
+    {
+      method: "DELETE",
+      headers: { Cookie: sessionCookie },
+    },
+  );
+
+  if (!response.ok && response.status !== 204) {
+    await parseResponse<unknown>(response);
+  }
+}
+
+export async function fetchApplicationHistory(
+  sessionCookie: string,
+  workspaceId: string,
+  applicationId: string,
+): Promise<ApplicationStatusHistory[]> {
+  const response = await fetch(
+    `${getWorkspacePath(workspaceId)}/applications/${applicationId}/history`,
+    {
+      headers: { Cookie: sessionCookie },
+      cache: "no-store",
+    },
+  );
+
+  return parseResponse<ApplicationStatusHistory[]>(response);
 }

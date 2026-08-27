@@ -28,7 +28,7 @@ describe('WorkspaceMemberGuard', () => {
   });
 
   const createMockContext = (
-    user?: { id: string; email: string },
+    user?: { id: string; email: string; workspaceId?: string },
     workspaceId?: string,
   ): ExecutionContext => {
     const request = {
@@ -94,5 +94,29 @@ describe('WorkspaceMemberGuard', () => {
 
     const result = await guard.canActivate(context);
     expect(result).toBe(true);
+  });
+
+  it("resolves 'current' workspaceId parameter to the user's active workspace and allows access", async () => {
+    const context = createMockContext(
+      { id: 'u-1', email: 'u1@test.local', workspaceId: 'ws-active' },
+      'current',
+    );
+    mockPrismaService.client.member.findUnique.mockResolvedValue({
+      id: 'm-1',
+      organizationId: 'ws-active',
+      userId: 'u-1',
+      role: 'owner',
+    });
+
+    const result = await guard.canActivate(context);
+    expect(result).toBe(true);
+    expect(mockPrismaService.client.member.findUnique).toHaveBeenCalledWith({
+      where: {
+        organizationId_userId: {
+          organizationId: 'ws-active',
+          userId: 'u-1',
+        },
+      },
+    });
   });
 });

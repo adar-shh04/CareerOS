@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 
 import { WorkspaceMemberGuard } from '../common/guards/workspace-member.guard';
+import { ResumeParserService } from './resume-parser.service';
 import {
   ResumeProfileService,
   ResumeProfileValidationError,
@@ -26,7 +27,21 @@ import type {
 @Controller('workspaces/:workspaceId/resume-profiles')
 @UseGuards(WorkspaceMemberGuard)
 export class ResumeProfileController {
-  constructor(private readonly resumeProfileService: ResumeProfileService) {}
+  constructor(
+    private readonly resumeProfileService: ResumeProfileService,
+    private readonly resumeParserService: ResumeParserService,
+  ) {}
+
+  @Post('parse')
+  async parseResume(
+    @Param('workspaceId') workspaceId: string,
+    @Body() body: { resumeText: string },
+  ) {
+    if (!body.resumeText) {
+      throw new BadRequestException('resumeText is required.');
+    }
+    return this.resumeParserService.parse(workspaceId, body.resumeText);
+  }
 
   @Get()
   async listProfiles(

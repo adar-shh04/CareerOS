@@ -8,10 +8,11 @@ import type {
   ResumeProfileInput,
   ResumeVersion,
 } from "@repo/types";
-import { Diff, Eye, FileText, History, Layers, UserCheck } from "lucide-react";
+import { Diff, Eye, FileText, History, Layers, Upload,UserCheck } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 
 import { MasterProfileEditor } from "./master-profile-editor";
+import { ResumeImportDialog } from "./resume-import-dialog";
 import { ResumeOverviewCards } from "./resume-overview-cards";
 import { ResumePreview } from "./resume-preview";
 import { ResumeProfilesManager } from "./resume-profiles-manager";
@@ -32,6 +33,7 @@ export function ResumeIntelligenceView({ initialVersion, initialProfile }: Resum
   const [masterProfile, setMasterProfile] =
     useState<MasterCareerProfile | null>(null);
   const [savingMaster, setSavingMaster] = useState(false);
+  const [showImport, setShowImport] = useState(false);
 
   const [profiles, setProfiles] = useState<ResumeProfile[]>([]);
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(
@@ -238,7 +240,28 @@ export function ResumeIntelligenceView({ initialVersion, initialProfile }: Resum
         </div>
 
         {/* Sub Navigation Pills */}
-        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
+          <button
+            type="button"
+            onClick={() => setShowImport(true)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.4rem",
+              padding: "0.5rem 0.9rem",
+              borderRadius: "0.5rem",
+              fontSize: "0.85rem",
+              fontWeight: "600",
+              color: "#ffffff",
+              background: "linear-gradient(135deg, #6366f1 0%, #a855f7 100%)",
+              border: "none",
+              cursor: "pointer",
+              marginRight: "0.5rem",
+            }}
+          >
+            <Upload style={{ width: "14px", height: "14px" }} />
+            Import Resume
+          </button>
           {[
             { id: "master", label: "Master Career Profile", icon: UserCheck },
             { id: "profiles", label: `Resume Profiles (${String(profiles.length)})`, icon: Layers },
@@ -356,6 +379,13 @@ export function ResumeIntelligenceView({ initialVersion, initialProfile }: Resum
 
       {subTab === "compare" && (
         <ResumeVersionComparison versions={versions} />
+      )}
+
+      {showImport && (
+        <ResumeImportDialog
+          onClose={() => setShowImport(false)}
+          onImportComplete={handleSaveMaster}
+        />
       )}
     </div>
   );

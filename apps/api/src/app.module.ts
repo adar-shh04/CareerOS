@@ -4,6 +4,7 @@ import { APP_GUARD } from '@nestjs/core';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { ApplicationsModule } from './applications/applications.module';
 import { AuthModule } from './auth/auth.module';
 import { ByokModule } from './byok/byok.module';
 import { CareerProfileModule } from './career-profile/career-profile.module';
@@ -28,6 +29,7 @@ import { WorkspaceModule } from './workspace/workspace.module';
     CareerProfileModule,
     ResumeProfileModule,
     JobsModule,
+    ApplicationsModule,
   ],
   controllers: [AppController],
   providers: [
