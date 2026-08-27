@@ -16,7 +16,10 @@
         "CAREEROS_API_URL",
         "CORS_ORIGIN",
         "PORT",
-        "BETTER_AUTH_SECRET"
+        "BETTER_AUTH_SECRET",
+        "RESEND_API_KEY",
+        "CONTACT_EMAIL",
+        "FEEDBACK_EMAIL"
       ]
     },
     "check-types": {

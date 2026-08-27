@@ -16,9 +16,9 @@ import {
 import { useRouter } from "next/navigation";
 import React, { useCallback, useEffect, useState } from "react";
 
+import { useAuth } from "../../providers/auth-provider";
 import { JobBoard } from "../jobs/job-board";
 import { ResumeIntelligenceView } from "../resume-intelligence/resume-intelligence-view";
-import { useAuth } from "../../providers/auth-provider";
 
 /* ────────────────────────────────────────────────────────────────────────── */
 /*  Types                                                                    */
