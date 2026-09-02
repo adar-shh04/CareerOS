@@ -4,6 +4,7 @@ import {
   Briefcase,
   Calendar,
   ChevronDown,
+  ExternalLink,
   Loader2,
   Trash2,
   XCircle,
@@ -260,6 +261,12 @@ function ApplicationRow({
       })
     : null;
 
+  const title = app.job?.title ?? app.jobTitle ?? `Job ID: ${app.jobId.slice(0, 8)}…`;
+  const company = app.job?.company ?? app.company ?? "—";
+  const location = app.job?.location ?? null;
+  const salary = app.job?.salaryRange ?? null;
+  const sourceUrl = app.job?.sourceUrl ?? null;
+
   return (
     <div
       style={{
@@ -291,22 +298,47 @@ function ApplicationRow({
 
       {/* Job info */}
       <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+          <span
+            style={{
+              fontSize: "0.9rem",
+              fontWeight: "600",
+              color: "#f1f5f9",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {title}
+          </span>
+          {sourceUrl && (
+            <a
+              href={sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="View original job posting"
+              style={{ color: "#818cf8", display: "inline-flex", alignItems: "center" }}
+            >
+              <ExternalLink style={{ width: "11px", height: "11px" }} />
+            </a>
+          )}
+        </div>
         <div
           style={{
-            fontSize: "0.9rem",
-            fontWeight: "600",
-            color: "#f1f5f9",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.6rem",
+            fontSize: "0.78rem",
+            color: "#64748b",
+            marginTop: "0.15rem",
+            flexWrap: "wrap",
           }}
         >
-          {app.jobTitle ?? `Job ID: ${app.jobId.slice(0, 8)}…`}
-        </div>
-        <div style={{ fontSize: "0.78rem", color: "#64748b", marginTop: "0.1rem" }}>
-          {app.company ?? "—"}
+          <span style={{ color: "#cbd5e1", fontWeight: "500" }}>{company}</span>
+          {location && <span>• {location}</span>}
+          {salary && <span style={{ color: "#10b981" }}>• {salary}</span>}
           {appliedDate && (
-            <span style={{ marginLeft: "0.75rem", color: "#475569" }}>
+            <span style={{ color: "#475569" }}>
               <Calendar
                 style={{
                   width: "10px",

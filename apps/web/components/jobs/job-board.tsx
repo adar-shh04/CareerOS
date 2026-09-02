@@ -4,6 +4,8 @@ import type { JobOpportunity, ResumeProfile, ResumeVersion } from "@repo/types";
 import { Briefcase, RefreshCw, Sparkles } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
+import type { TrackedApplication } from "@/lib/api";
+
 import { JobDetailsDrawer } from "./job-details-drawer";
 import { JobFilters } from "./job-filters";
 import { JobList } from "./job-list";
@@ -15,6 +17,7 @@ interface JobBoardProps {
 
 export function JobBoard({ onNavigateToResume }: JobBoardProps = {}) {
   const [jobs, setJobs] = useState<JobOpportunity[]>([]);
+  const [applications, setApplications] = useState<TrackedApplication[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [remoteOnly, setRemoteOnly] = useState(false);
@@ -25,6 +28,22 @@ export function JobBoard({ onNavigateToResume }: JobBoardProps = {}) {
   const [error, setError] = useState<{ status: number; message: string } | null>(
     null,
   );
+
+  const fetchApplications = useCallback(async () => {
+    try {
+      const response = await fetch("/api/applications", { cache: "no-store" });
+      if (response.ok) {
+        const data = (await response.json()) as TrackedApplication[];
+        setApplications(data);
+      }
+    } catch {
+      /* ignore background failure */
+    }
+  }, []);
+
+  const applicationsByJobId = useMemo(() => {
+    return new Map(applications.map((app) => [app.jobId, app]));
+  }, [applications]);
 
   const fetchJobs = useCallback(async (query?: string) => {
     setLoading(true);
@@ -62,7 +81,8 @@ export function JobBoard({ onNavigateToResume }: JobBoardProps = {}) {
 
   useEffect(() => {
     void fetchJobs();
-  }, [fetchJobs]);
+    void fetchApplications();
+  }, [fetchJobs, fetchApplications]);
 
   const availableSkills = useMemo(() => {
     const skillSet = new Set<string>();
@@ -194,6 +214,7 @@ export function JobBoard({ onNavigateToResume }: JobBoardProps = {}) {
       {/* Job List */}
       <JobList
         jobs={filteredJobs}
+        applicationsByJobId={applicationsByJobId}
         loading={loading}
         error={error}
         onSelectJob={setSelectedJob}
@@ -212,7 +233,11 @@ export function JobBoard({ onNavigateToResume }: JobBoardProps = {}) {
       {/* Details Drawer */}
       <JobDetailsDrawer
         job={selectedJob}
+        trackedApplication={selectedJob ? applicationsByJobId.get(selectedJob.id) : undefined}
         onClose={() => setSelectedJob(null)}
+        onApplicationUpdated={() => {
+          void fetchApplications();
+        }}
         onJobUpdated={(updatedJob) => {
           setSelectedJob(updatedJob);
           setJobs((prevJobs) =>

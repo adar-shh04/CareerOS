@@ -5,8 +5,9 @@ import {
 } from '@nestjs/common';
 
 import { PrismaService } from '../database/prisma.service';
-import type { Application } from '../generated/prisma/client';
+import type { Application, Job } from '../generated/prisma/client';
 import type {
+  ApplicationJobSummary,
   ApplicationRecord,
   ApplicationStatus,
   ApplicationStatusHistoryRecord,
@@ -14,6 +15,10 @@ import type {
   UpdateApplicationInput,
 } from './applications.types';
 import { APPLICATION_STATUSES } from './applications.types';
+
+type ApplicationWithJob = Application & {
+  job?: Job | null;
+};
 
 @Injectable()
 export class ApplicationsService {
@@ -24,9 +29,10 @@ export class ApplicationsService {
   async listByWorkspace(workspaceId: string): Promise<ApplicationRecord[]> {
     const rows = await this.prisma.client.application.findMany({
       where: { organizationId: workspaceId },
+      include: { job: true },
       orderBy: { updatedAt: 'desc' },
     });
-    return rows.map((r) => this.map(r));
+    return rows.map((r: ApplicationWithJob) => this.map(r));
   }
 
   async findById(
@@ -35,6 +41,7 @@ export class ApplicationsService {
   ): Promise<ApplicationRecord | null> {
     const row = await this.prisma.client.application.findFirst({
       where: { id: applicationId, organizationId: workspaceId },
+      include: { job: true },
     });
     return row ? this.map(row) : null;
   }
@@ -90,6 +97,7 @@ export class ApplicationsService {
         resumeProfileId: input.resumeProfileId ?? null,
         resumeVersionId: input.resumeVersionId ?? null,
       },
+      include: { job: true },
     });
 
     // Capture initial status in history
@@ -133,6 +141,7 @@ export class ApplicationsService {
           ? { resumeVersionId: input.resumeVersionId }
           : {}),
       },
+      include: { job: true },
     });
 
     // Record status transition in history
@@ -172,7 +181,25 @@ export class ApplicationsService {
     }
   }
 
-  private map(row: Application): ApplicationRecord {
+  private map(row: ApplicationWithJob): ApplicationRecord {
+    const job: ApplicationJobSummary | null = row.job
+      ? {
+          id: row.job.id,
+          title: row.job.title,
+          company: row.job.company,
+          location: row.job.location,
+          isRemote: row.job.isRemote,
+          salaryRange: row.job.salaryRange,
+          salaryMin: row.job.salaryMin,
+          salaryMax: row.job.salaryMax,
+          salaryCurrency: row.job.salaryCurrency,
+          source: row.job.source,
+          sourceUrl: row.job.sourceUrl,
+          postedAt: row.job.postedAt,
+          requiredSkills: row.job.requiredSkills,
+        }
+      : null;
+
     return {
       id: row.id,
       organizationId: row.organizationId,
@@ -184,6 +211,7 @@ export class ApplicationsService {
       resumeVersionId: row.resumeVersionId,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
+      job,
     };
   }
 }

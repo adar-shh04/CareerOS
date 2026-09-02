@@ -25,6 +25,22 @@ describe('ApplicationsService', () => {
   const jobId = 'job-1';
   const appId = 'app-1';
 
+  const mockJob = {
+    id: jobId,
+    title: 'Senior Engineer',
+    company: 'TechCorp',
+    location: 'Remote',
+    isRemote: true,
+    salaryRange: '$150k - $180k',
+    salaryMin: 150000,
+    salaryMax: 180000,
+    salaryCurrency: 'USD',
+    source: 'linkedin',
+    sourceUrl: 'https://example.com/job/1',
+    postedAt: new Date(),
+    requiredSkills: ['TypeScript', 'NestJS'],
+  };
+
   const mockApp = {
     id: appId,
     organizationId: workspaceId,
@@ -36,6 +52,7 @@ describe('ApplicationsService', () => {
     resumeVersionId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
+    job: mockJob,
   };
 
   beforeEach(() => {
@@ -58,13 +75,18 @@ describe('ApplicationsService', () => {
   });
 
   describe('listByWorkspace', () => {
-    it('returns applications for the workspace', async () => {
+    it('returns applications for the workspace with enriched job details', async () => {
       mockPrisma.client.application.findMany.mockResolvedValue([mockApp]);
       const result = await service.listByWorkspace(workspaceId);
       expect(result).toHaveLength(1);
       expect(result[0].status).toBe('saved');
+      expect(result[0].job?.title).toBe('Senior Engineer');
+      expect(result[0].job?.company).toBe('TechCorp');
       expect(mockPrisma.client.application.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { organizationId: workspaceId } }),
+        expect.objectContaining({
+          where: { organizationId: workspaceId },
+          include: { job: true },
+        }),
       );
     });
   });

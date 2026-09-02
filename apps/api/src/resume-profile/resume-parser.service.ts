@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import mammoth from 'mammoth';
+import pdfParse from 'pdf-parse';
 
 import { ByokService } from '../byok/byok.service';
 import type { MasterCareerProfileInput } from '../career-profile/career-profile.types';
@@ -60,6 +62,190 @@ export class ResumeParserService {
 
     this.logger.log('Using fallback heuristic resume parser.');
     return this.parseWithHeuristics(resumeText);
+  }
+
+  /**
+   * Extract text from a file buffer (.pdf, .docx, .txt, .md, .json) and parse into MasterCareerProfileInput.
+   */
+  async parseFile(
+    workspaceId: string,
+    buffer: Buffer,
+    mimeType?: string,
+    fileName?: string,
+  ): Promise<MasterCareerProfileInput> {
+    const text = await this.extractTextFromFile(buffer, mimeType, fileName);
+
+    // If JSON file, check if it's already a structured MasterCareerProfileInput
+    if (
+      fileName?.toLowerCase().endsWith('.json') ||
+      mimeType?.includes('json')
+    ) {
+      try {
+        const parsed = JSON.parse(text) as unknown;
+        if (
+          typeof parsed === 'object' &&
+          parsed !== null &&
+          ('identity' in parsed ||
+            'skills' in parsed ||
+            'experiences' in parsed)
+        ) {
+          return this.normalizeParsedJson(
+            parsed as Partial<MasterCareerProfileInput>,
+          );
+        }
+      } catch {
+        // Fallback to regular text parsing
+      }
+    }
+
+    return this.parse(workspaceId, text);
+  }
+
+  /**
+   * Safe text extractor for PDF, DOCX, Markdown, Text, and JSON.
+   */
+  async extractTextFromFile(
+    buffer: Buffer,
+    mimeType?: string,
+    fileName?: string,
+  ): Promise<string> {
+    const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+    if (buffer.length > MAX_SIZE) {
+      throw new BadRequestException('File size exceeds the 10MB limit.');
+    }
+
+    const lowerName = fileName?.toLowerCase() ?? '';
+    const lowerMime = mimeType?.toLowerCase() ?? '';
+
+    // PDF
+    if (lowerName.endsWith('.pdf') || lowerMime === 'application/pdf') {
+      try {
+        const parseFn = (
+          typeof pdfParse === 'function'
+            ? pdfParse
+            : (
+                pdfParse as unknown as {
+                  default: (b: Buffer) => Promise<{ text: string }>;
+                }
+              ).default
+        ) as (b: Buffer) => Promise<{ text: string }>;
+        const result = await parseFn(buffer);
+        if (!result.text || result.text.trim().length === 0) {
+          throw new BadRequestException(
+            'Could not extract text from the PDF file.',
+          );
+        }
+        return result.text;
+      } catch (err) {
+        if (err instanceof BadRequestException) throw err;
+        throw new BadRequestException(
+          `Failed to parse PDF document: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
+
+    // DOCX
+    if (
+      lowerName.endsWith('.docx') ||
+      lowerMime ===
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ) {
+      try {
+        const result = await mammoth.extractRawText({ buffer });
+        if (!result.value || result.value.trim().length === 0) {
+          throw new BadRequestException(
+            'Could not extract text from the DOCX file.',
+          );
+        }
+        return result.value;
+      } catch (err) {
+        if (err instanceof BadRequestException) throw err;
+        throw new BadRequestException(
+          `Failed to parse DOCX document: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
+
+    // Plain text / Markdown / JSON
+    if (
+      lowerName.endsWith('.txt') ||
+      lowerName.endsWith('.md') ||
+      lowerName.endsWith('.json') ||
+      lowerMime.includes('text') ||
+      lowerMime.includes('json')
+    ) {
+      const text = buffer.toString('utf-8');
+      if (!text.trim()) {
+        throw new BadRequestException('File is empty.');
+      }
+      return text;
+    }
+
+    // Fallback: try UTF-8 decoding if not binary
+    try {
+      const text = buffer.toString('utf-8');
+      if (
+        text &&
+        text.trim().length > 0 &&
+        // eslint-disable-next-line no-control-regex
+        !/[\x00-\x08\x0E-\x1F]/.test(text.slice(0, 100))
+      ) {
+        return text;
+      }
+    } catch {
+      // ignore
+    }
+
+    throw new BadRequestException(
+      'Unsupported file format. Please upload a PDF (.pdf), Word document (.docx), Text (.txt), Markdown (.md), or JSON (.json) file.',
+    );
+  }
+
+  private normalizeParsedJson(
+    input: Partial<MasterCareerProfileInput>,
+  ): MasterCareerProfileInput {
+    return {
+      identity: {
+        fullName: input.identity?.fullName ?? 'Candidate',
+        headline: input.identity?.headline,
+        email: input.identity?.email,
+        location: input.identity?.location,
+      },
+      skills: (input.skills ?? []).map((s) => ({
+        id: s.id || randomUUID(),
+        name: s.name,
+      })),
+      experiences: (input.experiences ?? []).map((e) => ({
+        id: e.id || randomUUID(),
+        company: e.company,
+        title: e.title,
+        startDate: e.startDate,
+        endDate: e.endDate,
+        current: e.current ?? false,
+        bullets: e.bullets ?? [],
+      })),
+      education: (input.education ?? []).map((ed) => ({
+        id: ed.id || randomUUID(),
+        institution: ed.institution,
+        degree: ed.degree,
+        fieldOfStudy: ed.fieldOfStudy,
+        startDate: ed.startDate,
+        endDate: ed.endDate,
+      })),
+      projects: (input.projects ?? []).map((p) => ({
+        id: p.id || randomUUID(),
+        name: p.name,
+        description: p.description,
+        url: p.url,
+        bullets: p.bullets ?? [],
+      })),
+      certifications: (input.certifications ?? []).map((c) => ({
+        id: c.id || randomUUID(),
+        name: c.name,
+        issuer: c.issuer,
+        issueDate: c.issueDate,
+      })),
+    };
   }
 
   private async parseWithOpenAI(

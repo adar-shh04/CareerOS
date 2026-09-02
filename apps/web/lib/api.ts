@@ -526,7 +526,12 @@ export async function updateJobState(
 export async function parseResume(
   sessionCookie: string,
   workspaceId: string,
-  input: { resumeText: string },
+  input: {
+    resumeText?: string;
+    fileBase64?: string;
+    fileName?: string;
+    mimeType?: string;
+  },
 ): Promise<MasterCareerProfileInput> {
   const response = await fetch(
     `${getWorkspacePath(workspaceId)}/resume-profiles/parse`,
@@ -545,6 +550,22 @@ export async function parseResume(
 
 /* ── Application Tracking API ──────────────────────────────────────────── */
 
+export interface ApplicationJobSummary {
+  id: string;
+  title: string;
+  company: string;
+  location: string;
+  isRemote: boolean;
+  salaryRange?: string | null;
+  salaryMin?: number | null;
+  salaryMax?: number | null;
+  salaryCurrency?: string | null;
+  source?: string;
+  sourceUrl?: string | null;
+  postedAt?: string | null;
+  requiredSkills?: string[];
+}
+
 export interface TrackedApplication {
   id: string;
   organizationId: string;
@@ -556,6 +577,7 @@ export interface TrackedApplication {
   resumeVersionId: string | null;
   createdAt: string;
   updatedAt: string;
+  job?: ApplicationJobSummary | null;
 }
 
 export interface ApplicationStatusHistory {

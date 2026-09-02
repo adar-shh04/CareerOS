@@ -10,6 +10,22 @@ export const APPLICATION_STATUSES = [
 
 export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
 
+export interface ApplicationJobSummary {
+  id: string;
+  title: string;
+  company: string;
+  location: string;
+  isRemote: boolean;
+  salaryRange: string | null;
+  salaryMin: number | null;
+  salaryMax: number | null;
+  salaryCurrency: string | null;
+  source: string;
+  sourceUrl: string | null;
+  postedAt: Date | null;
+  requiredSkills: string[];
+}
+
 export interface ApplicationRecord {
   id: string;
   organizationId: string;
@@ -21,6 +37,7 @@ export interface ApplicationRecord {
   resumeVersionId: string | null;
   createdAt: Date;
   updatedAt: Date;
+  job?: ApplicationJobSummary | null;
 }
 
 export interface ApplicationStatusHistoryRecord {

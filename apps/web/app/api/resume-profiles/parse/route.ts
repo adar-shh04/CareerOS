@@ -11,9 +11,18 @@ export async function POST(request: Request) {
   }
 
   try {
-    const body = (await request.json()) as { resumeText: string };
-    if (!body.resumeText) {
-      return NextResponse.json({ message: "resumeText is required." }, { status: 400 });
+    const body = (await request.json().catch(() => ({}))) as {
+      resumeText?: string;
+      fileBase64?: string;
+      fileName?: string;
+      mimeType?: string;
+    };
+
+    if (!body.resumeText && !body.fileBase64) {
+      return NextResponse.json(
+        { message: "Either resumeText or fileBase64 must be provided." },
+        { status: 400 },
+      );
     }
 
     const parsedData = await parseResume(

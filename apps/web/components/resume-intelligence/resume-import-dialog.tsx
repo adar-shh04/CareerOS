@@ -1,50 +1,161 @@
 import type { MasterCareerProfileInput } from "@repo/types";
-import { Check,ShieldAlert, Sparkles, Upload, X } from "lucide-react";
-import React, { useState } from "react";
+import {
+  Check,
+  FileCode,
+  FileText,
+  Loader2,
+  ShieldAlert,
+  Sparkles,
+  Upload,
+  UploadCloud,
+  X,
+} from "lucide-react";
+import React, { useRef, useState } from "react";
 
 interface ResumeImportDialogProps {
   onClose: () => void;
   onImportComplete: (data: MasterCareerProfileInput) => Promise<void>;
 }
 
-export function ResumeImportDialog({ onClose, onImportComplete }: ResumeImportDialogProps) {
+export function ResumeImportDialog({
+  onClose,
+  onImportComplete,
+}: ResumeImportDialogProps) {
+  const [inputMode, setInputMode] = useState<"file" | "text">("file");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const [resumeText, setResumeText] = useState("");
   const [parsing, setParsing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // Stages: "input" | "review"
   const [stage, setStage] = useState<"input" | "review">("input");
-  const [parsedData, setParsedData] = useState<MasterCareerProfileInput | null>(null);
+  const [parsedData, setParsedData] =
+    useState<MasterCareerProfileInput | null>(null);
 
-  const handleParse = async () => {
-    if (!resumeText.trim()) {
-      setError("Please paste some resume text first.");
+  const validateAndSetFile = (file: File) => {
+    setError(null);
+    const validExtensions = [".pdf", ".docx", ".txt", ".md", ".json"];
+    const hasValidExt = validExtensions.some((ext) =>
+      file.name.toLowerCase().endsWith(ext),
+    );
+    if (!hasValidExt) {
+      setError(
+        "Please select a supported file (.pdf, .docx, .txt, .md, .json).",
+      );
       return;
     }
+    if (file.size > 10 * 1024 * 1024) {
+      setError("File size exceeds the 10MB limit.");
+      return;
+    }
+    setSelectedFile(file);
+  };
 
-    setParsing(true);
-    setError(null);
-    try {
-      const response = await fetch("/api/resume-profiles/parse", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ resumeText }),
-      });
+  const handleFileDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      validateAndSetFile(file);
+    }
+  };
 
-      if (!response.ok) {
-        const body = (await response.json().catch(() => ({}))) as {
-          message?: string;
-        };
-        throw new Error(body.message ?? "Parsing failed.");
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      validateAndSetFile(file);
+    }
+  };
+
+  const handleParse = async () => {
+    if (inputMode === "file") {
+      if (!selectedFile) {
+        setError("Please choose or drop a resume file to upload.");
+        return;
       }
 
-      const data = (await response.json()) as MasterCareerProfileInput;
-      setParsedData(data);
-      setStage("review");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred during parsing.");
-    } finally {
-      setParsing(false);
+      setParsing(true);
+      setError(null);
+      try {
+        const reader = new FileReader();
+        const base64Promise = new Promise<string>((resolve, reject) => {
+          reader.onload = () => {
+            const res = reader.result as string;
+            const base64 = res.includes(",") ? res.split(",")[1] : res;
+            if (base64) resolve(base64);
+            else reject(new Error("Failed to read file"));
+          };
+          reader.onerror = () => {
+            reject(reader.error ?? new Error("File read error"));
+          };
+          reader.readAsDataURL(selectedFile);
+        });
+
+        const fileBase64 = await base64Promise;
+
+        const response = await fetch("/api/resume-profiles/parse", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fileBase64,
+            fileName: selectedFile.name,
+            mimeType: selectedFile.type,
+          }),
+        });
+
+        if (!response.ok) {
+          const body = (await response.json().catch(() => ({}))) as {
+            message?: string;
+          };
+          throw new Error(body.message ?? "File parsing failed.");
+        }
+
+        const data = (await response.json()) as MasterCareerProfileInput;
+        setParsedData(data);
+        setStage("review");
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Failed to parse resume file.",
+        );
+      } finally {
+        setParsing(false);
+      }
+    } else {
+      if (!resumeText.trim()) {
+        setError("Please paste some resume text first.");
+        return;
+      }
+
+      setParsing(true);
+      setError(null);
+      try {
+        const response = await fetch("/api/resume-profiles/parse", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ resumeText }),
+        });
+
+        if (!response.ok) {
+          const body = (await response.json().catch(() => ({}))) as {
+            message?: string;
+          };
+          throw new Error(body.message ?? "Parsing failed.");
+        }
+
+        const data = (await response.json()) as MasterCareerProfileInput;
+        setParsedData(data);
+        setStage("review");
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "An error occurred during parsing.",
+        );
+      } finally {
+        setParsing(false);
+      }
     }
   };
 
@@ -56,7 +167,9 @@ export function ResumeImportDialog({ onClose, onImportComplete }: ResumeImportDi
       await onImportComplete(parsedData);
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to import profile data.");
+      setError(
+        err instanceof Error ? err.message : "Failed to import profile data.",
+      );
     }
   };
 
@@ -78,7 +191,7 @@ export function ResumeImportDialog({ onClose, onImportComplete }: ResumeImportDi
         className="glass-panel"
         style={{
           width: "100%",
-          maxWidth: stage === "input" ? "580px" : "850px",
+          maxWidth: stage === "input" ? "620px" : "850px",
           maxHeight: "90vh",
           display: "flex",
           flexDirection: "column",
@@ -102,7 +215,9 @@ export function ResumeImportDialog({ onClose, onImportComplete }: ResumeImportDi
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
             <Upload style={{ width: "18px", height: "18px", color: "#c084fc" }} />
             <h3 style={{ fontSize: "1.1rem", fontWeight: "700" }}>
-              {stage === "input" ? "Import Existing Resume" : "Review Extracted Career Profile"}
+              {stage === "input"
+                ? "Import Existing Resume"
+                : "Review Extracted Career Profile"}
             </h3>
           </div>
           <button
@@ -136,37 +251,220 @@ export function ResumeImportDialog({ onClose, onImportComplete }: ResumeImportDi
                 marginBottom: "1rem",
               }}
             >
-              <ShieldAlert style={{ width: "16px", height: "16px", flexShrink: 0 }} />
+              <ShieldAlert
+                style={{ width: "16px", height: "16px", flexShrink: 0 }}
+              />
               <span>{error}</span>
             </div>
           )}
 
           {stage === "input" ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-              <p style={{ fontSize: "0.85rem", color: "#94a3b8", lineHeight: "1.5" }}>
-                Paste the full text of your existing resume. The parser will extract identity, education, experience, projects, and skills to populate your Master Career Profile.
-              </p>
-              
-              <textarea
-                value={resumeText}
-                onChange={(e) => setResumeText(e.target.value)}
-                placeholder="Paste resume content here..."
+            <div style={{ display: "flex", flexDirection: "column", gap: "1.2rem" }}>
+              {/* Tab Selector */}
+              <div
                 style={{
-                  width: "100%",
-                  height: "280px",
+                  display: "flex",
                   borderRadius: "0.5rem",
+                  backgroundColor: "rgba(15, 23, 42, 0.7)",
+                  padding: "0.25rem",
                   border: "1px solid rgba(255, 255, 255, 0.08)",
-                  backgroundColor: "rgba(15, 23, 42, 0.6)",
-                  color: "#ffffff",
-                  padding: "1rem",
-                  fontSize: "0.85rem",
-                  fontFamily: "monospace",
-                  resize: "none",
-                  outline: "none",
                 }}
-              />
+              >
+                <button
+                  type="button"
+                  onClick={() => setInputMode("file")}
+                  style={{
+                    flex: 1,
+                    padding: "0.5rem",
+                    borderRadius: "0.375rem",
+                    border: "none",
+                    backgroundColor:
+                      inputMode === "file" ? "rgba(99, 102, 241, 0.2)" : "transparent",
+                    color: inputMode === "file" ? "#ffffff" : "#94a3b8",
+                    fontWeight: inputMode === "file" ? "700" : "500",
+                    fontSize: "0.85rem",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "0.4rem",
+                    transition: "all 0.15s",
+                  }}
+                >
+                  <UploadCloud style={{ width: "15px", height: "15px" }} />
+                  Upload Document
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setInputMode("text")}
+                  style={{
+                    flex: 1,
+                    padding: "0.5rem",
+                    borderRadius: "0.375rem",
+                    border: "none",
+                    backgroundColor:
+                      inputMode === "text" ? "rgba(99, 102, 241, 0.2)" : "transparent",
+                    color: inputMode === "text" ? "#ffffff" : "#94a3b8",
+                    fontWeight: inputMode === "text" ? "700" : "500",
+                    fontSize: "0.85rem",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "0.4rem",
+                    transition: "all 0.15s",
+                  }}
+                >
+                  <FileText style={{ width: "15px", height: "15px" }} />
+                  Paste Raw Text
+                </button>
+              </div>
 
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "0.5rem" }}>
+              {inputMode === "file" ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.docx,.txt,.md,.json,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown,application/json"
+                    onChange={handleFileSelect}
+                    style={{ display: "none" }}
+                  />
+
+                  <div
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setIsDragging(true);
+                    }}
+                    onDragLeave={() => setIsDragging(false)}
+                    onDrop={handleFileDrop}
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{
+                      border: isDragging
+                        ? "2px dashed #818cf8"
+                        : "2px dashed rgba(255, 255, 255, 0.12)",
+                      borderRadius: "0.75rem",
+                      padding: "2.5rem 1.5rem",
+                      textAlign: "center",
+                      backgroundColor: isDragging
+                        ? "rgba(99, 102, 241, 0.1)"
+                        : "rgba(15, 23, 42, 0.5)",
+                      cursor: "pointer",
+                      transition: "all 0.2s",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: "0.75rem",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: "48px",
+                        height: "48px",
+                        borderRadius: "12px",
+                        background: "rgba(99, 102, 241, 0.15)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "#818cf8",
+                      }}
+                    >
+                      {selectedFile ? (
+                        <FileCode style={{ width: "24px", height: "24px" }} />
+                      ) : (
+                        <UploadCloud style={{ width: "24px", height: "24px" }} />
+                      )}
+                    </div>
+
+                    {selectedFile ? (
+                      <div>
+                        <div
+                          style={{
+                            fontSize: "0.95rem",
+                            fontWeight: "700",
+                            color: "#ffffff",
+                          }}
+                        >
+                          {selectedFile.name}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: "0.75rem",
+                            color: "#94a3b8",
+                            marginTop: "0.2rem",
+                          }}
+                        >
+                          {(selectedFile.size / 1024).toFixed(1)} KB • Click or
+                          drop another file to replace
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <div
+                          style={{
+                            fontSize: "0.9rem",
+                            fontWeight: "600",
+                            color: "#e2e8f0",
+                          }}
+                        >
+                          Click to upload or drag & drop
+                        </div>
+                        <div
+                          style={{
+                            fontSize: "0.75rem",
+                            color: "#64748b",
+                            marginTop: "0.25rem",
+                          }}
+                        >
+                          Supported formats: PDF, DOCX, TXT, Markdown, JSON (up
+                          to 10MB)
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                  <p
+                    style={{
+                      fontSize: "0.8rem",
+                      color: "#94a3b8",
+                      lineHeight: "1.4",
+                    }}
+                  >
+                    Paste the full text of your existing resume. The parser will
+                    extract identity, education, experience, projects, and
+                    skills.
+                  </p>
+
+                  <textarea
+                    value={resumeText}
+                    onChange={(e) => setResumeText(e.target.value)}
+                    placeholder="Paste resume content here..."
+                    style={{
+                      width: "100%",
+                      height: "220px",
+                      borderRadius: "0.5rem",
+                      border: "1px solid rgba(255, 255, 255, 0.08)",
+                      backgroundColor: "rgba(15, 23, 42, 0.6)",
+                      color: "#ffffff",
+                      padding: "1rem",
+                      fontSize: "0.85rem",
+                      fontFamily: "monospace",
+                      resize: "none",
+                      outline: "none",
+                    }}
+                  />
+                </div>
+              )}
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  gap: "0.75rem",
+                  marginTop: "0.5rem",
+                }}
+              >
                 <button
                   onClick={onClose}
                   style={{
@@ -189,7 +487,8 @@ export function ResumeImportDialog({ onClose, onImportComplete }: ResumeImportDi
                   style={{
                     padding: "0.5rem 1.25rem",
                     borderRadius: "0.375rem",
-                    background: "linear-gradient(135deg, #6366f1 0%, #a855f7 100%)",
+                    background:
+                      "linear-gradient(135deg, #6366f1 0%, #a855f7 100%)",
                     color: "#ffffff",
                     fontWeight: "600",
                     fontSize: "0.85rem",
@@ -202,7 +501,16 @@ export function ResumeImportDialog({ onClose, onImportComplete }: ResumeImportDi
                   }}
                 >
                   {parsing ? (
-                    <>Parsing Resume...</>
+                    <>
+                      <Loader2
+                        style={{
+                          width: "14px",
+                          height: "14px",
+                          animation: "spin 1s linear infinite",
+                        }}
+                      />
+                      Parsing Resume...
+                    </>
                   ) : (
                     <>
                       <Sparkles style={{ width: "14px", height: "14px" }} />

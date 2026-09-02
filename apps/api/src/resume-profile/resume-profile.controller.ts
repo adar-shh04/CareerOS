@@ -35,11 +35,30 @@ export class ResumeProfileController {
   @Post('parse')
   async parseResume(
     @Param('workspaceId') workspaceId: string,
-    @Body() body: { resumeText: string },
+    @Body()
+    body: {
+      resumeText?: string;
+      fileBase64?: string;
+      fileName?: string;
+      mimeType?: string;
+    },
   ) {
-    if (!body.resumeText) {
-      throw new BadRequestException('resumeText is required.');
+    if (body.fileBase64) {
+      const buffer = Buffer.from(body.fileBase64, 'base64');
+      return this.resumeParserService.parseFile(
+        workspaceId,
+        buffer,
+        body.mimeType,
+        body.fileName,
+      );
     }
+
+    if (!body.resumeText) {
+      throw new BadRequestException(
+        'Either resumeText or fileBase64 must be provided.',
+      );
+    }
+
     return this.resumeParserService.parse(workspaceId, body.resumeText);
   }
 

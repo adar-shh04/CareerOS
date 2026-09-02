@@ -3,6 +3,8 @@
 import type { JobOpportunity } from "@repo/types";
 import React from "react";
 
+import type { TrackedApplication } from "@/lib/api";
+
 import { JobCard } from "./job-card";
 import { JobEmptyState } from "./job-empty-state";
 import { JobErrorState } from "./job-error-state";
@@ -10,6 +12,7 @@ import { JobSkeleton } from "./job-skeleton";
 
 interface JobListProps {
   jobs: JobOpportunity[];
+  applicationsByJobId?: Map<string, TrackedApplication>;
   loading: boolean;
   error?: { status: number; message: string } | null;
   onSelectJob: (job: JobOpportunity) => void;
@@ -20,6 +23,7 @@ interface JobListProps {
 
 export function JobList({
   jobs,
+  applicationsByJobId,
   loading,
   error,
   onSelectJob,
@@ -48,7 +52,12 @@ export function JobList({
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {jobs.map((job) => (
-        <JobCard key={job.id} job={job} onSelect={onSelectJob} />
+        <JobCard
+          key={job.id}
+          job={job}
+          trackedApplication={applicationsByJobId?.get(job.id)}
+          onSelect={onSelectJob}
+        />
       ))}
     </div>
   );

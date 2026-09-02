@@ -4,6 +4,7 @@ import type { JobOpportunity, ResumeProfile, ResumeVersion } from "@repo/types";
 import {
   Bookmark,
   Building2,
+  CheckCircle2,
   DollarSign,
   ExternalLink,
   EyeOff,
@@ -11,25 +12,38 @@ import {
   MapPin,
   RotateCcw,
   Sparkles,
+  TrendingUp,
   X,
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
+
+import type { TrackedApplication } from "@/lib/api";
 
 import { JobMatchBadge } from "./job-match-badge";
 
 interface JobDetailsDrawerProps {
   job: JobOpportunity | null;
+  trackedApplication?: TrackedApplication | null;
   onClose: () => void;
   onJobUpdated?: (updatedJob: JobOpportunity) => void;
+  onApplicationUpdated?: () => void;
   onNavigateToResume?: (version: ResumeVersion, profile: ResumeProfile) => void;
 }
 
-export function JobDetailsDrawer({ job, onClose, onJobUpdated, onNavigateToResume }: JobDetailsDrawerProps) {
+export function JobDetailsDrawer({
+  job,
+  trackedApplication,
+  onClose,
+  onJobUpdated,
+  onApplicationUpdated,
+  onNavigateToResume,
+}: JobDetailsDrawerProps) {
   const [matching, setMatching] = useState(false);
   const [matchError, setMatchError] = useState<string | null>(null);
   const [creatingResume, setCreatingResume] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [trackingLoading, setTrackingLoading] = useState(false);
   const [notes, setNotes] = useState(job?.workspaceState?.notes ?? "");
   const [savingNotes, setSavingNotes] = useState(false);
 
@@ -152,6 +166,49 @@ export function JobDetailsDrawer({ job, onClose, onJobUpdated, onNavigateToResum
       setCreateError(e instanceof Error ? e.message : "Generation failed");
     } finally {
       setCreatingResume(false);
+    }
+  };
+
+  const handleTrackApplication = async (status = "saved") => {
+    setTrackingLoading(true);
+    try {
+      const res = await fetch("/api/applications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jobId: job.id,
+          status,
+          appliedAt: status === "applied" ? new Date().toISOString() : undefined,
+        }),
+      });
+      if (res.ok) {
+        onApplicationUpdated?.();
+      }
+    } finally {
+      setTrackingLoading(false);
+    }
+  };
+
+  const handleUpdateApplicationStatus = async (status: string) => {
+    if (!trackedApplication) return;
+    setTrackingLoading(true);
+    try {
+      const res = await fetch(`/api/applications/${trackedApplication.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status,
+          appliedAt:
+            status === "applied" && !trackedApplication.appliedAt
+              ? new Date().toISOString()
+              : undefined,
+        }),
+      });
+      if (res.ok) {
+        onApplicationUpdated?.();
+      }
+    } finally {
+      setTrackingLoading(false);
     }
   };
 
@@ -333,6 +390,79 @@ export function JobDetailsDrawer({ job, onClose, onJobUpdated, onNavigateToResum
                       {sk}
                     </span>
                   ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Application Pipeline Card */}
+          <div className="p-4 rounded-xl border border-cyan-500/20 bg-cyan-500/5 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-cyan-400" />
+                <span className="text-xs font-bold uppercase tracking-wider text-cyan-300">
+                  Application Pipeline
+                </span>
+              </div>
+              {trackedApplication && (
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-200 border border-cyan-500/30 uppercase">
+                  {trackedApplication.status}
+                </span>
+              )}
+            </div>
+
+            {trackedApplication ? (
+              <div className="space-y-2">
+                <p className="text-xs text-slate-300">
+                  This job is currently tracked in your CRM pipeline. Update status:
+                </p>
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {(["saved", "applied", "screening", "interview", "offer", "rejected"] as const).map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => {
+                        void handleUpdateApplicationStatus(s);
+                      }}
+                      disabled={trackingLoading || trackedApplication.status === s}
+                      className={`px-2.5 py-1 rounded text-xs font-semibold transition-all disabled:opacity-60 ${
+                        trackedApplication.status === s
+                          ? "bg-cyan-500 text-slate-950 font-bold"
+                          : "bg-slate-800 text-slate-300 hover:bg-slate-700 border border-white/10"
+                      }`}
+                    >
+                      {s.charAt(0).toUpperCase() + s.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-3 pt-1">
+                <p className="text-xs text-slate-400">
+                  Track this role in your pipeline to log notes, interview stages, and outcomes.
+                </p>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void handleTrackApplication("saved");
+                    }}
+                    disabled={trackingLoading}
+                    className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-white/10 transition-colors disabled:opacity-50"
+                  >
+                    {trackingLoading ? "Saving..." : "Save to Pipeline"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void handleTrackApplication("applied");
+                    }}
+                    disabled={trackingLoading}
+                    className="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold shadow-md shadow-cyan-600/20 transition-colors disabled:opacity-50 flex items-center gap-1"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    Mark Applied
+                  </button>
                 </div>
               </div>
             )}

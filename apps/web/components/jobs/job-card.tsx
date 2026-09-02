@@ -10,17 +10,21 @@ import {
   EyeOff,
   Globe,
   MapPin,
+  TrendingUp,
 } from "lucide-react";
 import React from "react";
+
+import type { TrackedApplication } from "@/lib/api";
 
 import { JobMatchBadge } from "./job-match-badge";
 
 interface JobCardProps {
   job: JobOpportunity;
+  trackedApplication?: TrackedApplication | null;
   onSelect: (job: JobOpportunity) => void;
 }
 
-export function JobCard({ job, onSelect }: JobCardProps) {
+export function JobCard({ job, trackedApplication, onSelect }: JobCardProps) {
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return "Recent";
     try {
@@ -60,8 +64,13 @@ export function JobCard({ job, onSelect }: JobCardProps) {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {job.workspaceState?.isSaved && (
+        <div className="flex items-center gap-2 flex-wrap">
+          {trackedApplication && (
+            <span className="inline-flex items-center gap-1 text-cyan-300 font-semibold px-2 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/30 text-[10px]">
+              <TrendingUp className="w-3 h-3 text-cyan-400" /> In Pipeline ({trackedApplication.status})
+            </span>
+          )}
+          {job.workspaceState?.isSaved && !trackedApplication && (
             <span className="inline-flex items-center gap-1 text-purple-300 font-semibold px-2 py-0.5 rounded bg-purple-500/10 border border-purple-500/30 text-[10px]">
               <Bookmark className="w-3 h-3 fill-purple-400/40 text-purple-400" /> Saved
             </span>
