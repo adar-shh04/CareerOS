@@ -79,30 +79,12 @@ export function ResumeImportDialog({
       setParsing(true);
       setError(null);
       try {
-        const reader = new FileReader();
-        const base64Promise = new Promise<string>((resolve, reject) => {
-          reader.onload = () => {
-            const res = reader.result as string;
-            const base64 = res.includes(",") ? res.split(",")[1] : res;
-            if (base64) resolve(base64);
-            else reject(new Error("Failed to read file"));
-          };
-          reader.onerror = () => {
-            reject(reader.error ?? new Error("File read error"));
-          };
-          reader.readAsDataURL(selectedFile);
-        });
-
-        const fileBase64 = await base64Promise;
+        const formData = new FormData();
+        formData.append("file", selectedFile);
 
         const response = await fetch("/api/resume-profiles/parse", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            fileBase64,
-            fileName: selectedFile.name,
-            mimeType: selectedFile.type,
-          }),
+          body: formData,
         });
 
         if (!response.ok) {

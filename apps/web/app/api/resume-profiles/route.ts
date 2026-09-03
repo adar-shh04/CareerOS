@@ -1,7 +1,7 @@
 import type { ResumeProfileInput } from "@repo/types";
 import { NextResponse } from "next/server";
 
-import { createResumeProfile, listResumeProfiles } from "@/lib/api";
+import { ApiError, createResumeProfile, listResumeProfiles } from "@/lib/api";
 import { getServerSession } from "@/lib/server-session";
 
 export async function GET() {
@@ -15,9 +15,10 @@ export async function GET() {
     const profiles = await listResumeProfiles(session.token, session.workspace.id);
     return NextResponse.json(profiles);
   } catch (error) {
+    const status = error instanceof ApiError ? error.status : 500;
     const message =
       error instanceof Error ? error.message : "Unable to list resume profiles.";
-    return NextResponse.json({ message }, { status: 400 });
+    return NextResponse.json({ message }, { status });
   }
 }
 
@@ -37,8 +38,9 @@ export async function POST(request: Request) {
     );
     return NextResponse.json(created);
   } catch (error) {
+    const status = error instanceof ApiError ? error.status : 500;
     const message =
       error instanceof Error ? error.message : "Unable to create resume profile.";
-    return NextResponse.json({ message }, { status: 400 });
+    return NextResponse.json({ message }, { status });
   }
 }

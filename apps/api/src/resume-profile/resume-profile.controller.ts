@@ -8,8 +8,11 @@ import {
   Param,
   Post,
   Put,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 import { WorkspaceMemberGuard } from '../common/guards/workspace-member.guard';
 import { ResumeParserService } from './resume-parser.service';
@@ -33,17 +36,34 @@ export class ResumeProfileController {
   ) {}
 
   @Post('parse')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: {
+        fileSize: 10 * 1024 * 1024, // 10MB
+      },
+    }),
+  )
   async parseResume(
     @Param('workspaceId') workspaceId: string,
+    @UploadedFile() file?: Express.Multer.File,
     @Body()
-    body: {
+    body?: {
       resumeText?: string;
       fileBase64?: string;
       fileName?: string;
       mimeType?: string;
     },
   ) {
-    if (body.fileBase64) {
+    if (file) {
+      return this.resumeParserService.parseFile(
+        workspaceId,
+        file.buffer,
+        file.mimetype,
+        file.originalname,
+      );
+    }
+
+    if (body?.fileBase64) {
       const buffer = Buffer.from(body.fileBase64, 'base64');
       return this.resumeParserService.parseFile(
         workspaceId,
@@ -53,9 +73,9 @@ export class ResumeProfileController {
       );
     }
 
-    if (!body.resumeText) {
+    if (!body?.resumeText) {
       throw new BadRequestException(
-        'Either resumeText or fileBase64 must be provided.',
+        'Either a resume file or resumeText must be provided.',
       );
     }
 

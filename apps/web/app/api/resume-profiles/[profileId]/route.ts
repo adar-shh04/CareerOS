@@ -1,7 +1,12 @@
 import type { ResumeProfileInput } from "@repo/types";
 import { NextResponse } from "next/server";
 
-import { deleteResumeProfile, fetchResumeProfile, updateResumeProfile } from "@/lib/api";
+import {
+  ApiError,
+  deleteResumeProfile,
+  fetchResumeProfile,
+  updateResumeProfile,
+} from "@/lib/api";
 import { getServerSession } from "@/lib/server-session";
 
 export async function GET(
@@ -23,9 +28,10 @@ export async function GET(
     );
     return NextResponse.json(profile);
   } catch (error) {
+    const status = error instanceof ApiError ? error.status : 500;
     const message =
       error instanceof Error ? error.message : "Unable to fetch resume profile.";
-    return NextResponse.json({ message }, { status: 400 });
+    return NextResponse.json({ message }, { status });
   }
 }
 
@@ -50,9 +56,10 @@ export async function PUT(
     );
     return NextResponse.json(updated);
   } catch (error) {
+    const status = error instanceof ApiError ? error.status : 500;
     const message =
       error instanceof Error ? error.message : "Unable to update resume profile.";
-    return NextResponse.json({ message }, { status: 400 });
+    return NextResponse.json({ message }, { status });
   }
 }
 
@@ -75,8 +82,9 @@ export async function DELETE(
     );
     return NextResponse.json(result);
   } catch (error) {
+    const status = error instanceof ApiError ? error.status : 500;
     const message =
       error instanceof Error ? error.message : "Unable to delete resume profile.";
-    return NextResponse.json({ message }, { status: 400 });
+    return NextResponse.json({ message }, { status });
   }
 }

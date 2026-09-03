@@ -526,22 +526,32 @@ export async function updateJobState(
 export async function parseResume(
   sessionCookie: string,
   workspaceId: string,
-  input: {
-    resumeText?: string;
-    fileBase64?: string;
-    fileName?: string;
-    mimeType?: string;
-  },
+  input:
+    | FormData
+    | {
+        resumeText?: string;
+        fileBase64?: string;
+        fileName?: string;
+        mimeType?: string;
+      },
 ): Promise<MasterCareerProfileInput> {
+  const isFormData =
+    typeof FormData !== "undefined" && input instanceof FormData;
+
+  const headers: Record<string, string> = {
+    Cookie: sessionCookie,
+  };
+
+  if (!isFormData) {
+    headers["Content-Type"] = "application/json";
+  }
+
   const response = await fetch(
     `${getWorkspacePath(workspaceId)}/resume-profiles/parse`,
     {
       method: "POST",
-      headers: {
-        Cookie: sessionCookie,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(input),
+      headers,
+      body: isFormData ? input : JSON.stringify(input),
     },
   );
 

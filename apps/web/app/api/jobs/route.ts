@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import type { ListJobsParams } from "@/lib/api";
-import { listJobs } from "@/lib/api";
+import { ApiError, listJobs } from "@/lib/api";
 import { getServerSession } from "@/lib/server-session";
 
 export async function GET(request: Request) {
@@ -25,8 +25,9 @@ export async function GET(request: Request) {
     const jobs = await listJobs(session.token, session.workspace.id, params);
     return NextResponse.json(jobs);
   } catch (error) {
+    const status = error instanceof ApiError ? error.status : 500;
     const message =
       error instanceof Error ? error.message : "Unable to fetch job opportunities.";
-    return NextResponse.json({ message }, { status: 400 });
+    return NextResponse.json({ message }, { status });
   }
 }

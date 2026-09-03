@@ -54,6 +54,7 @@
     "@repo/eslint-config": "workspace:*",
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
+    "@types/multer": "^2.2.0",
     "@types/node": "^24.0.0",
     "@types/pdf-parse": "^1.1.5",
     "@types/pg": "^8.20.0",

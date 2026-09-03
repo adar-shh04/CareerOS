@@ -55,6 +55,13 @@ export class WorkspaceService {
         data: { name: dto.name },
       });
 
+      await this.prisma.client.session
+        .updateMany({
+          where: { userId },
+          data: { activeOrganizationId: organization.id },
+        })
+        .catch(() => undefined);
+
       return {
         user: {
           id: user.id,
@@ -80,6 +87,13 @@ export class WorkspaceService {
           data: { name: dto.workspaceName },
         }),
       ]);
+
+      await this.prisma.client.session
+        .updateMany({
+          where: { userId },
+          data: { activeOrganizationId: organization.id },
+        })
+        .catch(() => undefined);
 
       return {
         user: {
