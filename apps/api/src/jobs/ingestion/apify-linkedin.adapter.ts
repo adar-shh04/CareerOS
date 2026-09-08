@@ -3,7 +3,9 @@ import {
   BadRequestException,
   Injectable,
   Logger,
+  Optional,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 
 import type {
   FetchJobsParams,
@@ -44,8 +46,16 @@ export class ApifyLinkedInAdapter implements JobSourceAdapter {
   readonly sourceId = 'linkedin-apify';
   private readonly logger = new Logger(ApifyLinkedInAdapter.name);
 
+  constructor(
+    @Optional()
+    private readonly configService?: ConfigService,
+  ) {}
+
   async fetchJobs(params: FetchJobsParams): Promise<RawIngestedJob[]> {
-    const apiToken = params.apiKey ?? process.env.APIFY_API_TOKEN;
+    const apiToken =
+      params.apiKey ??
+      this.configService?.get<string>('APIFY_API_TOKEN') ??
+      process.env.APIFY_API_TOKEN;
 
     if (!apiToken) {
       this.logger.warn('Apify API token is not configured.');

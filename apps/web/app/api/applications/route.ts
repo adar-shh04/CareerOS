@@ -34,6 +34,7 @@ export async function POST(request: Request) {
     const body = (await request.json().catch(() => ({}))) as {
       jobId?: string;
       status?: string;
+      resumeProfileId?: string;
     };
 
     if (!body.jobId) {
@@ -48,6 +49,7 @@ export async function POST(request: Request) {
       session.workspace.id,
       body.jobId,
       body.status ?? "saved",
+      body.resumeProfileId,
     );
     return NextResponse.json(app);
   } catch (error) {

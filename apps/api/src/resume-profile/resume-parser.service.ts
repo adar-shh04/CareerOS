@@ -1,9 +1,15 @@
 import { randomUUID } from 'node:crypto';
 
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  Optional,
+} from '@nestjs/common';
 import mammoth from 'mammoth';
-import pdfParse from 'pdf-parse';
+import { PDFParse } from 'pdf-parse';
 
+import { AiCapabilityService } from '../byok/ai-capability.service';
 import { ByokService } from '../byok/byok.service';
 import type { MasterCareerProfileInput } from '../career-profile/career-profile.types';
 
@@ -11,11 +17,15 @@ import type { MasterCareerProfileInput } from '../career-profile/career-profile.
 export class ResumeParserService {
   private readonly logger = new Logger(ResumeParserService.name);
 
-  constructor(private readonly byokService: ByokService) {}
+  constructor(
+    private readonly byokService: ByokService,
+    @Optional()
+    private readonly aiCapabilityService?: AiCapabilityService,
+  ) {}
 
   /**
    * Parse raw resume text into a normalized MasterCareerProfileInput.
-   * If a BYOK provider is configured for the workspace, it uses AI;
+   * If an AI capability is available (BYOK or platform), it uses AI;
    * otherwise it falls back to the deterministic heuristic parser.
    */
   async parse(
@@ -24,30 +34,36 @@ export class ResumeParserService {
   ): Promise<MasterCareerProfileInput> {
     this.logger.log(`Parsing resume for workspace: ${workspaceId}`);
 
-    // Check if user has configured OpenAI or Anthropic keys via BYOK
     let apiKey: string | null = null;
     let provider: 'openai' | 'anthropic' | null = null;
 
-    try {
-      apiKey = await this.byokService.getDecryptedKey(workspaceId, 'openai');
-      provider = 'openai';
-    } catch {
+    if (this.aiCapabilityService) {
+      const cap = await this.aiCapabilityService.resolveCapability(workspaceId);
+      if (cap.available && cap.apiKey) {
+        apiKey = cap.apiKey;
+        provider = cap.provider === 'anthropic' ? 'anthropic' : 'openai';
+      }
+    } else {
+      // Direct BYOK fallback for test compatibility
       try {
-        apiKey = await this.byokService.getDecryptedKey(
-          workspaceId,
-          'anthropic',
-        );
-        provider = 'anthropic';
+        apiKey = await this.byokService.getDecryptedKey(workspaceId, 'openai');
+        provider = 'openai';
       } catch {
-        // No key configured
+        try {
+          apiKey = await this.byokService.getDecryptedKey(
+            workspaceId,
+            'anthropic',
+          );
+          provider = 'anthropic';
+        } catch {
+          // No key configured
+        }
       }
     }
 
     if (apiKey && provider) {
       try {
-        this.logger.log(
-          `Using BYOK provider '${provider}' for resume parsing.`,
-        );
+        this.logger.log(`Using AI provider '${provider}' for resume parsing.`);
         if (provider === 'openai') {
           return await this.parseWithOpenAI(apiKey, resumeText);
         } else {
@@ -120,22 +136,18 @@ export class ResumeParserService {
     // PDF
     if (lowerName.endsWith('.pdf') || lowerMime === 'application/pdf') {
       try {
-        const parseFn = (
-          typeof pdfParse === 'function'
-            ? pdfParse
-            : (
-                pdfParse as unknown as {
-                  default: (b: Buffer) => Promise<{ text: string }>;
-                }
-              ).default
-        ) as (b: Buffer) => Promise<{ text: string }>;
-        const result = await parseFn(buffer);
-        if (!result.text || result.text.trim().length === 0) {
+        const parser = new PDFParse({
+          data: new Uint8Array(buffer),
+          verbosity: 0,
+        });
+        const result = await parser.getText();
+        const text = typeof result === 'string' ? result : result.text;
+        if (!text || text.trim().length === 0) {
           throw new BadRequestException(
             'Could not extract text from the PDF file.',
           );
         }
-        return result.text;
+        return text;
       } catch (err) {
         if (err instanceof BadRequestException) throw err;
         throw new BadRequestException(
@@ -393,6 +405,15 @@ IMPORTANT:
   }
 
   private parseWithHeuristics(text: string): MasterCareerProfileInput {
+    const isLatex =
+      text.includes('\\documentclass') ||
+      text.includes('\\begin{document}') ||
+      text.includes('\\header{');
+
+    if (isLatex) {
+      return this.parseLatexHeuristics(text);
+    }
+
     const lines = text
       .split('\n')
       .map((l) => l.trim())
@@ -527,6 +548,213 @@ IMPORTANT:
             id: randomUUID(),
             name: line,
             bullets: [],
+          });
+        }
+      }
+    }
+
+    return result;
+  }
+
+  private parseLatexHeuristics(text: string): MasterCareerProfileInput {
+    const result: MasterCareerProfileInput = {
+      identity: {
+        fullName: 'Extracted Candidate',
+        headline: 'Software Professional',
+      },
+      education: [],
+      experiences: [],
+      projects: [],
+      skills: [],
+      certifications: [],
+      links: [],
+    };
+
+    // Extract Name
+    const nameMatch =
+      /\{\\Huge(?:\s+\\bfseries|\s+\\scshape|\s+\\textbf)*\s*([^{}\\\n]+)\}/i.exec(
+        text,
+      ) ??
+      /\\textbf\{\\Huge(?:\s+\\scshape)?\s*([^}]+)\}/i.exec(text) ??
+      /\\Huge(?:\s+\\scshape\s+|\s+\\bfseries\s+)*([^{}\\\n]+)/i.exec(text);
+
+    if (nameMatch?.[1]) {
+      result.identity.fullName = nameMatch[1].replace(/[{}\\]/g, '').trim();
+    }
+
+    // Extract Email
+    const emailHref = /\\href\{mailto:([^}]+)\}/i.exec(text);
+    const emailPlain = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.exec(
+      text,
+    );
+    if (emailHref?.[1]) {
+      result.identity.email = emailHref[1].trim();
+    } else if (emailPlain?.[0]) {
+      result.identity.email = emailPlain[0].trim();
+    }
+
+    // Extract Links from \href{url}{label}
+    const linkMatches = text.matchAll(
+      /\\href\{(https?:\/\/[^}]+)\}\{([^}]+)\}/gi,
+    );
+    for (const match of linkMatches) {
+      const url = match[1];
+      const label = match[2];
+      if (url && !url.startsWith('mailto:')) {
+        result.links ??= [];
+        result.links.push({
+          id: randomUUID(),
+          url,
+          label: label ? label.replace(/[{}\\]/g, '').trim() : url,
+        });
+      }
+    }
+
+    // Extract Summary as headline
+    const summaryMatch =
+      /(?:\\header|\\section\*?)\{Summary\}[\s\S]*?(?:\{\\usefont[^{}]*\}|\n)([\s\S]*?)(?=(?:\\header|\\section\*?|\n\s*\\vspace))/i.exec(
+        text,
+      );
+    if (summaryMatch?.[1]) {
+      const summaryText = summaryMatch[1].replace(/[{}\\]/g, '').trim();
+      const firstSentence = summaryText.split('.')[0];
+      if (firstSentence && firstSentence.length > 5) {
+        result.identity.headline = firstSentence.slice(0, 100).trim();
+      }
+    }
+
+    // Parse sections
+    const sectionSplit = text.split(/(?:\\section\*?|\\header)\{([^}]+)\}/i);
+    for (let i = 1; i < sectionSplit.length; i += 2) {
+      const title = (sectionSplit[i] ?? '').toUpperCase().trim();
+      const content = sectionSplit[i + 1] ?? '';
+
+      if (title.includes('SKILL')) {
+        // Strip LaTeX formatting and parse skill items
+        const cleanContent = content
+          .replace(/\\textbf\{[^}]+\}/g, '')
+          .replace(/\\vspace\*?\{[^}]+\}/g, '')
+          .replace(/\\\\/g, '\n')
+          .replace(/[{}\\]/g, '');
+
+        const skillTokens = cleanContent
+          .split(/[,;\n•]/)
+          .map((s) => s.replace(/^[-\s]+/, '').trim())
+          .filter((s) => s.length > 1 && s.length < 35 && !s.includes('='));
+
+        for (const token of skillTokens) {
+          result.skills ??= [];
+          result.skills.push({
+            id: randomUUID(),
+            name: token,
+          });
+        }
+      } else if (title.includes('EXPERIENCE') || title.includes('WORK')) {
+        // Look for \textbf{Company, Title}\hfill dates
+        const expBlocks = content.split(/\\textbf\{/);
+        for (const block of expBlocks) {
+          if (!block.trim()) continue;
+          const endBrace = block.indexOf('}');
+          if (endBrace === -1) continue;
+
+          const headerText = block.slice(0, endBrace).trim();
+          const rest = block.slice(endBrace);
+
+          const parts = headerText.split(/[,–-]/).map((p) => p.trim());
+          const company = parts[0] ?? 'Organization';
+          const expTitle = parts[1] ?? 'Software Engineer';
+
+          // Extract dates from \hfill ... \\
+          const hfillMatch = /\\hfill\s*([^\n\\]+)/.exec(rest);
+          const dates = hfillMatch?.[1]?.trim() ?? '';
+
+          // Extract bullets from \item
+          const bullets = Array.from(rest.matchAll(/\\item\s+([^\n\\]+)/g))
+            .map((m) => m[1].replace(/[{}\\]/g, '').trim())
+            .filter(Boolean);
+
+          result.experiences ??= [];
+          result.experiences.push({
+            id: randomUUID(),
+            company,
+            title: expTitle,
+            startDate: dates.split(/[-–]/)[0]?.trim(),
+            endDate: dates.split(/[-–]/)[1]?.trim(),
+            bullets,
+          });
+        }
+      } else if (title.includes('PROJECT')) {
+        const projBlocks = content.split(/\\textbf\{/);
+        for (const block of projBlocks) {
+          if (!block.trim()) continue;
+          const endBrace = block.indexOf('}');
+          if (endBrace === -1) continue;
+
+          const projName = block
+            .slice(0, endBrace)
+            .replace(/[{}\\]/g, '')
+            .trim();
+          const rest = block.slice(endBrace);
+
+          // Extract link if any
+          const urlMatch = /\\href\{([^}]+)\}/.exec(rest);
+
+          // Extract bullets from \item
+          const bullets = Array.from(rest.matchAll(/\\item\s+([^\n\\]+)/g))
+            .map((m) => m[1].replace(/[{}\\]/g, '').trim())
+            .filter(Boolean);
+
+          result.projects ??= [];
+          result.projects.push({
+            id: randomUUID(),
+            name: projName,
+            url: urlMatch?.[1],
+            bullets,
+          });
+        }
+      } else if (title.includes('EDUCATION')) {
+        const eduBlocks = content.split(/\\textbf\{/);
+        for (const block of eduBlocks) {
+          if (!block.trim()) continue;
+          const endBrace = block.indexOf('}');
+          if (endBrace === -1) continue;
+
+          const institution = block
+            .slice(0, endBrace)
+            .replace(/[{}\\]/g, '')
+            .trim();
+          const rest = block.slice(endBrace);
+
+          // Degree line
+          const lines = rest
+            .split('\n')
+            .map((l) => l.replace(/\\hfill|\\\\|[{}\\]/g, '').trim())
+            .filter(Boolean);
+          const degreeLine = lines.find(
+            (l) =>
+              l.includes('B.') ||
+              l.includes('M.') ||
+              l.includes('Bachelor') ||
+              l.includes('Degree'),
+          );
+
+          result.education ??= [];
+          result.education.push({
+            id: randomUUID(),
+            institution,
+            degree: degreeLine,
+          });
+        }
+      } else if (title.includes('CERTIFICATION')) {
+        const certItems = Array.from(content.matchAll(/\\item\s+([^\n\\]+)/g))
+          .map((m) => m[1].replace(/[{}\\]/g, '').trim())
+          .filter(Boolean);
+
+        for (const c of certItems) {
+          result.certifications ??= [];
+          result.certifications.push({
+            id: randomUUID(),
+            name: c,
           });
         }
       }

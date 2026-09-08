@@ -191,6 +191,7 @@ export interface ResumeProfileInput {
   priorityCertificationIds?: string[];
   templateId?: string;
   styleSettings?: Record<string, unknown>;
+  latexSource?: string;
 }
 
 export interface ResumeProfile extends ResumeProfileInput {
@@ -205,6 +206,7 @@ export interface ResumeProfile extends ResumeProfileInput {
   priorityAchievementIds: string[];
   priorityCertificationIds: string[];
   styleSettings: Record<string, unknown>;
+  latexSource?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -456,6 +458,26 @@ export interface JobAnalysisResult {
   analyzedAt: string;
 }
 
+export type ResumeSectionType =
+  | "summary"
+  | "skills"
+  | "experience"
+  | "projects"
+  | "education"
+  | "certifications";
+
+export interface AICoachSectionRecommendation {
+  id: string;
+  section: ResumeSectionType;
+  title: string;
+  reasoning: string;
+  currentContent?: string;
+  recommendedContent: string;
+  status: "pending" | "accepted" | "rejected";
+  confidenceScore: number;
+  impact: "High" | "Medium" | "Low";
+}
+
 export interface AIRecommendation {
   id: string;
   type: "ResumeBullet" | "SkillBridge" | "OutreachStrategy" | "InterviewPrep";
@@ -465,6 +487,25 @@ export interface AIRecommendation {
   impactLevel: "High Impact" | "Medium Impact" | "Quick Win";
   actionable: boolean;
   userDismissed: boolean;
+}
+
+/* ── Substantive Onboarding Domain Types ──────────────────────────────── */
+
+export interface OnboardingProfileInput {
+  name: string;
+  workspaceName: string;
+  field: string;
+  careerDirection?: string;
+  targetRole: string;
+  experienceLevel?: "entry" | "mid" | "senior" | "lead" | "executive";
+  locationPreference?: string;
+  workArrangement?: "remote" | "hybrid" | "onsite" | "any";
+  skills?: string[];
+  jobSearchPreferences?: {
+    salaryTarget?: string;
+    employmentType?: string;
+    activelyLooking?: boolean;
+  };
 }
 
 /* ── Job Ingestion Types ──────────────────────────────────────────────── */

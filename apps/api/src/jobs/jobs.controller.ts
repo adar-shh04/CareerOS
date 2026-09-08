@@ -172,6 +172,20 @@ export class JobsController {
   }
 
   /**
+   * POST /workspaces/:workspaceId/jobs/:jobId/apply
+   * Mark a job as applied using a selected ResumeProfile (no ResumeVersion snapshot required).
+   */
+  @Post(':jobId/apply')
+  @HttpCode(HttpStatus.OK)
+  async applyJob(
+    @Param('workspaceId') workspaceId: string,
+    @Param('jobId') jobId: string,
+    @Body() body?: { resumeProfileId?: string; notes?: string },
+  ): Promise<JobOpportunity> {
+    return this.jobsService.applyToJob(workspaceId, jobId, body);
+  }
+
+  /**
    * GET /workspaces/:workspaceId/jobs/:jobId/analysis
    * Perform structured job analysis with skill gaps and targeting evidence.
    */

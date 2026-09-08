@@ -1,3 +1,4 @@
+import type { OnboardingProfileInput } from "@repo/types";
 import { NextResponse } from "next/server";
 
 import { completeOnboarding } from "@/lib/api";
@@ -11,11 +12,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const body = (await request.json()) as {
-      name?: string;
-      workspaceName?: string;
-      targetRole?: string;
-    };
+    const body = (await request.json()) as OnboardingProfileInput;
 
     if (!body.name || !body.workspaceName) {
       return NextResponse.json(
@@ -24,11 +21,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const updatedSession = await completeOnboarding(serverSession.token, {
-      name: body.name,
-      workspaceName: body.workspaceName,
-      targetRole: body.targetRole,
-    });
+    const updatedSession = await completeOnboarding(serverSession.token, body);
 
     return NextResponse.json(updatedSession);
   } catch (error) {

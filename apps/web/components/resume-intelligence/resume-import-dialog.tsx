@@ -2,7 +2,6 @@ import type { MasterCareerProfileInput } from "@repo/types";
 import {
   Check,
   FileCode,
-  FileText,
   Loader2,
   ShieldAlert,
   Sparkles,
@@ -14,17 +13,21 @@ import React, { useRef, useState } from "react";
 
 interface ResumeImportDialogProps {
   onClose: () => void;
-  onImportComplete: (data: MasterCareerProfileInput) => Promise<void>;
+  onImportComplete: (
+    data: MasterCareerProfileInput,
+    latexSource?: string,
+  ) => Promise<void>;
 }
 
 export function ResumeImportDialog({
   onClose,
   onImportComplete,
 }: ResumeImportDialogProps) {
-  const [inputMode, setInputMode] = useState<"file" | "text">("file");
+  const [inputMode, setInputMode] = useState<"file" | "latex">("file");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [resumeText, setResumeText] = useState("");
+  const [latexText, setLatexText] = useState("");
+  const [capturedLatex, setCapturedLatex] = useState<string | null>(null);
   const [parsing, setParsing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -34,15 +37,15 @@ export function ResumeImportDialog({
   const [parsedData, setParsedData] =
     useState<MasterCareerProfileInput | null>(null);
 
-  const validateAndSetFile = (file: File) => {
+  const validateAndSetFile = async (file: File) => {
     setError(null);
-    const validExtensions = [".pdf", ".docx", ".txt", ".md", ".json"];
+    const validExtensions = [".pdf", ".docx", ".txt", ".md", ".json", ".tex"];
     const hasValidExt = validExtensions.some((ext) =>
       file.name.toLowerCase().endsWith(ext),
     );
     if (!hasValidExt) {
       setError(
-        "Please select a supported file (.pdf, .docx, .txt, .md, .json).",
+        "Please select a supported file (.pdf, .docx, .txt, .md, .json, .tex).",
       );
       return;
     }
@@ -51,6 +54,15 @@ export function ResumeImportDialog({
       return;
     }
     setSelectedFile(file);
+
+    if (file.name.toLowerCase().endsWith(".tex")) {
+      try {
+        const text = await file.text();
+        setCapturedLatex(text);
+      } catch {
+        /* ignore */
+      }
+    }
   };
 
   const handleFileDrop = (e: React.DragEvent) => {
@@ -58,14 +70,14 @@ export function ResumeImportDialog({
     setIsDragging(false);
     const file = e.dataTransfer.files[0];
     if (file) {
-      validateAndSetFile(file);
+      void validateAndSetFile(file);
     }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      validateAndSetFile(file);
+      void validateAndSetFile(file);
     }
   };
 
@@ -105,18 +117,19 @@ export function ResumeImportDialog({
         setParsing(false);
       }
     } else {
-      if (!resumeText.trim()) {
-        setError("Please paste some resume text first.");
+      if (!latexText.trim()) {
+        setError("Please provide your LaTeX resume source code.");
         return;
       }
 
       setParsing(true);
       setError(null);
       try {
+        setCapturedLatex(latexText);
         const response = await fetch("/api/resume-profiles/parse", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ resumeText }),
+          body: JSON.stringify({ resumeText: latexText }),
         });
 
         if (!response.ok) {
@@ -146,7 +159,7 @@ export function ResumeImportDialog({
     if (!parsedData) return;
 
     try {
-      await onImportComplete(parsedData);
+      await onImportComplete(parsedData, capturedLatex ?? undefined);
       onClose();
     } catch (err) {
       setError(
@@ -173,7 +186,7 @@ export function ResumeImportDialog({
         className="glass-panel"
         style={{
           width: "100%",
-          maxWidth: stage === "input" ? "620px" : "850px",
+          maxWidth: stage === "input" ? "640px" : "850px",
           maxHeight: "90vh",
           display: "flex",
           flexDirection: "column",
@@ -278,16 +291,16 @@ export function ResumeImportDialog({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setInputMode("text")}
+                  onClick={() => setInputMode("latex")}
                   style={{
                     flex: 1,
                     padding: "0.5rem",
                     borderRadius: "0.375rem",
                     border: "none",
                     backgroundColor:
-                      inputMode === "text" ? "rgba(99, 102, 241, 0.2)" : "transparent",
-                    color: inputMode === "text" ? "#ffffff" : "#94a3b8",
-                    fontWeight: inputMode === "text" ? "700" : "500",
+                      inputMode === "latex" ? "rgba(99, 102, 241, 0.2)" : "transparent",
+                    color: inputMode === "latex" ? "#ffffff" : "#94a3b8",
+                    fontWeight: inputMode === "latex" ? "700" : "500",
                     fontSize: "0.85rem",
                     cursor: "pointer",
                     display: "flex",
@@ -297,8 +310,8 @@ export function ResumeImportDialog({
                     transition: "all 0.15s",
                   }}
                 >
-                  <FileText style={{ width: "15px", height: "15px" }} />
-                  Paste Raw Text
+                  <FileCode style={{ width: "15px", height: "15px" }} />
+                  LaTeX Code
                 </button>
               </div>
 
@@ -307,7 +320,7 @@ export function ResumeImportDialog({
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept=".pdf,.docx,.txt,.md,.json,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown,application/json"
+                    accept=".pdf,.docx,.txt,.md,.json,.tex,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown,application/json,application/x-tex,text/x-tex"
                     onChange={handleFileSelect}
                     style={{ display: "none" }}
                   />
@@ -397,7 +410,7 @@ export function ResumeImportDialog({
                             marginTop: "0.25rem",
                           }}
                         >
-                          Supported formats: PDF, DOCX, TXT, Markdown, JSON (up
+                          Supported formats: PDF, DOCX, TXT, LaTeX (.tex), Markdown, JSON (up
                           to 10MB)
                         </div>
                       </div>
@@ -413,24 +426,29 @@ export function ResumeImportDialog({
                       lineHeight: "1.4",
                     }}
                   >
-                    Paste the full text of your existing resume. The parser will
-                    extract identity, education, experience, projects, and
-                    skills.
+                    Paste your raw LaTeX resume source code. CareerOS preserves your original LaTeX
+                    template design and typography as the canonical source for your Resume Profile,
+                    while extracting structured evidence for your Master Career Profile.
                   </p>
 
                   <textarea
-                    value={resumeText}
-                    onChange={(e) => setResumeText(e.target.value)}
-                    placeholder="Paste resume content here..."
+                    value={latexText}
+                    onChange={(e) => setLatexText(e.target.value)}
+                    placeholder={String.raw`\documentclass[letterpaper,11pt]{article}
+\usepackage{latexsym}
+\begin{document}
+\section{Experience}
+Software Engineer at Example Corp
+\end{document}`}
                     style={{
                       width: "100%",
-                      height: "220px",
+                      height: "240px",
                       borderRadius: "0.5rem",
                       border: "1px solid rgba(255, 255, 255, 0.08)",
                       backgroundColor: "rgba(15, 23, 42, 0.6)",
-                      color: "#ffffff",
+                      color: "#e0e7ff",
                       padding: "1rem",
-                      fontSize: "0.85rem",
+                      fontSize: "0.825rem",
                       fontFamily: "monospace",
                       resize: "none",
                       outline: "none",

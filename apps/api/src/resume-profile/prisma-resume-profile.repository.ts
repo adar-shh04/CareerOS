@@ -153,6 +153,13 @@ export class PrismaResumeProfileRepository implements ResumeProfileRepository {
         string,
         unknown
       >,
+      latexSource:
+        profile.styleSettings &&
+        typeof (profile.styleSettings as Record<string, unknown>)
+          .latexSource === 'string'
+          ? ((profile.styleSettings as Record<string, unknown>)
+              .latexSource as string)
+          : undefined,
       createdAt: profile.createdAt.toISOString(),
       updatedAt: profile.updatedAt.toISOString(),
     };
@@ -191,6 +198,10 @@ export class PrismaResumeProfileRepository implements ResumeProfileRepository {
   private toProfileCreateData(
     profile: ResumeProfile,
   ): Prisma.ResumeProfileCreateInput {
+    const combinedStyleSettings = profile.latexSource
+      ? { ...profile.styleSettings, latexSource: profile.latexSource }
+      : profile.styleSettings;
+
     return {
       id: profile.id,
       name: profile.name,
@@ -205,7 +216,7 @@ export class PrismaResumeProfileRepository implements ResumeProfileRepository {
       priorityAchievementIds: profile.priorityAchievementIds,
       priorityCertificationIds: profile.priorityCertificationIds,
       templateId: profile.templateId,
-      styleSettings: toInputJsonValue(profile.styleSettings),
+      styleSettings: toInputJsonValue(combinedStyleSettings),
       createdAt: new Date(profile.createdAt),
       updatedAt: new Date(profile.updatedAt),
       organization: { connect: { id: profile.workspaceId } },
@@ -215,6 +226,11 @@ export class PrismaResumeProfileRepository implements ResumeProfileRepository {
   private toProfileUpdateData(
     profile: ResumeProfile,
   ): Prisma.ResumeProfileUpdateInput {
+    const combinedStyleSettings =
+      profile.latexSource !== undefined
+        ? { ...profile.styleSettings, latexSource: profile.latexSource }
+        : profile.styleSettings;
+
     return {
       name: profile.name,
       roleFocus: profile.roleFocus,
@@ -228,7 +244,7 @@ export class PrismaResumeProfileRepository implements ResumeProfileRepository {
       priorityAchievementIds: profile.priorityAchievementIds,
       priorityCertificationIds: profile.priorityCertificationIds,
       templateId: profile.templateId,
-      styleSettings: toInputJsonValue(profile.styleSettings),
+      styleSettings: toInputJsonValue(combinedStyleSettings),
       updatedAt: new Date(profile.updatedAt),
     };
   }

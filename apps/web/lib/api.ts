@@ -8,6 +8,7 @@ import type {
   JobOpportunity,
   MasterCareerProfile,
   MasterCareerProfileInput,
+  OnboardingProfileInput,
   ResumeProfile,
   ResumeProfileInput,
   ResumeVersion,
@@ -50,11 +51,7 @@ async function parseResponse<T>(response: Response): Promise<T> {
 
 export async function completeOnboarding(
   sessionCookie: string,
-  input: {
-    name: string;
-    workspaceName: string;
-    targetRole?: string;
-  },
+  input: OnboardingProfileInput,
 ): Promise<AuthSession> {
   const response = await fetch(
     `${getApiBaseUrl()}/workspaces/onboarding/complete`,
@@ -643,6 +640,7 @@ export async function trackApplication(
   workspaceId: string,
   jobId: string,
   status: string,
+  resumeProfileId?: string | null,
 ): Promise<TrackedApplication> {
   const response = await fetch(
     `${getWorkspacePath(workspaceId)}/applications`,
@@ -652,7 +650,11 @@ export async function trackApplication(
         Cookie: sessionCookie,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ jobId, status }),
+      body: JSON.stringify({
+        jobId,
+        status,
+        ...(resumeProfileId ? { resumeProfileId } : {}),
+      }),
     },
   );
 
@@ -667,6 +669,7 @@ export async function updateApplicationState(
     status?: string;
     notes?: string;
     appliedAt?: string;
+    resumeProfileId?: string | null;
   },
 ): Promise<TrackedApplication> {
   const response = await fetch(

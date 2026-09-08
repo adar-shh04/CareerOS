@@ -1,3 +1,18 @@
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+
+import dotenv from 'dotenv';
+
+// Pre-load root and local .env so early initializations (e.g. Better Auth) have complete env
+const rootEnvPath = path.resolve(process.cwd(), '../../.env');
+if (fs.existsSync(rootEnvPath)) {
+  dotenv.config({ path: rootEnvPath });
+}
+const localEnvPath = path.resolve(process.cwd(), '.env');
+if (fs.existsSync(localEnvPath)) {
+  dotenv.config({ path: localEnvPath, override: true });
+}
+
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';

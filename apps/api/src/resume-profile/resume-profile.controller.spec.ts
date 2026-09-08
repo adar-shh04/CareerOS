@@ -135,4 +135,40 @@ describe('ResumeProfileController', () => {
       expect(res).toHaveLength(1);
     });
   });
+
+  describe('importLatex', () => {
+    it('parses latex code and creates a resume profile with latexSource', async () => {
+      const latexCode =
+        '\\documentclass{article}\\begin{document}\\Huge Alex Rivera\\end{document}';
+      mockResumeParserService.parse.mockResolvedValue({
+        identity: { fullName: 'Alex Rivera', headline: 'Staff Engineer' },
+      });
+      mockResumeProfileService.create.mockResolvedValue({
+        id: 'rp-latex-1',
+        name: 'Alex Rivera Resume',
+        latexSource: latexCode,
+      });
+
+      const res = await controller.importLatex(workspaceId, { latexCode });
+      expect(mockResumeParserService.parse).toHaveBeenCalledWith(
+        workspaceId,
+        latexCode,
+      );
+      expect(mockResumeProfileService.create).toHaveBeenCalledWith(
+        workspaceId,
+        expect.objectContaining({
+          latexSource: latexCode,
+          name: 'Alex Rivera Resume',
+        }),
+      );
+      expect(res.profile.id).toBe('rp-latex-1');
+      expect(res.profile.latexSource).toBe(latexCode);
+    });
+
+    it('rejects empty latexCode with BadRequestException', async () => {
+      await expect(
+        controller.importLatex(workspaceId, { latexCode: '   ' }),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
 });

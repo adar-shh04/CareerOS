@@ -1,7 +1,15 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
   "ui": "tui",
-  "globalEnv": ["APIFY_API_TOKEN", "BETTER_AUTH_SECRET"],
+  "globalEnv": [
+    "APIFY_API_TOKEN",
+    "BETTER_AUTH_SECRET",
+    "OPENROUTER_API_KEY",
+    "OPENROUTER_BASE_URL",
+    "OPENROUTER_DEFAULT_MODEL",
+    "OPENAI_API_KEY",
+    "ANTHROPIC_API_KEY"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

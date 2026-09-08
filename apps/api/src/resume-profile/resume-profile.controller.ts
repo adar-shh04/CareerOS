@@ -82,6 +82,49 @@ export class ResumeProfileController {
     return this.resumeParserService.parse(workspaceId, body.resumeText);
   }
 
+  @Post('import-latex')
+  async importLatex(
+    @Param('workspaceId') workspaceId: string,
+    @Body() body: { name?: string; latexCode: string },
+  ) {
+    if (!body.latexCode.trim()) {
+      throw new BadRequestException('latexCode is required.');
+    }
+    const parsedData = await this.resumeParserService.parse(
+      workspaceId,
+      body.latexCode,
+    );
+    const candidateName = parsedData.identity.fullName.trim()
+      ? parsedData.identity.fullName
+      : 'Imported';
+    const profile = await this.resumeProfileService.create(workspaceId, {
+      name: body.name ?? `${candidateName} Resume`,
+      roleFocus: parsedData.identity.headline,
+      latexSource: body.latexCode,
+      visibleSections: [
+        'identity',
+        'summary',
+        'experience',
+        'skills',
+        'projects',
+        'education',
+      ],
+      sectionOrder: [
+        'identity',
+        'summary',
+        'experience',
+        'skills',
+        'projects',
+        'education',
+      ],
+    });
+
+    return {
+      profile,
+      parsedData,
+    };
+  }
+
   @Get()
   async listProfiles(
     @Param('workspaceId') workspaceId: string,

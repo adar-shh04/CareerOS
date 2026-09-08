@@ -38,6 +38,7 @@ export interface ResumeProfileInput {
   priorityCertificationIds?: string[];
   templateId?: string;
   styleSettings?: Record<string, unknown>;
+  latexSource?: string;
 }
 
 export interface ResumeProfile extends ResumeProfileInput {
@@ -52,6 +53,7 @@ export interface ResumeProfile extends ResumeProfileInput {
   priorityAchievementIds: string[];
   priorityCertificationIds: string[];
   styleSettings: Record<string, unknown>;
+  latexSource?: string;
   createdAt: string;
   updatedAt: string;
 }

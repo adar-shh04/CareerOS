@@ -16,7 +16,7 @@ import {
 export class CareerProfileValidationError extends Error {}
 
 const uuidPattern =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 @Injectable()
 export class CareerProfileService {
@@ -102,40 +102,39 @@ export class CareerProfileService {
 
     const normalizedProfile = {
       identity,
-      education: profile.education ?? [],
-      experiences: profile.experiences ?? [],
-      projects: profile.projects ?? [],
-      achievements: profile.achievements ?? [],
-      skills: profile.skills ?? [],
-      technologies: profile.technologies ?? [],
-      publications: profile.publications ?? [],
-      hackathons: profile.hackathons ?? [],
-      certifications: profile.certifications ?? [],
-      links: profile.links ?? [],
+      education: this.normalizeCollection(profile.education),
+      experiences: this.normalizeCollection(profile.experiences),
+      projects: this.normalizeCollection(profile.projects),
+      achievements: this.normalizeCollection(profile.achievements),
+      skills: this.normalizeCollection(profile.skills),
+      technologies: this.normalizeCollection(profile.technologies),
+      publications: this.normalizeCollection(profile.publications),
+      hackathons: this.normalizeCollection(profile.hackathons),
+      certifications: this.normalizeCollection(profile.certifications),
+      links: this.normalizeCollection(profile.links),
     };
-
-    this.validateRecordIds([
-      ...normalizedProfile.education,
-      ...normalizedProfile.experiences,
-      ...normalizedProfile.projects,
-      ...normalizedProfile.achievements,
-      ...normalizedProfile.skills,
-      ...normalizedProfile.technologies,
-      ...normalizedProfile.publications,
-      ...normalizedProfile.hackathons,
-      ...normalizedProfile.certifications,
-      ...normalizedProfile.links,
-    ]);
 
     return normalizedProfile;
   }
 
-  private validateRecordIds(records: CareerRecord[]): void {
-    if (records.some((record) => !uuidPattern.test(record.id))) {
-      throw new CareerProfileValidationError(
-        'Career profile record IDs must be UUIDs.',
-      );
-    }
+  private normalizeCollection<T extends CareerRecord>(
+    records: T[] | undefined,
+  ): T[] {
+    if (!records) return [];
+    return records.map((record) => {
+      const rawId = (record as { id?: string }).id;
+      const id = typeof rawId === 'string' ? rawId.trim() : '';
+      if (!id || !uuidPattern.test(id)) {
+        return {
+          ...record,
+          id: randomUUID(),
+        };
+      }
+      return {
+        ...record,
+        id,
+      };
+    });
   }
 
   private normalizeIdentity(identity: CareerIdentity): CareerIdentity {

@@ -8,7 +8,7 @@ import type {
   ResumeProfileInput,
   ResumeVersion,
 } from "@repo/types";
-import { Diff, Eye, FileText, History, Layers, Upload,UserCheck } from "lucide-react";
+import { Eye, FileText, History, Layers, Upload, UserCheck } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 
 import { MasterProfileEditor } from "./master-profile-editor";
@@ -16,7 +16,6 @@ import { ResumeImportDialog } from "./resume-import-dialog";
 import { ResumeOverviewCards } from "./resume-overview-cards";
 import { ResumePreview } from "./resume-preview";
 import { ResumeProfilesManager } from "./resume-profiles-manager";
-import { ResumeVersionComparison } from "./resume-version-comparison";
 import { ResumeVersionHistory } from "./resume-version-history";
 
 interface ResumeIntelligenceViewProps {
@@ -26,7 +25,7 @@ interface ResumeIntelligenceViewProps {
 
 export function ResumeIntelligenceView({ initialVersion, initialProfile }: ResumeIntelligenceViewProps = {}) {
   const [subTab, setSubTab] = useState<
-    "master" | "profiles" | "versions" | "preview" | "compare"
+    "master" | "profiles" | "versions" | "preview"
   >(initialVersion ? "preview" : "master");
 
   /* ── State ─────────────────────────────────────────────────────────── */
@@ -199,6 +198,48 @@ export function ResumeIntelligenceView({ initialVersion, initialProfile }: Resum
     setVersions((prev) => [created, ...prev]);
   }
 
+  async function handleImportComplete(
+    input: MasterCareerProfileInput,
+    latexSource?: string,
+  ) {
+    await handleSaveMaster(input);
+
+    if (latexSource) {
+      if (selectedProfileId && selectedProfile) {
+        await handleUpdateProfileLatex(latexSource);
+      } else {
+        await handleCreateProfile({
+          name: "Imported Resume Profile",
+          roleFocus: input.identity.headline ?? "General Target",
+          latexSource,
+        });
+      }
+      setSubTab("preview");
+    }
+  }
+
+  async function handleUpdateProfileLatex(latex: string) {
+    if (!selectedProfileId) return;
+    const profile = profiles.find((p) => p.id === selectedProfileId);
+    if (!profile) return;
+
+    const response = await fetch(`/api/resume-profiles/${selectedProfileId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...profile,
+        latexSource: latex,
+      }),
+    });
+
+    if (response.ok) {
+      const updated = (await response.json()) as ResumeProfile;
+      setProfiles((prev) =>
+        prev.map((p) => (p.id === updated.id ? updated : p)),
+      );
+    }
+  }
+
   const selectedProfile =
     profiles.find((p) => p.id === selectedProfileId) ?? null;
 
@@ -234,7 +275,7 @@ export function ResumeIntelligenceView({ initialVersion, initialProfile }: Resum
               Resume Intelligence
             </h2>
             <span style={{ fontSize: "0.8rem", color: "#94a3b8" }}>
-              Master profile source of truth, targeted resume variants, and immutable version snapshots.
+              Master profile source of truth, targeted LaTeX resume variants, and live studio.
             </span>
           </div>
         </div>
@@ -267,7 +308,6 @@ export function ResumeIntelligenceView({ initialVersion, initialProfile }: Resum
             { id: "profiles", label: `Resume Profiles (${String(profiles.length)})`, icon: Layers },
             { id: "versions", label: `Version History (${String(versions.length)})`, icon: History },
             { id: "preview", label: "Resume Studio Preview", icon: Eye },
-            { id: "compare", label: "Version Diff", icon: Diff },
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = subTab === tab.id;
@@ -374,17 +414,14 @@ export function ResumeIntelligenceView({ initialVersion, initialProfile }: Resum
           masterProfile={masterProfile}
           selectedProfile={selectedProfile}
           selectedVersion={selectedVersion ?? versions[0] ?? null}
+          onUpdateProfileLatex={handleUpdateProfileLatex}
         />
-      )}
-
-      {subTab === "compare" && (
-        <ResumeVersionComparison versions={versions} />
       )}
 
       {showImport && (
         <ResumeImportDialog
           onClose={() => setShowImport(false)}
-          onImportComplete={handleSaveMaster}
+          onImportComplete={handleImportComplete}
         />
       )}
     </div>

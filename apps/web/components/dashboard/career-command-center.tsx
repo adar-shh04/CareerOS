@@ -17,9 +17,12 @@ import { useRouter } from "next/navigation";
 import React, { useCallback, useEffect, useState } from "react";
 
 import { useAuth } from "../../providers/auth-provider";
+import { AICoachView } from "../ai-coach/ai-coach-view";
 import { ApplicationTrackerView } from "../applications/application-tracker-view";
+import { MarketInsightsView } from "../insights/market-insights-view";
 import { JobBoard } from "../jobs/job-board";
 import { ResumeIntelligenceView } from "../resume-intelligence/resume-intelligence-view";
+import { ByokSettingsView } from "../settings/byok-settings-view";
 
 /* ────────────────────────────────────────────────────────────────────────── */
 /*  Types                                                                    */
@@ -164,11 +167,19 @@ export default function CareerCommandCenter() {
   const { session, loading, logout } = useAuth();
 
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "resume" | "jobs" | "applications" | "coach" | "skills"
+    | "dashboard"
+    | "resume"
+    | "jobs"
+    | "applications"
+    | "coach"
+    | "insights"
+    | "settings"
   >("dashboard");
   const [coachOpen, setCoachOpen] = useState(false);
   const [targetedVersion, setTargetedVersion] = useState<ResumeVersion | null>(null);
   const [targetedProfile, setTargetedProfile] = useState<ResumeProfile | null>(null);
+  const [resumeProfiles, setResumeProfiles] = useState<ResumeProfile[]>([]);
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
 
   const handleNavigateToResume = (version: ResumeVersion, profile: ResumeProfile) => {
     setTargetedVersion(version);
@@ -216,6 +227,39 @@ export default function CareerCommandCenter() {
     }
   }, []);
 
+  /* ── Fetch Resume Profiles ─────────────────────────────────────────── */
+
+  const fetchResumeProfiles = useCallback(async () => {
+    try {
+      const response = await fetch("/api/resume-profiles", {
+        cache: "no-store",
+      });
+      if (response.ok) {
+        const data = (await response.json()) as ResumeProfile[];
+        setResumeProfiles(data);
+        if (data.length > 0) {
+          setSelectedProfileId((prev) => prev ?? data[0]?.id ?? null);
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const handleUpdateResumeProfile = async (profile: ResumeProfile) => {
+    const res = await fetch(`/api/resume-profiles/${profile.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(profile),
+    });
+    if (res.ok) {
+      const updated = (await res.json()) as ResumeProfile;
+      setResumeProfiles((prev) =>
+        prev.map((p) => (p.id === updated.id ? updated : p)),
+      );
+    }
+  };
+
   /* ── Fetch BYOK status ─────────────────────────────────────────────── */
 
   const fetchByok = useCallback(async () => {
@@ -233,9 +277,10 @@ export default function CareerCommandCenter() {
   useEffect(() => {
     if (session && !session.needsOnboarding) {
       void fetchProfileSnapshot();
+      void fetchResumeProfiles();
       void fetchByok();
     }
-  }, [session, fetchByok, fetchProfileSnapshot]);
+  }, [session, activeTab, fetchProfileSnapshot, fetchResumeProfiles, fetchByok]);
 
   /* ── Loading / guard states ────────────────────────────────────────── */
 
@@ -322,8 +367,9 @@ export default function CareerCommandCenter() {
               { id: "resume", label: "Resume Intelligence", icon: FileText },
               { id: "jobs", label: "Job Radar", icon: Briefcase },
               { id: "applications", label: "Applications", icon: TrendingUp },
-              { id: "coach", label: "AI Mentor", icon: Sparkles },
-              { id: "skills", label: "Skill Roadmap", icon: Target },
+              { id: "coach", label: "AI Coach", icon: Bot },
+              { id: "insights", label: "Insights", icon: Target },
+              { id: "settings", label: "Settings", icon: KeyRound },
             ].map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
@@ -339,7 +385,8 @@ export default function CareerCommandCenter() {
                         | "jobs"
                         | "applications"
                         | "coach"
-                        | "skills",
+                        | "insights"
+                        | "settings",
                     );
                   }}
                   style={{
@@ -376,9 +423,12 @@ export default function CareerCommandCenter() {
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-          {/* BYOK Badge — real status */}
-          <div
+          {/* BYOK Badge — opens Settings */}
+          <button
+            type="button"
             id="byok-badge"
+            onClick={() => setActiveTab("settings")}
+            title="Configure AI Providers in Settings"
             style={{
               display: "flex",
               alignItems: "center",
@@ -391,6 +441,7 @@ export default function CareerCommandCenter() {
               border: byokStatus.configured
                 ? "1px solid rgba(16, 185, 129, 0.2)"
                 : "1px solid rgba(148, 163, 184, 0.15)",
+              cursor: "pointer",
             }}
           >
             <KeyRound
@@ -411,13 +462,13 @@ export default function CareerCommandCenter() {
                 ? `BYOK Active · ${byokStatus.providers.join(", ")}`
                 : "BYOK Not Configured"}
             </span>
-          </div>
+          </button>
 
-          {/* AI Coach Drawer Button */}
+          {/* AI Coach Button */}
           <button
             id="open-ai-coach"
             onClick={() => {
-              setCoachOpen(true);
+              setActiveTab("coach");
             }}
             style={{
               display: "flex",
@@ -634,6 +685,19 @@ export default function CareerCommandCenter() {
           <ApplicationTrackerView
             onGoToJobs={() => setActiveTab("jobs")}
           />
+        ) : activeTab === "coach" ? (
+          <AICoachView
+            masterProfile={profileSnapshot}
+            resumeProfiles={resumeProfiles}
+            selectedProfileId={selectedProfileId}
+            onSelectProfile={setSelectedProfileId}
+            onUpdateProfile={handleUpdateResumeProfile}
+            onNavigateToResumeStudio={() => setActiveTab("resume")}
+          />
+        ) : activeTab === "insights" ? (
+          <MarketInsightsView masterProfile={profileSnapshot} />
+        ) : activeTab === "settings" ? (
+          <ByokSettingsView />
         ) : (
           <div
             style={{

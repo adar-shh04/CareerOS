@@ -4,6 +4,7 @@ import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 
 import { CareerProfileService } from '../career-profile/career-profile.service';
 import type { MasterCareerProfile } from '../career-profile/career-profile.types';
+import { generateCanonicalLatexTemplate } from './latex-template.util';
 import {
   RESUME_PROFILE_REPOSITORY,
   type ResumeProfileRepository,
@@ -79,6 +80,10 @@ export class ResumeProfileService {
     }
 
     const timestamp = new Date().toISOString();
+    const defaultLatex = generateCanonicalLatexTemplate(
+      undefined,
+      masterProfile ?? undefined,
+    );
 
     const profile: ResumeProfile = {
       id: randomUUID(),
@@ -86,6 +91,7 @@ export class ResumeProfileService {
       createdAt: timestamp,
       updatedAt: timestamp,
       ...normalizedInput,
+      latexSource: normalizedInput.latexSource ?? defaultLatex,
     };
 
     return structuredClone(await this.resumeProfileRepository.create(profile));
@@ -394,6 +400,7 @@ export class ResumeProfileService {
       ),
       templateId: this.trimOptional(profile.templateId),
       styleSettings: profile.styleSettings ?? {},
+      latexSource: this.trimOptional(profile.latexSource),
     };
   }
 

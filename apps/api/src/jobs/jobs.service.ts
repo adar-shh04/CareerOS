@@ -330,6 +330,24 @@ export class JobsService {
     return this.getEnrichedOpportunity(workspaceId, jobId);
   }
 
+  async applyToJob(
+    workspaceId: string,
+    jobId: string,
+    options?: { resumeProfileId?: string; notes?: string },
+  ): Promise<JobOpportunity> {
+    const job = await this.repository.findJobById(jobId);
+    if (!job) throw new NotFoundException(`Job ${jobId} not found.`);
+
+    const appliedAt = new Date();
+    await this.repository.upsertWorkspaceJobState(workspaceId, jobId, {
+      status: 'applied',
+      notes: options?.notes,
+      appliedAt,
+    });
+
+    return this.getEnrichedOpportunity(workspaceId, jobId);
+  }
+
   async updateJobState(
     workspaceId: string,
     jobId: string,
@@ -447,8 +465,19 @@ export class JobsService {
       source?: string;
     },
   ) {
+    let resolvedQuery = params.query;
+    if (!resolvedQuery) {
+      const masterProfile =
+        await this.careerProfileService.findByWorkspace(workspaceId);
+      if (masterProfile?.identity.headline) {
+        resolvedQuery = masterProfile.identity.headline
+          .split(/[·|]/)[0]
+          ?.trim();
+      }
+    }
+
     const result = await this.ingestionService.ingest({
-      query: params.query ?? 'Software Engineer',
+      query: resolvedQuery ?? 'Software Engineer',
       location: params.location,
       limit: params.limit ?? 20,
       source: params.source,

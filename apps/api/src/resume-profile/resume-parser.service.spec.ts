@@ -1,11 +1,18 @@
 import { BadRequestException } from '@nestjs/common';
 import mammoth from 'mammoth';
-import pdfParse from 'pdf-parse';
 
 import type { ByokService } from '../byok/byok.service';
 import { ResumeParserService } from './resume-parser.service';
 
-jest.mock('pdf-parse', () => jest.fn());
+// pdf-parse v2 is dynamically imported. Mock the module so the dynamic
+// import resolves to our controllable PDFParse class mock.
+const mockGetText = jest.fn();
+jest.mock('pdf-parse', () => ({
+  PDFParse: jest.fn().mockImplementation(() => ({
+    getText: mockGetText,
+  })),
+}));
+
 jest.mock('mammoth', () => ({
   extractRawText: jest.fn(),
 }));
@@ -69,10 +76,12 @@ describe('ResumeParserService', () => {
       expect(text).toContain('Alex Rivera');
     });
 
-    it('extracts text from PDF buffer (.pdf) via pdf-parse', async () => {
+    it('extracts text from PDF buffer (.pdf) via pdf-parse v2', async () => {
       const mockPdfText = 'Alice Wong\nSenior Developer\nSkills: Python, Go';
-      (pdfParse as unknown as jest.Mock).mockResolvedValue({
+      mockGetText.mockResolvedValue({
         text: mockPdfText,
+        pages: [{ text: mockPdfText, num: 1 }],
+        total: 1,
       });
 
       const buffer = Buffer.from('%PDF-1.4 mock pdf content');
@@ -81,7 +90,7 @@ describe('ResumeParserService', () => {
         'application/pdf',
         'resume.pdf',
       );
-      expect(pdfParse).toHaveBeenCalledWith(buffer);
+      expect(mockGetText).toHaveBeenCalled();
       expect(text).toBe(mockPdfText);
     });
 
@@ -118,6 +127,21 @@ describe('ResumeParserService', () => {
           'unknown.bin',
         ),
       ).rejects.toThrow(BadRequestException);
+    });
+
+    it('extracts text from LaTeX buffer (.tex)', async () => {
+      const latexContent = String.raw`\documentclass{article}
+\begin{document}
+\section{Experience}
+Software Engineer at Example Corp
+\end{document}`;
+      const buffer = Buffer.from(latexContent);
+      const text = await service.extractTextFromFile(
+        buffer,
+        'text/plain',
+        'resume.tex',
+      );
+      expect(text).toContain('Software Engineer');
     });
   });
 

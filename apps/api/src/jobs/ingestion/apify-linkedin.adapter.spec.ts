@@ -61,6 +61,35 @@ describe('ApifyLinkedInAdapter', () => {
       expect(jobs[0]?.title).toBe('Live Backend Engineer');
       expect(jobs[0]?.company).toBe('Acme Corp');
     });
+
+    it('uses platform APIFY_API_TOKEN by default when no apiKey is provided', async () => {
+      process.env.APIFY_API_TOKEN = 'platform-apify-token-123';
+
+      const mockResponse = [
+        {
+          id: 'li-live-102',
+          title: 'Platform Ingested Job',
+          companyName: 'Platform Corp',
+          location: 'Remote',
+          description: 'Platform description',
+        },
+      ];
+
+      global.fetch = jest.fn().mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(mockResponse),
+      });
+
+      const jobs = await adapter.fetchJobs({
+        query: 'Platform Engineer',
+      });
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('token=platform-apify-token-123'),
+        expect.any(Object),
+      );
+      expect(jobs).toHaveLength(1);
+    });
   });
 
   describe('Apify API error handling & no mock fallback', () => {
