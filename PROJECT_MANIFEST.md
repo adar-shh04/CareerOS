@@ -1,8 +1,8 @@
 # CareerOS Project Manifest
 
-**Product:** CareerOS — Your AI Career Intelligence Platform  
-**Stage:** Phase 1 Foundation & Job Radar Vertical Slice complete  
-**Last updated:** 2026-08-18
+**Product:** CareerOS — Career Operating System
+**Stage:** Active Development — Core vertical slice operational
+**Last updated:** 2026-09-08
 
 ## Purpose
 
@@ -16,59 +16,103 @@ CareerOS is not a job board and never optimizes for application volume. It is a 
 2. **Privacy and consent:** Use only user-provided data, public information, or data acquired through authorized integrations. Protect user data and credentials.
 3. **Explainability:** Every score and AI recommendation must say why it was made and support user override.
 4. **Modularity:** Core modules communicate via APIs/events and remain independently evolvable.
-5. **Bring Your Own Keys:** Users connect their own AI and integration credentials; provider use is opt-in.
+5. **Bring Your Own Keys:** Users may connect their own AI and integration credentials; provider use is opt-in. BYOK is never mandatory — platform-level AI configuration and fully offline functionality are both supported.
 6. **Open and portable:** The product is open source, self-hostable, cloud deployable, and avoids unnecessary lock-in.
 7. **Evidence over activity:** Measure outcomes, not just completed tasks.
+8. **Zero fabricated intelligence:** AI features return honest capability-unavailable responses rather than fake statistics or advice when AI is not configured.
 
-## Current scope
+## What is currently implemented
 
-### Core modules
+### Operational (no AI required)
 
-| Module                    | Responsibility                                                                           |
-| ------------------------- | ---------------------------------------------------------------------------------------- |
-| Job Intelligence          | Ingest, normalize, deduplicate, score, rank, and explain job recommendations.            |
-| Resume Intelligence       | Maintain master career data, resume profiles, versions, matching, and generation.        |
-| Application CRM           | Track the complete lifecycle and artifacts of each user-led application.                 |
-| Outreach Intelligence     | Recommend ethical next actions and generate reviewable, personalized drafts.             |
-| Relationship Intelligence | Maintain a user-owned relationship graph, contact history, referrals, and follow-ups.    |
-| Company Intelligence      | Organize public company knowledge, roles, tech, hiring context, and notes.               |
-| Interview Intelligence    | Support company- and role-specific preparation.                                          |
-| Career Analytics          | Measure application, resume, outreach, and interview outcomes.                           |
-| Learning Intelligence     | Recommend high-ROI skills using job-market evidence and goals.                           |
-| Plugin System             | Isolate external platforms, providers, and integrations behind permissions and adapters. |
+- Authentication via Better Auth (email/password, organization sessions)
+- Multi-tenant workspace model with data isolation
+- Multi-field onboarding (not SWE-only — supports Healthcare, Finance, Research, Design, etc.)
+- Master Career Profile: experience, education, skills, technologies, projects, achievements, certifications, publications, hackathons, links
+- Nested record UUID normalization (client temporary IDs sanitized to canonical UUIDs)
+- Resume Profiles: named persistent resumes per career direction, LaTeX source auto-generated, section priority (skills, projects, experience, achievements, certifications)
+- Resume Versions: audit snapshot records attached to Resume Profiles
+- Resume import via `.tex` source
+- Resume file parsing (PDF/DOCX/TXT) with heuristic extraction
+- Job Radar: ingestion, normalization, SHA-256 deduplication, multi-dimensional deterministic matching, workspace job states (save, dismiss, restore, apply)
+- Apify LinkedIn adapter for job discovery; APIFY_API_TOKEN supported at platform level
+- Applications CRM: full lifecycle (saved → applied → screening → interview → offer → rejected/withdrawn), status history, notes, resumeProfileId reference
+- BYOK encrypted credential storage (AES-256-GCM) for workspace-level AI keys
+- Career Handbook: static offline reference for 7 career fields (Software Engineering, Data Analysis, Product Management, Design, Research, Healthcare, Finance)
 
-### Phase 1 foundation
+### Capability-Dependent (requires AI provider)
 
-1. Authentication: Google, GitHub, and email; Microsoft and university SSO later.
-2. Multi-tenant user and workspace model with data isolation.
-3. Master Career Profile and multiple resume profiles.
-4. Resume metadata, versioning, and a future generation pipeline.
-5. User settings and encrypted BYOK connections.
-6. Dashboard shell, navigation, and module boundaries.
-7. Auditability, consent, and baseline security.
+- AI Capability Resolution Layer: workspace BYOK → platform env vars → honest unavailable state
+- AI Coach: role analysis, section-level coaching (summary, experience, projects, skills, education), apply recommendations to Resume Profile (Master Career Profile never modified)
+- AI Market Intelligence: analyzes ingested job data (requires both ingested jobs and AI capability)
+- AI-enhanced resume parsing (falls back to heuristics without AI)
 
-## Architecture direction
+### Not yet implemented
 
-The target architecture is a modular monorepo with a web client, an API service, background workers, PostgreSQL, Redis, and a plugin layer. The specific stack remains a proposed decision until ADR-010 is accepted; no production implementation should silently assume a framework.
+- LaTeX PDF compilation (LaTeX source stored; external compiler not yet integrated)
+- Resume Studio full editor UI
+- Cover letter templates and personalization
+- Outreach Intelligence (ethical outreach drafts, templates)
+- Relationship Intelligence (contact graph, alumni discovery)
+- Company Intelligence workspace
+- Career Analytics
+- Interview Intelligence
+- GitHub / LinkedIn evidence integrations
+- Billing, hosted AI subscriptions
 
-All modules must use explicit contracts. Cross-module side effects should be emitted as domain events so a feature can evolve without tightly coupling every module.
+## Module scope
+
+| Module | Responsibility |
+| --- | --- |
+| Job Radar | Ingest, normalize, deduplicate, score, rank, and explain job recommendations |
+| Resume Intelligence | Maintain Master Career Profile, Resume Profiles, LaTeX source, matching, and optional AI-assisted tailoring |
+| Application CRM | Track the full lifecycle and artifacts of each user-led application |
+| AI Coach | Optional, capability-aware coaching grounded in Master Career Profile evidence |
+| Insights | AI Market Intelligence (capability-dependent) and Career Handbook (offline) |
+| BYOK | Encrypted user-specific AI and integration credential storage |
+| Workspace | Multi-tenant organization, onboarding, and workspace management |
+
+## Technology stack
+
+| Layer | Technology |
+| --- | --- |
+| Monorepo | Turborepo + pnpm |
+| Frontend | Next.js 16, React 19, Tailwind CSS v4, TypeScript |
+| Backend | NestJS, TypeScript |
+| Database | PostgreSQL, Prisma v7 |
+| Authentication | Better Auth v1.4 |
+| Job Ingestion | Apify LinkedIn adapter |
+| AI Providers | OpenRouter, OpenAI, Anthropic (direct HTTP; no vendor SDK) |
+
+## Architecture
+
+The system is a monorepo with a Next.js web client and a NestJS API backed by PostgreSQL.
+
+```text
+apps/web     — Next.js frontend
+apps/api     — NestJS API + Prisma
+packages/*   — Shared types, utilities
+```
+
+See [`docs/architecture/System_Architecture.md`](../architecture/System_Architecture.md) for the full architecture reference.
 
 ## Documentation index
 
-- Product memory: `docs/decisions/Product_Memory.md`
-- Decision records: `docs/adr/`
-- Product requirements: `docs/prd/`
-- Architecture: `docs/architecture/`
-- Delivery plan: `docs/roadmap/`
+- Product decisions: `docs/decisions/Product_Memory.md`
+- Architecture: `docs/architecture/System_Architecture.md`
+- Feature delivery status: `docs/roadmap/Feature_Delivery_Status.md`
+- Implementation checklist: `docs/roadmap/Implementation_Checklist.md`
 
 ## Required workflow for contributors and agents
 
 1. Read the documents listed in `AGENTS.md`.
-2. Identify the module owner, data boundaries, permissions, and relevant ADRs.
-3. Propose a new ADR before making a material technical or product decision.
-4. Implement the smallest complete change with tests and documentation.
-5. Verify behavior, access control, explainability, and user control.
-6. Update the roadmap and Product Memory when the project state changes.
+2. Inspect existing code before modifying it. Treat source code as the source of truth.
+3. Check the Prisma schema and migrations before touching database-related code.
+4. Never assume that having a Better Auth session means an active organization exists — verify `activeOrganizationId`.
+5. Never perform destructive database operations without explicit approval.
+6. Run `pnpm lint`, `pnpm check-types`, and `pnpm build` before declaring work complete.
+7. Inspect `git status` and `git diff` before finishing.
+8. Do not commit changes unless explicitly asked.
 
 ## Definition of done
 
