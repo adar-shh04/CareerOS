@@ -1,10 +1,14 @@
 import { redirect } from "next/navigation";
 
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
-import { JobBoard } from "@/components/jobs/job-board";
+import { ResumeProfileWorkspace } from "@/components/resumes/resume-profile-workspace";
 import { getServerSession } from "@/lib/server-session";
 
-export default async function JobsPage() {
+interface PageProps {
+  params: Promise<{ resumeId: string }>;
+}
+
+export default async function ResumeProfilePage({ params }: PageProps) {
   const session = await getServerSession();
 
   if (!session) {
@@ -15,9 +19,11 @@ export default async function JobsPage() {
     redirect("/onboarding");
   }
 
+  const { resumeId } = await params;
+
   return (
     <DashboardShell>
-      <JobBoard />
+      <ResumeProfileWorkspace profileId={resumeId} />
     </DashboardShell>
   );
 }

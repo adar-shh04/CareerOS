@@ -1,17 +1,24 @@
 import type {
+  AiCoachAnalysisResponse,
+  AnalyzeRoleRequest,
+  ApplySectionRecommendationRequest,
   AuthSession,
   ByokCredentialSummary,
   CanonicalJob,
+  CareerHandbookResponse,
   CreateResumeVersionInput,
   JobAnalysisResult,
   JobMatchingWeights,
   JobOpportunity,
+  MarketIntelligenceResponse,
   MasterCareerProfile,
   MasterCareerProfileInput,
   OnboardingProfileInput,
   ResumeProfile,
   ResumeProfileInput,
   ResumeVersion,
+  SectionCoachingRequest,
+  SectionRecommendation,
   WorkspaceJobStatus,
 } from "@repo/types";
 
@@ -282,6 +289,45 @@ export async function createResumeVersion(
   );
 
   return parseResponse<ResumeVersion>(response);
+}
+
+export async function fetchResumeVersion(
+  sessionCookie: string,
+  workspaceId: string,
+  profileId: string,
+  versionId: string,
+): Promise<ResumeVersion> {
+  const response = await fetch(
+    `${getWorkspacePath(workspaceId)}/resume-profiles/${profileId}/versions/${versionId}`,
+    {
+      headers: {
+        Cookie: sessionCookie,
+      },
+      cache: "no-store",
+    },
+  );
+
+  return parseResponse<ResumeVersion>(response);
+}
+
+export async function importLatexResume(
+  sessionCookie: string,
+  workspaceId: string,
+  input: { name?: string; latexCode: string },
+): Promise<{ profile: ResumeProfile; parsedData: MasterCareerProfileInput }> {
+  const response = await fetch(
+    `${getWorkspacePath(workspaceId)}/resume-profiles/import-latex`,
+    {
+      method: "POST",
+      headers: {
+        Cookie: sessionCookie,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(input),
+    },
+  );
+
+  return parseResponse<{ profile: ResumeProfile; parsedData: MasterCareerProfileInput }>(response);
 }
 
 /* ── Job Board API ─────────────────────────────────────────────────────── */
@@ -618,6 +664,22 @@ export async function fetchApplications(
   return parseResponse<TrackedApplication[]>(response);
 }
 
+export async function fetchApplication(
+  sessionCookie: string,
+  workspaceId: string,
+  applicationId: string,
+): Promise<TrackedApplication> {
+  const response = await fetch(
+    `${getWorkspacePath(workspaceId)}/applications/${applicationId}`,
+    {
+      headers: { Cookie: sessionCookie },
+      cache: "no-store",
+    },
+  );
+
+  return parseResponse<TrackedApplication>(response);
+}
+
 export async function fetchApplicationsStats(
   sessionCookie: string,
   workspaceId: string,
@@ -719,4 +781,98 @@ export async function fetchApplicationHistory(
   );
 
   return parseResponse<ApplicationStatusHistory[]>(response);
+}
+
+/* ── Insights API ──────────────────────────────────────────────────────── */
+
+export async function fetchMarketIntelligence(
+  sessionCookie: string,
+  workspaceId: string,
+): Promise<MarketIntelligenceResponse> {
+  const response = await fetch(
+    `${getWorkspacePath(workspaceId)}/insights/market`,
+    {
+      headers: { Cookie: sessionCookie },
+      cache: "no-store",
+    },
+  );
+
+  return parseResponse<MarketIntelligenceResponse>(response);
+}
+
+export async function fetchCareerHandbook(
+  sessionCookie: string,
+  workspaceId: string,
+): Promise<CareerHandbookResponse> {
+  const response = await fetch(
+    `${getWorkspacePath(workspaceId)}/insights/handbook`,
+    {
+      headers: { Cookie: sessionCookie },
+      cache: "no-store",
+    },
+  );
+
+  return parseResponse<CareerHandbookResponse>(response);
+}
+
+/* ── AI Coach API ──────────────────────────────────────────────────────── */
+
+export async function analyzeAiCoachRole(
+  sessionCookie: string,
+  workspaceId: string,
+  body?: AnalyzeRoleRequest,
+): Promise<AiCoachAnalysisResponse> {
+  const response = await fetch(
+    `${getWorkspacePath(workspaceId)}/ai-coach/analyze`,
+    {
+      method: "POST",
+      headers: {
+        Cookie: sessionCookie,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body ?? {}),
+    },
+  );
+
+  return parseResponse<AiCoachAnalysisResponse>(response);
+}
+
+export async function coachAiCoachSection(
+  sessionCookie: string,
+  workspaceId: string,
+  body: SectionCoachingRequest,
+): Promise<{ recommendation: SectionRecommendation; available: boolean }> {
+  const response = await fetch(
+    `${getWorkspacePath(workspaceId)}/ai-coach/section`,
+    {
+      method: "POST",
+      headers: {
+        Cookie: sessionCookie,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    },
+  );
+
+  return parseResponse<{ recommendation: SectionRecommendation; available: boolean }>(response);
+}
+
+export async function applyAiCoachSection(
+  sessionCookie: string,
+  workspaceId: string,
+  body: ApplySectionRecommendationRequest,
+): Promise<{ success: boolean; profile: ResumeProfile }> {
+  const response = await fetch(
+    `${getWorkspacePath(workspaceId)}/ai-coach/apply-section`,
+    {
+      method: "POST",
+      headers: {
+        Cookie: sessionCookie,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    },
+  );
+
+  return parseResponse<{ success: boolean; profile: ResumeProfile }>(response);
 }

@@ -13,15 +13,19 @@ import { JobSearch } from "./job-search";
 
 interface JobBoardProps {
   onNavigateToResume?: (version: ResumeVersion, profile: ResumeProfile) => void;
+  initialSavedOnly?: boolean;
 }
 
-export function JobBoard({ onNavigateToResume }: JobBoardProps = {}) {
+export function JobBoard({
+  onNavigateToResume,
+  initialSavedOnly = false,
+}: JobBoardProps = {}) {
   const [jobs, setJobs] = useState<JobOpportunity[]>([]);
   const [applications, setApplications] = useState<TrackedApplication[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [remoteOnly, setRemoteOnly] = useState(false);
-  const [savedOnly, setSavedOnly] = useState(false);
+  const [savedOnly, setSavedOnly] = useState(initialSavedOnly);
   const [showDismissed, setShowDismissed] = useState(false);
   const [selectedSkill, setSelectedSkill] = useState("");
   const [selectedJob, setSelectedJob] = useState<JobOpportunity | null>(null);

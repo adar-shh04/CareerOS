@@ -3,12 +3,36 @@ import { NextResponse } from "next/server";
 import {
   ApiError,
   deleteApplication,
+  fetchApplication,
   updateApplicationState,
 } from "@/lib/api";
 import { getServerSession } from "@/lib/server-session";
 
 interface RouteParams {
   params: Promise<{ applicationId: string }>;
+}
+
+export async function GET(_request: Request, { params }: RouteParams) {
+  const session = await getServerSession();
+  if (!session) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
+  const { applicationId } = await params;
+
+  try {
+    const app = await fetchApplication(
+      session.token,
+      session.workspace.id,
+      applicationId,
+    );
+    return NextResponse.json(app);
+  } catch (error) {
+    const status = error instanceof ApiError ? error.status : 500;
+    const message =
+      error instanceof Error ? error.message : "Failed to load application.";
+    return NextResponse.json({ message }, { status });
+  }
 }
 
 export async function PATCH(request: Request, { params }: RouteParams) {

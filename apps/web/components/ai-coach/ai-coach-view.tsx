@@ -8,44 +8,160 @@ import type {
 } from "@repo/types";
 import {
   Bot,
+  Briefcase,
   Check,
   CheckCircle2,
   Eye,
+  Key,
+  Loader2,
   RotateCcw,
   ShieldCheck,
   Sparkles,
   X,
 } from "lucide-react";
-import React, { useMemo, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 import { updateLatexSection } from "@/lib/latex-engine";
 
-interface AICoachViewProps {
-  masterProfile: MasterCareerProfile | null;
-  resumeProfiles: ResumeProfile[];
-  selectedProfileId: string | null;
-  onSelectProfile: (id: string) => void;
-  onUpdateProfile: (profile: ResumeProfile) => Promise<void>;
+export interface AICoachViewProps {
+  masterProfile?: MasterCareerProfile | null;
+  resumeProfiles?: ResumeProfile[];
+  selectedProfileId?: string | null;
+  onSelectProfile?: (id: string) => void;
+  onUpdateProfile?: (profile: ResumeProfile) => Promise<void>;
   onNavigateToResumeStudio?: () => void;
   targetJob?: JobOpportunity | null;
 }
 
-export function AICoachView({
-  masterProfile,
-  resumeProfiles,
-  selectedProfileId,
-  onSelectProfile,
-  onUpdateProfile,
-  onNavigateToResumeStudio,
-  targetJob,
-}: AICoachViewProps) {
+export function AICoachView(props: AICoachViewProps) {
+  const router = useRouter();
+
+  // Internal state for standalone usage
+  const [internalMaster, setInternalMaster] = useState<MasterCareerProfile | null>(null);
+  const [internalProfiles, setInternalProfiles] = useState<ResumeProfile[]>([]);
+  const [internalSelectedProfileId, setInternalSelectedProfileId] = useState<string | null>(null);
+  const [internalJobs, setInternalJobs] = useState<JobOpportunity[]>([]);
+  const [internalTargetJob, setInternalTargetJob] = useState<JobOpportunity | null>(null);
+  const [loadingInitial, setLoadingInitial] = useState(props.masterProfile === undefined);
+  const [aiAvailable, setAiAvailable] = useState<boolean | null>(null);
+
+  // Determine whether to use props or internal state
+  const isSelfManaged = props.masterProfile === undefined;
+
+  const loadData = useCallback(async () => {
+    if (!isSelfManaged) return;
+    setLoadingInitial(true);
+    try {
+      const [profRes, resumesRes, jobsRes] = await Promise.all([
+        fetch("/api/career-profile", { cache: "no-store" }),
+        fetch("/api/resume-profiles", { cache: "no-store" }),
+        fetch("/api/jobs", { cache: "no-store" }),
+      ]);
+
+      if (profRes.ok) {
+        const p = (await profRes.json()) as MasterCareerProfile;
+        setInternalMaster(p);
+      }
+
+      let profilesList: ResumeProfile[] = [];
+      if (resumesRes.ok) {
+        profilesList = (await resumesRes.json()) as ResumeProfile[];
+        setInternalProfiles(profilesList);
+        const firstProfile = profilesList[0];
+        if (firstProfile && !internalSelectedProfileId) {
+          setInternalSelectedProfileId(firstProfile.id);
+        }
+      }
+
+      if (jobsRes.ok) {
+        const jList = (await jobsRes.json()) as JobOpportunity[];
+        setInternalJobs(jList);
+        if (jList.length > 0) {
+          setInternalTargetJob(jList[0] ?? null);
+        }
+      }
+
+      // Check AI Coach provider capability
+      try {
+        const testRes = await fetch("/api/ai-coach/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            targetRole: profilesList[0]?.roleFocus ?? "Software Engineer",
+          }),
+        });
+        if (testRes.ok) {
+          const testData = (await testRes.json()) as { available?: boolean };
+          setAiAvailable(testData.available !== false);
+        } else {
+          setAiAvailable(false);
+        }
+      } catch {
+        setAiAvailable(false);
+      }
+    } catch {
+      // Graceful fallback
+    } finally {
+      setLoadingInitial(false);
+    }
+  }, [isSelfManaged, internalSelectedProfileId]);
+
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
+
+  const masterProfile = props.masterProfile ?? internalMaster;
+  const resumeProfiles = props.resumeProfiles ?? internalProfiles;
+  const selectedProfileId = props.selectedProfileId ?? internalSelectedProfileId;
+
+  const onSelectProfile =
+    props.onSelectProfile ??
+    ((id: string) => {
+      setInternalSelectedProfileId(id);
+    });
+
+  const onNavigateToResumeStudio =
+    props.onNavigateToResumeStudio ??
+    (() => {
+      if (selectedProfileId) {
+        router.push(`/resumes/${selectedProfileId}`);
+      } else {
+        router.push("/resumes");
+      }
+    });
+
+  const onUpdateProfile =
+    props.onUpdateProfile ??
+    (async (profile: ResumeProfile) => {
+      await fetch(`/api/resume-profiles/${profile.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          summaryGuidance: profile.summaryGuidance,
+          latexSource: profile.latexSource,
+          prioritySkillIds: profile.prioritySkillIds,
+          priorityProjectIds: profile.priorityProjectIds,
+        }),
+      });
+      // Refresh list
+      const res = await fetch("/api/resume-profiles", { cache: "no-store" });
+      if (res.ok) {
+        const list = (await res.json()) as ResumeProfile[];
+        setInternalProfiles(list);
+      }
+    });
+
+  const activeTargetJob = props.targetJob !== undefined ? props.targetJob : internalTargetJob;
+
   const selectedProfile =
     resumeProfiles.find((p) => p.id === selectedProfileId) ??
     resumeProfiles[0] ??
     null;
 
   // Selected or sample target job description for contextual tailoring
-  const jobRole = targetJob?.title ?? selectedProfile?.roleFocus ?? "Target Role";
+  const jobRole = activeTargetJob?.title ?? selectedProfile?.roleFocus ?? "Target Role";
 
   // Deterministically generate section-level recommendations based strictly on Master Profile evidence
   const initialRecommendations: AICoachSectionRecommendation[] = useMemo(() => {
@@ -142,8 +258,8 @@ export function AICoachView({
     AICoachSectionRecommendation[]
   >(initialRecommendations);
 
-  // Sync when master/profile changes
-  React.useEffect(() => {
+  // Sync when recommendations change
+  useEffect(() => {
     setRecommendations(initialRecommendations);
   }, [initialRecommendations]);
 
@@ -215,6 +331,25 @@ export function AICoachView({
   const rejectedCount = recommendations.filter((r) => r.status === "rejected").length;
   const pendingCount = recommendations.filter((r) => r.status === "pending").length;
 
+  if (loadingInitial) {
+    return (
+      <div
+        style={{
+          padding: "4rem",
+          textAlign: "center",
+          color: "#94a3b8",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "0.5rem",
+        }}
+      >
+        <Loader2 style={{ width: "18px", height: "18px", animation: "spin 1s linear infinite" }} />
+        Loading AI Coach workspace…
+      </div>
+    );
+  }
+
   if (!masterProfile) {
     return (
       <div className="glass-panel p-12 text-center rounded-xl border border-white/10 bg-slate-900/60 backdrop-blur-md">
@@ -223,12 +358,38 @@ export function AICoachView({
         <p className="text-sm text-slate-400 mt-1 max-w-md mx-auto">
           AI Coach works strictly from verified evidence in your Master Career Profile. Complete your profile to receive section-level coaching.
         </p>
+        <div className="mt-4">
+          <Link
+            href="/career"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-colors"
+          >
+            Open Master Career Profile →
+          </Link>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-6">
+      {/* BYOK Capability Notice if AI is not configured */}
+      {aiAvailable === false && (
+        <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-between gap-4 flex-wrap text-xs">
+          <div className="flex items-center gap-2.5">
+            <Key className="w-4 h-4 text-amber-400 shrink-0" />
+            <span className="text-amber-200">
+              <strong>Deterministic Evidence Mode:</strong> Coaching operates using verified Master Profile algorithms. Configure BYOK API keys in Settings to unlock deep generative critique.
+            </span>
+          </div>
+          <Link
+            href="/settings"
+            className="text-amber-400 font-semibold underline hover:text-amber-300 shrink-0"
+          >
+            Configure AI Provider Keys →
+          </Link>
+        </div>
+      )}
+
       {/* Header Banner */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center p-6 rounded-2xl border border-indigo-500/20 bg-gradient-to-r from-indigo-950/50 via-slate-900/80 to-purple-950/40 backdrop-blur-md gap-4">
         <div>
@@ -251,22 +412,52 @@ export function AICoachView({
           </p>
         </div>
 
-        {/* Profile Selector */}
-        <div className="flex flex-col gap-1.5 w-full md:w-auto">
-          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-            Active Resume Target
-          </label>
-          <select
-            value={selectedProfile?.id ?? ""}
-            onChange={(e) => onSelectProfile(e.target.value)}
-            className="px-3 py-2 rounded-xl bg-slate-900 border border-white/10 text-white text-xs font-semibold focus:outline-none focus:border-indigo-500"
-          >
-            {resumeProfiles.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name} ({p.roleFocus ?? "General"})
-              </option>
-            ))}
-          </select>
+        {/* Selectors: Target Resume & Target Job */}
+        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+          {/* Target Job Selector (if available) */}
+          {internalJobs.length > 0 && isSelfManaged && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                <Briefcase className="w-3 h-3 text-indigo-400" /> Context Job
+              </label>
+              <select
+                value={activeTargetJob?.id ?? ""}
+                onChange={(e) => {
+                  const found = internalJobs.find((j) => j.id === e.target.value) ?? null;
+                  setInternalTargetJob(found);
+                }}
+                className="px-3 py-2 rounded-xl bg-slate-900 border border-white/10 text-white text-xs font-semibold focus:outline-none focus:border-indigo-500 max-w-[220px]"
+              >
+                {internalJobs.map((j) => (
+                  <option key={j.id} value={j.id}>
+                    {j.title} ({j.company})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Target Profile Selector */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+              Active Resume Target
+            </label>
+            <select
+              value={selectedProfile?.id ?? ""}
+              onChange={(e) => onSelectProfile(e.target.value)}
+              className="px-3 py-2 rounded-xl bg-slate-900 border border-white/10 text-white text-xs font-semibold focus:outline-none focus:border-indigo-500 min-w-[200px]"
+            >
+              {resumeProfiles.length === 0 ? (
+                <option value="">No Resume Profile (Create in Studio)</option>
+              ) : (
+                resumeProfiles.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} ({p.roleFocus ?? "General"})
+                  </option>
+                ))
+              )}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -302,16 +493,14 @@ export function AICoachView({
             </button>
           )}
 
-          {onNavigateToResumeStudio && (
-            <button
-              type="button"
-              onClick={onNavigateToResumeStudio}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-white/10 transition-colors"
-            >
-              <Eye className="w-3.5 h-3.5" />
-              Preview in Studio
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={onNavigateToResumeStudio}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-white/10 transition-colors"
+          >
+            <Eye className="w-3.5 h-3.5" />
+            Preview in Studio
+          </button>
         </div>
       </div>
 
@@ -321,15 +510,13 @@ export function AICoachView({
             <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
             <span>{applySuccessMessage}</span>
           </div>
-          {onNavigateToResumeStudio && (
-            <button
-              type="button"
-              onClick={onNavigateToResumeStudio}
-              className="underline font-bold text-white hover:text-emerald-200 ml-3 shrink-0"
-            >
-              View Rendered LaTeX Preview →
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={onNavigateToResumeStudio}
+            className="underline font-bold text-white hover:text-emerald-200 ml-3 shrink-0"
+          >
+            View Rendered LaTeX Preview →
+          </button>
         </div>
       )}
 

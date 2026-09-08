@@ -1,10 +1,14 @@
 import { redirect } from "next/navigation";
 
+import { ApplicationDetailView } from "@/components/applications/application-detail-view";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
-import { JobBoard } from "@/components/jobs/job-board";
 import { getServerSession } from "@/lib/server-session";
 
-export default async function JobsPage() {
+interface PageProps {
+  params: Promise<{ applicationId: string }>;
+}
+
+export default async function ApplicationDetailPage({ params }: PageProps) {
   const session = await getServerSession();
 
   if (!session) {
@@ -15,9 +19,11 @@ export default async function JobsPage() {
     redirect("/onboarding");
   }
 
+  const { applicationId } = await params;
+
   return (
     <DashboardShell>
-      <JobBoard />
+      <ApplicationDetailView applicationId={applicationId} />
     </DashboardShell>
   );
 }

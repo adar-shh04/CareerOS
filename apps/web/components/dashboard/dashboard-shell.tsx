@@ -1,33 +1,26 @@
 "use client";
 
 import type { PropsWithChildren } from "react";
+import React from "react";
+
+import { DashboardHeader } from "./dashboard-header";
 
 interface DashboardShellProps extends PropsWithChildren {
   maxWidth?: number;
+  withHeader?: boolean;
 }
 
 export function DashboardShell({
   children,
-  maxWidth = 1400,
+  maxWidth = 1440,
+  withHeader = true,
 }: DashboardShellProps) {
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        backgroundColor: "#080b11",
-        color: "#f8fafc",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
+    <div className="min-h-screen bg-[#080b11] text-slate-100 flex flex-col font-sans selection:bg-indigo-500/30 selection:text-indigo-200">
+      {withHeader && <DashboardHeader />}
       <main
-        style={{
-          flex: 1,
-          width: "100%",
-          maxWidth: `${String(maxWidth)}px`,
-          margin: "0 auto",
-          padding: "2rem",
-        }}
+        className="flex-1 w-full mx-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-8"
+        style={{ maxWidth: `${String(maxWidth)}px` }}
       >
         {children}
       </main>

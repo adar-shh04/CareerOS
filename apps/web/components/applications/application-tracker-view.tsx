@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ArrowRight,
   Briefcase,
   Calendar,
   ChevronDown,
@@ -9,6 +10,7 @@ import {
   Trash2,
   XCircle,
 } from "lucide-react";
+import Link from "next/link";
 import React, { useCallback, useEffect, useState } from "react";
 
 import type { TrackedApplication } from "@/lib/api";
@@ -362,6 +364,29 @@ function ApplicationRow({
         current={app.status}
         onSelect={(s) => onStatusChange(app.id, s)}
       />
+
+      {/* View Workspace */}
+      <Link
+        href={`/applications/${app.id}`}
+        title="Open application workspace"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "0.25rem",
+          padding: "0.3rem 0.65rem",
+          borderRadius: "0.4rem",
+          backgroundColor: "rgba(99,102,241,0.1)",
+          border: "1px solid rgba(99,102,241,0.25)",
+          color: "#818cf8",
+          fontSize: "0.75rem",
+          fontWeight: "600",
+          textDecoration: "none",
+          transition: "all 0.15s",
+        }}
+      >
+        <span>Workspace</span>
+        <ArrowRight style={{ width: "12px", height: "12px" }} />
+      </Link>
 
       {/* Delete */}
       <button

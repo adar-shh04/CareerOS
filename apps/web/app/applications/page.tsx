@@ -1,10 +1,10 @@
 import { redirect } from "next/navigation";
 
+import { ApplicationTrackerView } from "@/components/applications/application-tracker-view";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
-import { JobBoard } from "@/components/jobs/job-board";
 import { getServerSession } from "@/lib/server-session";
 
-export default async function JobsPage() {
+export default async function ApplicationsPage() {
   const session = await getServerSession();
 
   if (!session) {
@@ -17,7 +17,7 @@ export default async function JobsPage() {
 
   return (
     <DashboardShell>
-      <JobBoard />
+      <ApplicationTrackerView />
     </DashboardShell>
   );
 }

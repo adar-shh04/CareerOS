@@ -15,6 +15,7 @@ import {
   TrendingUp,
   X,
 } from "lucide-react";
+import Link from "next/link";
 import React, { useEffect, useState } from "react";
 
 import type { TrackedApplication } from "@/lib/api";
@@ -234,13 +235,22 @@ export function JobDetailsDrawer({
                 </span>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-1 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-1">
+              <Link
+                href={`/jobs/${job.id}`}
+                className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+                title="Open standalone job page"
+              >
+                <ExternalLink className="w-4 h-4" />
+              </Link>
+              <button
+                type="button"
+                onClick={onClose}
+                className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
           {/* Match Score & Insights */}

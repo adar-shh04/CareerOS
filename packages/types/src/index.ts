@@ -526,3 +526,85 @@ export interface JobIngestionResult {
   jobs: JobOpportunity[];
 }
 
+/* ── Market Intelligence & Career Handbook Types ──────────────────────── */
+
+export interface MarketIntelligenceResponse {
+  available: boolean;
+  reason?: string;
+  jobDataCount?: number;
+  topRequiredSkills?: string[];
+  topRemoteRoles?: string[];
+  insightsSummary?: string;
+}
+
+export interface HandbookStudyResource {
+  title: string;
+  url: string;
+  description: string;
+}
+
+export interface HandbookCareerPath {
+  fieldId: string;
+  title: string;
+  description: string;
+  commonRoles: string[];
+  coreSkills: string[];
+  technologies: string[];
+  keywords: string[];
+  learningPath: string[];
+  studyResources: HandbookStudyResource[];
+}
+
+export interface CareerHandbookResponse {
+  careerPaths: HandbookCareerPath[];
+}
+
+/* ── AI Coach Extended Domain Types ───────────────────────────────────── */
+
+export type AiCoachSection =
+  | "summary"
+  | "experience"
+  | "projects"
+  | "skills"
+  | "education";
+
+export interface AnalyzeRoleRequest {
+  jobId?: string;
+  targetRole?: string;
+  resumeProfileId?: string;
+}
+
+export interface SectionCoachingRequest extends AnalyzeRoleRequest {
+  section: AiCoachSection;
+}
+
+export interface ApplySectionRecommendationRequest {
+  resumeProfileId: string;
+  section: AiCoachSection;
+  content?: string;
+  selectedRecordIds?: string[];
+}
+
+export interface SectionRecommendation {
+  section: AiCoachSection;
+  currentContent?: string;
+  recommendedContent: string;
+  explanation: string;
+  suggestedRecordIds?: string[];
+  keywordsAdded?: string[];
+}
+
+export interface AiCoachAnalysisResponse {
+  available: boolean;
+  message?: string;
+  targetRole?: string;
+  company?: string;
+  matchingOverview?: {
+    strengths: string[];
+    gaps: string[];
+    overallAdvice: string;
+  };
+  sectionRecommendations?: Partial<
+    Record<AiCoachSection, SectionRecommendation>
+  >;
+}

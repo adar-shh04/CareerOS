@@ -1,10 +1,10 @@
 import { redirect } from "next/navigation";
 
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
-import { JobBoard } from "@/components/jobs/job-board";
+import { MarketInsightsView } from "@/components/insights/market-insights-view";
 import { getServerSession } from "@/lib/server-session";
 
-export default async function JobsPage() {
+export default async function InsightsPage() {
   const session = await getServerSession();
 
   if (!session) {
@@ -17,7 +17,7 @@ export default async function JobsPage() {
 
   return (
     <DashboardShell>
-      <JobBoard />
+      <MarketInsightsView />
     </DashboardShell>
   );
 }
