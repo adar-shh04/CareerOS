@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
+import CareerCommandCenter from "../../components/dashboard/career-command-center";
 import { WorkspaceShell } from "../../components/workspace/workspace-shell";
 import { getServerSession } from "../../lib/server-session";
 
@@ -10,5 +11,5 @@ export default async function DashboardPage() {
     redirect("/login");
   }
 
-  return <WorkspaceShell />;
+  return <WorkspaceShell><CareerCommandCenter /></WorkspaceShell>;
 }
