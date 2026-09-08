@@ -32,6 +32,7 @@ import { PrismaJobsRepository } from './prisma-jobs.repository';
     JobMatchingService,
     JobIngestionService,
     JobAnalysisService,
+    PrismaJobsRepository,
   ],
 })
 export class JobsModule {}
