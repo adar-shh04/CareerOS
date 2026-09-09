@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
-import { ByokSettingsView } from "@/components/settings/byok-settings-view";
+import { AccountSettingsView } from "@/components/settings/account-settings-view";
 import { getServerSession } from "@/lib/server-session";
 
 export default async function SettingsPage() {
@@ -15,9 +15,21 @@ export default async function SettingsPage() {
     redirect("/onboarding");
   }
 
+  const displayName =
+    session.user.name ?? session.user.email.split("@")[0] ?? "User";
+
   return (
-    <DashboardShell>
-      <ByokSettingsView />
+    <DashboardShell
+      breadcrumb="Account & Settings"
+      userName={displayName}
+      userRole={`(${session.workspace.name})`}
+    >
+      <AccountSettingsView
+        userName={displayName}
+        userEmail={session.user.email}
+        workspaceName={session.workspace.name}
+        workspaceSlug={session.workspace.slug}
+      />
     </DashboardShell>
   );
 }

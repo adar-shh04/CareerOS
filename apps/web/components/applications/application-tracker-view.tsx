@@ -6,7 +6,6 @@ import {
   Calendar,
   ChevronDown,
   ExternalLink,
-  Loader2,
   Trash2,
   XCircle,
 } from "lucide-react";
@@ -317,7 +316,10 @@ export function ApplicationTrackerView({ onGoToJobs }: ApplicationTrackerViewPro
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/applications", { cache: "no-store" });
+      const res = await fetch("/api/applications", {
+        cache: "no-store",
+        signal: AbortSignal.timeout(10000),
+      });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as {
           message?: string;
@@ -327,7 +329,11 @@ export function ApplicationTrackerView({ onGoToJobs }: ApplicationTrackerViewPro
       const data = (await res.json()) as EnrichedApplication[];
       setApps(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load applications.");
+      if (e instanceof DOMException && e.name === "TimeoutError") {
+        setError("Request timed out: backend took too long to respond.");
+      } else {
+        setError(e instanceof Error ? e.message : "Failed to load applications.");
+      }
     } finally {
       setLoading(false);
     }
@@ -453,14 +459,35 @@ export function ApplicationTrackerView({ onGoToJobs }: ApplicationTrackerViewPro
 
       {/* Content */}
       {loading ? (
-        <div className="py-16 text-center text-slate-400 flex items-center justify-center gap-2 text-xs">
-          <Loader2 className="w-4 h-4 animate-spin text-[#1d68ed]" />
-          <span>Loading applications…</span>
+        <div className="flex flex-col gap-2.5">
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="flex items-center gap-4 p-4 rounded-xl border border-slate-200/80 bg-white animate-pulse"
+            >
+              <div className="w-9 h-9 rounded-lg bg-slate-200 shrink-0" />
+              <div className="flex-1 space-y-2">
+                <div className="h-4 w-52 bg-slate-200 rounded-md" />
+                <div className="h-3 w-36 bg-slate-100 rounded-md" />
+              </div>
+              <div className="h-6 w-16 bg-slate-100 rounded-full" />
+              <div className="h-7 w-20 bg-slate-100 rounded-lg" />
+            </div>
+          ))}
         </div>
       ) : error ? (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-700 flex items-center gap-2 shadow-2xs">
-          <XCircle className="w-4 h-4 shrink-0 text-rose-500" />
-          <span>{error}</span>
+        <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-700 flex items-center justify-between shadow-2xs">
+          <div className="flex items-center gap-2">
+            <XCircle className="w-4 h-4 shrink-0 text-rose-500" />
+            <span>{error}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => void loadApplications()}
+            className="rounded-lg bg-rose-600 hover:bg-rose-700 text-white px-3 py-1 text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+          >
+            Retry
+          </button>
         </div>
       ) : filtered.length === 0 ? (
         apps.length === 0 ? (

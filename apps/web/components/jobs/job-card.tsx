@@ -21,14 +21,20 @@ import { JobMatchBadge } from "./job-match-badge";
 interface JobCardProps {
   job: JobOpportunity;
   trackedApplication?: TrackedApplication | null;
+  isSelected?: boolean;
   onSelect: (job: JobOpportunity) => void;
 }
 
-export function JobCard({ job, trackedApplication, onSelect }: JobCardProps) {
+export function JobCard({
+  job,
+  trackedApplication,
+  isSelected = false,
+  onSelect,
+}: JobCardProps) {
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return "Recent";
     try {
-      return new Date(dateStr).toLocaleDateString(undefined, {
+      return new Date(dateStr).toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
       });
@@ -40,7 +46,11 @@ export function JobCard({ job, trackedApplication, onSelect }: JobCardProps) {
   return (
     <div
       onClick={() => onSelect(job)}
-      className="group relative rounded-xl border border-slate-200/80 bg-white p-5 hover:border-[#1d68ed]/40 hover:shadow-md transition-all cursor-pointer space-y-4 shadow-xs"
+      className={`group relative rounded-xl border p-5 transition-all cursor-pointer space-y-4 shadow-xs ${
+        isSelected
+          ? "border-[#1d68ed] ring-2 ring-[#1d68ed]/30 bg-blue-50/20 shadow-sm"
+          : "border-slate-200/80 bg-white hover:border-[#1d68ed]/40 hover:shadow-md"
+      }`}
     >
       <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
         <div>
@@ -85,7 +95,7 @@ export function JobCard({ job, trackedApplication, onSelect }: JobCardProps) {
       </div>
 
       {job.whyFits && (
-        <p className="text-xs text-slate-700 leading-relaxed bg-[#f4f8ff] p-3 rounded-lg border border-blue-100">
+        <p className="text-xs text-slate-700 leading-relaxed bg-[#f4f8ff] p-3 rounded-lg border border-blue-100 line-clamp-2">
           <span className="font-semibold text-[#1d68ed]">Match Reason:</span> {job.whyFits}
         </p>
       )}

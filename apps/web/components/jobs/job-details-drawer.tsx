@@ -29,6 +29,7 @@ interface JobDetailsDrawerProps {
   onJobUpdated?: (updatedJob: JobOpportunity) => void;
   onApplicationUpdated?: () => void;
   onNavigateToResume?: (version: ResumeVersion, profile: ResumeProfile) => void;
+  isInline?: boolean;
 }
 
 export function JobDetailsDrawer({
@@ -38,6 +39,7 @@ export function JobDetailsDrawer({
   onJobUpdated,
   onApplicationUpdated,
   onNavigateToResume,
+  isInline = false,
 }: JobDetailsDrawerProps) {
   const [matching, setMatching] = useState(false);
   const [matchError, setMatchError] = useState<string | null>(null);
@@ -213,12 +215,11 @@ export function JobDetailsDrawer({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex justify-end transition-opacity">
-      <div className="w-full max-w-xl bg-white border-l border-slate-200 h-full overflow-y-auto p-6 flex flex-col justify-between space-y-6 shadow-2xl">
-        <div className="space-y-6">
-          {/* Header */}
-          <div className="flex justify-between items-start border-b border-slate-100 pb-4">
+  const content = (
+    <>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex justify-between items-start border-b border-slate-100 pb-4">
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-[#1d68ed]">
                 Job Details
@@ -246,6 +247,8 @@ export function JobDetailsDrawer({
               <button
                 type="button"
                 onClick={onClose}
+                aria-label="Close drawer"
+                title="Close drawer"
                 className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
@@ -568,6 +571,21 @@ export function JobDetailsDrawer({
             ) : null}
           </div>
         </div>
+    </>
+  );
+
+  if (isInline) {
+    return (
+      <div className="w-full bg-white rounded-2xl border border-slate-200/80 p-6 flex flex-col justify-between space-y-6 shadow-xs sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto">
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex justify-end transition-opacity">
+      <div className="w-full max-w-xl bg-white border-l border-slate-200 h-full overflow-y-auto p-6 flex flex-col justify-between space-y-6 shadow-2xl">
+        {content}
       </div>
     </div>
   );

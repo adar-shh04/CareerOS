@@ -16,6 +16,8 @@ interface JobListProps {
   loading: boolean;
   error?: { status: number; message: string } | null;
   onSelectJob: (job: JobOpportunity) => void;
+  selectedJobId?: string | null;
+  singleColumn?: boolean;
   query?: string;
   onResetQuery?: () => void;
   onRetry?: () => void;
@@ -27,6 +29,8 @@ export function JobList({
   loading,
   error,
   onSelectJob,
+  selectedJobId,
+  singleColumn = false,
   query,
   onResetQuery,
   onRetry,
@@ -50,12 +54,13 @@ export function JobList({
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className={singleColumn ? "flex flex-col gap-3" : "grid grid-cols-1 md:grid-cols-2 gap-4"}>
       {jobs.map((job) => (
         <JobCard
           key={job.id}
           job={job}
           trackedApplication={applicationsByJobId?.get(job.id)}
+          isSelected={selectedJobId === job.id}
           onSelect={onSelectJob}
         />
       ))}

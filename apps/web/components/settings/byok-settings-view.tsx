@@ -134,7 +134,7 @@ export function ByokSettingsView() {
   };
 
   return (
-    <div className="flex flex-col gap-6 max-w-4xl">
+    <div className="flex flex-col gap-6 w-full">
       {/* Header Banner */}
       <div className="p-6 rounded-xl border border-slate-200/80 bg-white shadow-xs">
         <div className="flex items-center gap-2 mb-2">
@@ -178,7 +178,7 @@ export function ByokSettingsView() {
       )}
 
       {/* Provider Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 2xl:grid-cols-2 gap-4">
         {PROVIDERS.map((p) => {
           const state = providerStates[p.provider];
           const isConfigured = state?.configured ?? false;
@@ -228,7 +228,7 @@ export function ByokSettingsView() {
                   </a>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                   <input
                     type="password"
                     value={currentInput}
@@ -247,7 +247,7 @@ export function ByokSettingsView() {
                     type="button"
                     onClick={() => void handleSaveKey(p.provider)}
                     disabled={!currentInput.trim() || isSaving}
-                    className="shrink-0 px-3.5 py-2 rounded-lg bg-[#1d68ed] hover:bg-[#1555c8] text-white font-semibold text-xs transition-colors disabled:opacity-40 flex items-center gap-1.5 shadow-xs cursor-pointer"
+                    className="shrink-0 px-3.5 py-2 rounded-lg bg-[#1d68ed] hover:bg-[#1555c8] text-white font-semibold text-xs transition-colors disabled:opacity-40 flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
                   >
                     {isSaving ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />

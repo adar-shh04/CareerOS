@@ -2,7 +2,7 @@
 
 import type { JobOpportunity, ResumeProfile, ResumeVersion } from "@repo/types";
 import { Briefcase, RefreshCw, Sparkles } from "lucide-react";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { TrackedApplication } from "@/lib/api";
 
@@ -20,6 +20,8 @@ export function JobBoard({
   onNavigateToResume,
   initialSavedOnly = false,
 }: JobBoardProps = {}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isDualPane, setIsDualPane] = useState(false);
   const [jobs, setJobs] = useState<JobOpportunity[]>([]);
   const [applications, setApplications] = useState<TrackedApplication[]>([]);
   const [loading, setLoading] = useState(true);
@@ -88,6 +90,21 @@ export function JobBoard({
     void fetchApplications();
   }, [fetchJobs, fetchApplications]);
 
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        // Container width threshold: >= 1060px enables integrated dual-pane view
+        setIsDualPane(entry.contentRect.width >= 1060);
+      }
+    });
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   const availableSkills = useMemo(() => {
     const skillSet = new Set<string>();
     jobs.forEach((j) => j.requiredSkills.forEach((s) => skillSet.add(s)));
@@ -136,7 +153,7 @@ export function JobBoard({
   };
 
   return (
-    <div className="flex flex-col gap-6 max-w-7xl mx-auto p-4 sm:p-6">
+    <div ref={containerRef} className="flex flex-col gap-6 max-w-7xl mx-auto p-4 sm:p-6 w-full">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-slate-200/80">
         <div className="flex items-center gap-3">
@@ -215,46 +232,118 @@ export function JobBoard({
         />
       </div>
 
-      {/* Job List */}
-      <JobList
-        jobs={filteredJobs}
-        applicationsByJobId={applicationsByJobId}
-        loading={loading}
-        error={error}
-        onSelectJob={setSelectedJob}
-        query={searchQuery}
-        onResetQuery={() => {
-          setSearchQuery("");
-          setSelectedSkill("");
-          setRemoteOnly(false);
-          void fetchJobs("");
-        }}
-        onRetry={() => {
-          void fetchJobs(searchQuery);
-        }}
-      />
+      {/* Integrated Dual-Pane or Standard Responsive List Layout */}
+      {isDualPane ? (
+        <div className="grid grid-cols-12 gap-6 items-start">
+          {/* Left Column: Job Cards List */}
+          <div className="col-span-12 xl:col-span-5 flex flex-col gap-4">
+            <JobList
+              jobs={filteredJobs}
+              applicationsByJobId={applicationsByJobId}
+              loading={loading}
+              error={error}
+              onSelectJob={setSelectedJob}
+              selectedJobId={selectedJob?.id}
+              singleColumn={true}
+              query={searchQuery}
+              onResetQuery={() => {
+                setSearchQuery("");
+                setSelectedSkill("");
+                setRemoteOnly(false);
+                void fetchJobs("");
+              }}
+              onRetry={() => {
+                void fetchJobs(searchQuery);
+              }}
+            />
+          </div>
 
-      {/* Details Drawer */}
-      <JobDetailsDrawer
-        job={selectedJob}
-        trackedApplication={selectedJob ? applicationsByJobId.get(selectedJob.id) : undefined}
-        onClose={() => setSelectedJob(null)}
-        onApplicationUpdated={() => {
-          void fetchApplications();
-        }}
-        onJobUpdated={(updatedJob) => {
-          setSelectedJob(updatedJob);
-          setJobs((prevJobs) =>
-            prevJobs.map((j) => (j.id === updatedJob.id ? updatedJob : j)),
-          );
-        }}
-        onNavigateToResume={(version, profile) => {
-          setSelectedJob(null);
-          if (onNavigateToResume) {
-            onNavigateToResume(version, profile);
-          }
-        }}
-      />
+          {/* Right Column: In-flow Job Details Panel */}
+          <div className="col-span-12 xl:col-span-7">
+            {selectedJob ? (
+              <JobDetailsDrawer
+                isInline={true}
+                job={selectedJob}
+                trackedApplication={applicationsByJobId.get(selectedJob.id)}
+                onClose={() => setSelectedJob(null)}
+                onApplicationUpdated={() => {
+                  void fetchApplications();
+                }}
+                onJobUpdated={(updatedJob) => {
+                  setSelectedJob(updatedJob);
+                  setJobs((prevJobs) =>
+                    prevJobs.map((j) => (j.id === updatedJob.id ? updatedJob : j)),
+                  );
+                }}
+                onNavigateToResume={(version, profile) => {
+                  setSelectedJob(null);
+                  if (onNavigateToResume) {
+                    onNavigateToResume(version, profile);
+                  }
+                }}
+              />
+            ) : (
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-10 flex flex-col items-center justify-center text-center space-y-3 sticky top-4 min-h-[420px] shadow-2xs">
+                <div className="w-12 h-12 rounded-xl bg-blue-50 text-[#1d68ed] flex items-center justify-center">
+                  <Briefcase className="w-6 h-6" />
+                </div>
+                <div className="space-y-1 max-w-xs">
+                  <h3 className="text-sm font-bold text-slate-900">Select a job opportunity</h3>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    Choose a role from the radar to inspect match intelligence, missing skills analysis, and one-click targeted resume generation.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Responsive 1-2 Column Cards */}
+          <JobList
+            jobs={filteredJobs}
+            applicationsByJobId={applicationsByJobId}
+            loading={loading}
+            error={error}
+            onSelectJob={setSelectedJob}
+            selectedJobId={selectedJob?.id}
+            singleColumn={false}
+            query={searchQuery}
+            onResetQuery={() => {
+              setSearchQuery("");
+              setSelectedSkill("");
+              setRemoteOnly(false);
+              void fetchJobs("");
+            }}
+            onRetry={() => {
+              void fetchJobs(searchQuery);
+            }}
+          />
+
+          {/* Details Drawer (Overlay) */}
+          <JobDetailsDrawer
+            isInline={false}
+            job={selectedJob}
+            trackedApplication={selectedJob ? applicationsByJobId.get(selectedJob.id) : undefined}
+            onClose={() => setSelectedJob(null)}
+            onApplicationUpdated={() => {
+              void fetchApplications();
+            }}
+            onJobUpdated={(updatedJob) => {
+              setSelectedJob(updatedJob);
+              setJobs((prevJobs) =>
+                prevJobs.map((j) => (j.id === updatedJob.id ? updatedJob : j)),
+              );
+            }}
+            onNavigateToResume={(version, profile) => {
+              setSelectedJob(null);
+              if (onNavigateToResume) {
+                onNavigateToResume(version, profile);
+              }
+            }}
+          />
+        </>
+      )}
     </div>
   );
 }
