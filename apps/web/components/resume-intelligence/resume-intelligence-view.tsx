@@ -244,63 +244,31 @@ export function ResumeIntelligenceView({ initialVersion, initialProfile }: Resum
     profiles.find((p) => p.id === selectedProfileId) ?? null;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+    <div className="flex flex-col gap-6">
       {/* Module Header Navigation */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          paddingBottom: "0.5rem",
-          borderBottom: "1px solid rgba(255,255,255,0.08)",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-          <div
-            style={{
-              width: "36px",
-              height: "36px",
-              borderRadius: "10px",
-              backgroundColor: "rgba(168, 85, 247, 0.15)",
-              border: "1px solid rgba(168, 85, 247, 0.3)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <FileText style={{ width: "20px", height: "20px", color: "#c084fc" }} />
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-4 border-b border-slate-200/80 gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-blue-50 text-[#1d68ed] border border-blue-200/80 flex items-center justify-center">
+            <FileText className="w-5 h-5" />
           </div>
           <div>
-            <h2 style={{ fontSize: "1.35rem", fontWeight: "700", letterSpacing: "-0.02em" }}>
+            <h2 className="text-xl font-bold tracking-tight text-slate-900">
               Resume Intelligence
             </h2>
-            <span style={{ fontSize: "0.8rem", color: "#94a3b8" }}>
+            <span className="text-xs text-slate-500">
               Master profile source of truth, targeted LaTeX resume variants, and live studio.
             </span>
           </div>
         </div>
 
         {/* Sub Navigation Pills */}
-        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
+        <div className="flex gap-2 flex-wrap items-center">
           <button
             type="button"
             onClick={() => setShowImport(true)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.4rem",
-              padding: "0.5rem 0.9rem",
-              borderRadius: "0.5rem",
-              fontSize: "0.85rem",
-              fontWeight: "600",
-              color: "#ffffff",
-              background: "linear-gradient(135deg, #6366f1 0%, #a855f7 100%)",
-              border: "none",
-              cursor: "pointer",
-              marginRight: "0.5rem",
-            }}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#1d68ed] hover:bg-[#1555c8] text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
           >
-            <Upload style={{ width: "14px", height: "14px" }} />
+            <Upload className="w-3.5 h-3.5" />
             Import Resume
           </button>
           {[
@@ -316,21 +284,13 @@ export function ResumeIntelligenceView({ initialVersion, initialProfile }: Resum
                 key={tab.id}
                 type="button"
                 onClick={() => setSubTab(tab.id as typeof subTab)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.4rem",
-                  padding: "0.5rem 0.9rem",
-                  borderRadius: "0.5rem",
-                  fontSize: "0.85rem",
-                  fontWeight: isActive ? "600" : "500",
-                  color: isActive ? "#ffffff" : "#94a3b8",
-                  backgroundColor: isActive ? "rgba(99, 102, 241, 0.15)" : "rgba(15, 23, 42, 0.4)",
-                  border: isActive ? "1px solid rgba(99, 102, 241, 0.3)" : "1px solid rgba(255,255,255,0.06)",
-                  cursor: "pointer",
-                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-colors border cursor-pointer ${
+                  isActive
+                    ? "bg-blue-50 text-[#1d68ed] border-blue-200/80 font-semibold shadow-2xs"
+                    : "bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 border-slate-200 font-medium"
+                }`}
               >
-                <Icon style={{ width: "14px", height: "14px", color: isActive ? "#818cf8" : "#64748b" }} />
+                <Icon className={`w-3.5 h-3.5 ${isActive ? "text-[#1d68ed]" : "text-slate-400"}`} />
                 {tab.label}
               </button>
             );
@@ -340,19 +300,7 @@ export function ResumeIntelligenceView({ initialVersion, initialProfile }: Resum
 
       {/* Error Banner */}
       {error && (
-        <div
-          style={{
-            padding: "0.875rem 1.25rem",
-            borderRadius: "0.5rem",
-            backgroundColor: "rgba(239, 68, 68, 0.12)",
-            border: "1px solid rgba(239, 68, 68, 0.3)",
-            color: "#fca5a5",
-            fontSize: "0.875rem",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
+        <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center justify-between shadow-2xs">
           <span>{error.message}</span>
           <button
             type="button"
@@ -360,14 +308,7 @@ export function ResumeIntelligenceView({ initialVersion, initialProfile }: Resum
               void loadMasterProfile();
               void loadProfiles();
             }}
-            style={{
-              background: "transparent",
-              border: "none",
-              color: "#ffffff",
-              textDecoration: "underline",
-              cursor: "pointer",
-              fontSize: "0.85rem",
-            }}
+            className="text-rose-800 underline font-semibold hover:text-rose-950 cursor-pointer text-xs"
           >
             Retry
           </button>

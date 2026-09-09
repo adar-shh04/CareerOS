@@ -2,7 +2,6 @@
 
 import {
   Bot,
-  BrainCircuit,
   Briefcase,
   Compass,
   FileText,
@@ -71,22 +70,22 @@ export function DashboardHeader() {
   };
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/[0.08] bg-[#0b0f19]/90 backdrop-blur-md">
+    <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/95 backdrop-blur-md">
       <div className="mx-auto flex max-w-[1440px] items-center justify-between px-4 py-3 sm:px-6">
         {/* Brand & Desktop Navigation */}
         <div className="flex items-center gap-6 xl:gap-8">
           <Link
             href="/dashboard"
-            className="flex items-center gap-3 transition-opacity hover:opacity-90"
+            className="flex items-center gap-2.5 transition-opacity hover:opacity-90"
           >
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 shadow-md shadow-indigo-600/30">
-              <BrainCircuit className="h-5 w-5 text-white" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#1d68ed] text-white shadow-xs">
+              <Compass className="h-4 w-4" />
             </div>
             <div className="hidden sm:block">
-              <div className="text-base font-bold tracking-tight text-white">
-                CareerOS
+              <div className="text-base font-bold tracking-tight text-slate-900">
+                Career<span className="text-[#1d68ed]">OS</span>
               </div>
-              <div className="text-[10px] font-semibold uppercase tracking-wider text-indigo-400">
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
                 Career Operating System
               </div>
             </div>
@@ -101,15 +100,15 @@ export function DashboardHeader() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
+                  className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all ${
                     active
-                      ? "bg-indigo-600/20 text-white border border-indigo-500/30 shadow-sm"
-                      : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]"
+                      ? "bg-blue-50 text-[#1d68ed] border border-blue-200/80 font-semibold"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
                   }`}
                 >
                   <Icon
                     className={`h-3.5 w-3.5 ${
-                      active ? "text-indigo-400" : "text-slate-400"
+                      active ? "text-[#1d68ed]" : "text-slate-500"
                     }`}
                   />
                   <span>{item.label}</span>
@@ -120,15 +119,15 @@ export function DashboardHeader() {
         </div>
 
         {/* Right Actions */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           {/* BYOK Status Badge */}
           <Link
             href="/settings"
             title="Configure BYOK AI Keys in Settings"
             className={`hidden sm:flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium border transition-colors ${
               byokConfigured
-                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20"
-                : "bg-slate-800/60 border-white/10 text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+                ? "bg-blue-50 border-blue-200/80 text-[#1d68ed] hover:bg-blue-100/60"
+                : "bg-white border-slate-200 text-slate-600 hover:text-slate-900 hover:border-slate-300"
             }`}
           >
             <KeyRound className="h-3 w-3" />
@@ -136,8 +135,8 @@ export function DashboardHeader() {
           </Link>
 
           {/* User Profile / Workspace Chip */}
-          <div className="hidden md:flex items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-xs text-slate-300">
-            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600/30 text-indigo-300">
+          <div className="hidden md:flex items-center gap-2 rounded-lg border border-slate-200/80 bg-white px-2.5 py-1 text-xs text-slate-800 shadow-xs">
+            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-50 text-[#1d68ed] font-semibold text-[10px]">
               <User className="h-3 w-3" />
             </div>
             <span className="max-w-[120px] truncate font-medium">
@@ -150,7 +149,7 @@ export function DashboardHeader() {
             type="button"
             onClick={() => void logout()}
             title="Sign out of CareerOS"
-            className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] px-2.5 py-1.5 text-xs text-slate-400 hover:bg-rose-500/10 hover:border-rose-500/30 hover:text-rose-300 transition-colors"
+            className="flex items-center gap-1.5 rounded-lg border border-slate-200/80 bg-white px-2.5 py-1.5 text-xs text-slate-600 hover:bg-rose-50 hover:border-rose-200 hover:text-rose-600 transition-colors shadow-xs"
           >
             <LogOut className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Sign Out</span>
@@ -160,7 +159,7 @@ export function DashboardHeader() {
           <button
             type="button"
             onClick={() => setMobileOpen(!mobileOpen)}
-            className="flex lg:hidden items-center justify-center rounded-lg border border-white/10 p-1.5 text-slate-300 hover:bg-white/[0.05]"
+            className="flex lg:hidden items-center justify-center rounded-lg border border-slate-200 bg-white p-1.5 text-slate-700 hover:bg-slate-50"
             aria-label="Toggle Navigation Menu"
           >
             {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -170,7 +169,7 @@ export function DashboardHeader() {
 
       {/* Mobile Drawer */}
       {mobileOpen && (
-        <div className="border-t border-white/[0.08] bg-[#0b0f19] px-4 py-3 lg:hidden space-y-1">
+        <div className="border-t border-slate-200/80 bg-white px-4 py-3 lg:hidden space-y-1">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             const active = isItemActive(item);
@@ -181,11 +180,11 @@ export function DashboardHeader() {
                 onClick={() => setMobileOpen(false)}
                 className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                   active
-                    ? "bg-indigo-600/20 text-white font-semibold"
-                    : "text-slate-400 hover:text-white hover:bg-white/[0.04]"
+                    ? "bg-blue-50 text-[#1d68ed] font-semibold"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
                 }`}
               >
-                <Icon className={`h-4 w-4 ${active ? "text-indigo-400" : ""}`} />
+                <Icon className={`h-4 w-4 ${active ? "text-[#1d68ed]" : ""}`} />
                 <span>{item.label}</span>
               </Link>
             );

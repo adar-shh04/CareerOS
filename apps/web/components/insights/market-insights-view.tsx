@@ -119,101 +119,51 @@ export function MarketInsightsView({ masterProfile: initialProfile }: MarketInsi
 
   if (loading) {
     return (
-      <div
-        style={{
-          padding: "4rem",
-          textAlign: "center",
-          color: "#94a3b8",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: "0.5rem",
-        }}
-      >
-        <Loader2 style={{ width: "18px", height: "18px", animation: "spin 1s linear infinite" }} />
-        Loading Market Intelligence & Career Handbook…
+      <div className="py-24 text-center text-slate-400 flex items-center justify-center gap-2">
+        <Loader2 className="w-5 h-5 animate-spin text-[#1d68ed]" />
+        <span className="text-xs font-medium">Loading Market Intelligence &amp; Career Handbook…</span>
       </div>
     );
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem", maxWidth: "1100px" }}>
+    <div className="flex flex-col gap-6 max-w-5xl">
       {/* Top Header */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: "1rem",
-        }}
-      >
+      <div className="flex justify-between items-center flex-wrap gap-4">
         <div>
-          <h1
-            style={{
-              fontSize: "1.4rem",
-              fontWeight: "700",
-              letterSpacing: "-0.02em",
-              color: "#f8fafc",
-            }}
-          >
-            Insights & Career Intelligence
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+            Insights &amp; Career Intelligence
           </h1>
-          <p style={{ fontSize: "0.8rem", color: "#94a3b8", marginTop: "0.2rem" }}>
+          <p className="text-xs text-slate-500 mt-1">
             Real-time hiring trends benchmarked against your verified Master Profile and structured roadmaps.
           </p>
         </div>
 
         {/* Tab Switcher */}
-        <div
-          style={{
-            display: "flex",
-            backgroundColor: "rgba(15,23,42,0.6)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            borderRadius: "0.5rem",
-            padding: "0.25rem",
-            gap: "0.25rem",
-          }}
-        >
+        <div className="flex bg-slate-100 border border-slate-200/80 rounded-xl p-1 shadow-2xs gap-1">
           <button
             type="button"
             onClick={() => setActiveTab("market")}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "0.4rem",
-              padding: "0.4rem 0.85rem",
-              borderRadius: "0.4rem",
-              fontSize: "0.8rem",
-              fontWeight: "600",
-              border: "none",
-              cursor: "pointer",
-              backgroundColor: activeTab === "market" ? "rgba(99,102,241,0.2)" : "transparent",
-              color: activeTab === "market" ? "#818cf8" : "#94a3b8",
-            }}
+            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
+              activeTab === "market"
+                ? "bg-white text-slate-900 shadow-xs"
+                : "text-slate-500 hover:text-slate-900"
+            }`}
           >
-            <TrendingUp style={{ width: "14px", height: "14px" }} />
+            <TrendingUp className="w-3.5 h-3.5 text-[#1d68ed]" />
             Market Intelligence
           </button>
           <button
             type="button"
             onClick={() => setActiveTab("handbook")}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "0.4rem",
-              padding: "0.4rem 0.85rem",
-              borderRadius: "0.4rem",
-              fontSize: "0.8rem",
-              fontWeight: "600",
-              border: "none",
-              cursor: "pointer",
-              backgroundColor: activeTab === "handbook" ? "rgba(99,102,241,0.2)" : "transparent",
-              color: activeTab === "handbook" ? "#818cf8" : "#94a3b8",
-            }}
+            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
+              activeTab === "handbook"
+                ? "bg-white text-slate-900 shadow-xs"
+                : "text-slate-500 hover:text-slate-900"
+            }`}
           >
-            <Compass style={{ width: "14px", height: "14px" }} />
-            Career Handbook & Roadmaps
+            <Compass className="w-3.5 h-3.5 text-[#1d68ed]" />
+            Career Handbook &amp; Roadmaps
           </button>
         </div>
       </div>
@@ -222,34 +172,17 @@ export function MarketInsightsView({ masterProfile: initialProfile }: MarketInsi
         <>
           {/* AI / BYOK Status Notice if applicable */}
           {marketData && !marketData.available && (
-            <div
-              style={{
-                padding: "0.9rem 1.1rem",
-                borderRadius: "0.6rem",
-                backgroundColor: "rgba(245,158,11,0.08)",
-                border: "1px solid rgba(245,158,11,0.2)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: "1rem",
-                flexWrap: "wrap",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-                <Key style={{ width: "16px", height: "16px", color: "#f59e0b", flexShrink: 0 }} />
-                <div style={{ fontSize: "0.8rem", color: "#fde68a" }}>
-                  <strong>Heuristic Mode:</strong> {marketData.reason ?? "AI provider key not configured."}{" "}
+            <div className="p-4 rounded-xl bg-amber-50/80 border border-amber-200 flex items-center justify-between gap-4 flex-wrap">
+              <div className="flex items-center gap-2.5">
+                <Key className="w-4 h-4 text-amber-600 shrink-0" />
+                <div className="text-xs text-amber-800">
+                  <strong className="font-semibold">Heuristic Mode:</strong> {marketData.reason ?? "AI provider key not configured."}{" "}
                   Displaying deterministic job-radar aggregations.
                 </div>
               </div>
               <Link
                 href="/settings"
-                style={{
-                  fontSize: "0.75rem",
-                  fontWeight: "600",
-                  color: "#f59e0b",
-                  textDecoration: "underline",
-                }}
+                className="text-xs font-semibold text-amber-800 hover:text-amber-950 underline"
               >
                 Configure BYOK Keys →
               </Link>
@@ -257,242 +190,122 @@ export function MarketInsightsView({ masterProfile: initialProfile }: MarketInsi
           )}
 
           {/* Banner */}
-          <div
-            style={{
-              padding: "1.25rem 1.5rem",
-              borderRadius: "0.75rem",
-              backgroundColor: "rgba(15,23,42,0.6)",
-              border: "1px solid rgba(255,255,255,0.08)",
-              background: "linear-gradient(135deg, rgba(15,23,42,0.9), rgba(30,27,75,0.4))",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
-              <Sparkles style={{ width: "18px", height: "18px", color: "#818cf8" }} />
-              <h2 style={{ fontSize: "1.1rem", fontWeight: "700", color: "#f8fafc" }}>
+          <div className="p-6 rounded-xl bg-white border border-slate-200/80 shadow-xs">
+            <div className="flex items-center gap-2 mb-2">
+              <Sparkles className="w-5 h-5 text-[#1d68ed]" />
+              <h2 className="text-lg font-bold text-slate-900 tracking-tight">
                 Verified Labor Market Alignment
               </h2>
             </div>
-            <p style={{ fontSize: "0.82rem", color: "#94a3b8", lineHeight: "1.5", maxWidth: "800px" }}>
+            <p className="text-xs text-slate-500 leading-relaxed max-w-3xl">
               {marketData?.insightsSummary ??
                 "Cross-referencing verified skills from your Master Career Profile with actual employer requirements across ingested opportunities in Job Radar."}
             </p>
 
-            <div style={{ display: "flex", gap: "0.6rem", marginTop: "1rem", flexWrap: "wrap" }}>
-              <span
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "0.35rem",
-                  padding: "0.25rem 0.65rem",
-                  borderRadius: "999px",
-                  backgroundColor: "rgba(99,102,241,0.12)",
-                  border: "1px solid rgba(99,102,241,0.25)",
-                  color: "#818cf8",
-                  fontSize: "0.75rem",
-                  fontWeight: "600",
-                }}
-              >
-                <Activity style={{ width: "12px", height: "12px" }} />
+            <div className="flex gap-2.5 mt-4 flex-wrap">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-200/80 text-[#1d68ed] text-xs font-semibold">
+                <Activity className="w-3.5 h-3.5" />
                 {marketData?.jobDataCount
                   ? `${String(marketData.jobDataCount)} Ingested Jobs Analyzed`
                   : "Live Pipeline Ingestion Active"}
               </span>
-              <span
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "0.35rem",
-                  padding: "0.25rem 0.65rem",
-                  borderRadius: "999px",
-                  backgroundColor: "rgba(16,185,129,0.12)",
-                  border: "1px solid rgba(16,185,129,0.25)",
-                  color: "#34d399",
-                  fontSize: "0.75rem",
-                  fontWeight: "600",
-                }}
-              >
-                <CheckCircle2 style={{ width: "12px", height: "12px" }} />
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold">
+                <CheckCircle2 className="w-3.5 h-3.5" />
                 {matchedSkillsCount} of {skillsList.length} Top Skills in Your Profile
               </span>
             </div>
           </div>
 
           {/* Summary Stat Cards */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-              gap: "1rem",
-            }}
-          >
-            <div
-              style={{
-                padding: "1rem 1.25rem",
-                borderRadius: "0.65rem",
-                backgroundColor: "rgba(15,23,42,0.5)",
-                border: "1px solid rgba(255,255,255,0.06)",
-              }}
-            >
-              <div style={{ fontSize: "0.7rem", color: "#94a3b8", textTransform: "uppercase", fontWeight: "600" }}>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="p-5 rounded-xl bg-white border border-slate-200/80 shadow-xs">
+              <div className="text-[11px] text-slate-500 uppercase font-semibold tracking-wider">
                 Profile Skill Overlap
               </div>
-              <div style={{ fontSize: "1.5rem", fontWeight: "800", color: "#818cf8", marginTop: "0.25rem" }}>
+              <div className="text-2xl font-black text-[#1d68ed] mt-1">
                 {skillsList.length > 0
                   ? `${String(Math.round((matchedSkillsCount / skillsList.length) * 100))}%`
                   : "0%"}
               </div>
-              <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "0.2rem" }}>
+              <div className="text-xs text-slate-500 mt-1">
                 {matchedSkillsCount} matched out of top {skillsList.length} competencies
               </div>
             </div>
 
-            <div
-              style={{
-                padding: "1rem 1.25rem",
-                borderRadius: "0.65rem",
-                backgroundColor: "rgba(15,23,42,0.5)",
-                border: "1px solid rgba(255,255,255,0.06)",
-              }}
-            >
-              <div style={{ fontSize: "0.7rem", color: "#94a3b8", textTransform: "uppercase", fontWeight: "600" }}>
+            <div className="p-5 rounded-xl bg-white border border-slate-200/80 shadow-xs">
+              <div className="text-[11px] text-slate-500 uppercase font-semibold tracking-wider">
                 Verified Master Profile
               </div>
-              <div style={{ fontSize: "1.5rem", fontWeight: "800", color: "#34d399", marginTop: "0.25rem" }}>
+              <div className="text-2xl font-black text-emerald-600 mt-1">
                 {masterProfile?.skills.length ?? 0} Skills
               </div>
-              <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "0.2rem" }}>
+              <div className="text-xs text-slate-500 mt-1">
                 {masterProfile?.experiences.length ?? 0} roles &amp; {masterProfile?.projects.length ?? 0} projects
               </div>
             </div>
 
-            <div
-              style={{
-                padding: "1rem 1.25rem",
-                borderRadius: "0.65rem",
-                backgroundColor: "rgba(15,23,42,0.5)",
-                border: "1px solid rgba(255,255,255,0.06)",
-              }}
-            >
-              <div style={{ fontSize: "0.7rem", color: "#94a3b8", textTransform: "uppercase", fontWeight: "600" }}>
+            <div className="p-5 rounded-xl bg-white border border-slate-200/80 shadow-xs">
+              <div className="text-[11px] text-slate-500 uppercase font-semibold tracking-wider">
                 Top Remote Demand
               </div>
-              <div style={{ fontSize: "1.1rem", fontWeight: "700", color: "#cbd5e1", marginTop: "0.4rem" }}>
+              <div className="text-base font-bold text-slate-900 mt-1">
                 {marketData?.topRemoteRoles?.[0] ?? "Full-Stack & Backend"}
               </div>
-              <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "0.2rem" }}>
+              <div className="text-xs text-slate-500 mt-1">
                 Highest remote flexibility across active listings
               </div>
             </div>
           </div>
 
           {/* Skill Demand Comparison Table */}
-          <div
-            style={{
-              borderRadius: "0.75rem",
-              backgroundColor: "rgba(15,23,42,0.5)",
-              border: "1px solid rgba(255,255,255,0.08)",
-              overflow: "hidden",
-            }}
-          >
-            <div
-              style={{
-                padding: "1rem 1.25rem",
-                borderBottom: "1px solid rgba(255,255,255,0.08)",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
+          <div className="rounded-xl bg-white border border-slate-200/80 shadow-xs overflow-hidden">
+            <div className="p-4 px-5 border-b border-slate-100 flex justify-between items-center">
               <div>
-                <h3 style={{ fontSize: "0.95rem", fontWeight: "700", color: "#f1f5f9" }}>
-                  Skill Demand & Gap Breakdown
+                <h3 className="text-sm font-bold text-slate-900">
+                  Skill Demand &amp; Gap Breakdown
                 </h3>
-                <p style={{ fontSize: "0.75rem", color: "#94a3b8", marginTop: "0.15rem" }}>
+                <p className="text-xs text-slate-500 mt-0.5">
                   Identified from ingested radar listings and employer requirements.
                 </p>
               </div>
               <Link
                 href="/career"
-                style={{
-                  fontSize: "0.75rem",
-                  color: "#818cf8",
-                  textDecoration: "none",
-                  fontWeight: "600",
-                }}
+                className="text-xs font-semibold text-[#1d68ed] hover:text-[#1555c8] transition-colors"
               >
                 Update Career Profile →
               </Link>
             </div>
 
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", textAlign: "left", fontSize: "0.8rem", borderCollapse: "collapse" }}>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr
-                    style={{
-                      borderBottom: "1px solid rgba(255,255,255,0.06)",
-                      backgroundColor: "rgba(15,23,42,0.8)",
-                      color: "#64748b",
-                      fontSize: "0.7rem",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.05em",
-                    }}
-                  >
-                    <th style={{ padding: "0.75rem 1rem" }}>Competency</th>
-                    <th style={{ padding: "0.75rem 1rem" }}>Category</th>
-                    <th style={{ padding: "0.75rem 1rem" }}>Demand Velocity</th>
-                    <th style={{ padding: "0.75rem 1rem" }}>Profile Match</th>
+                  <tr className="border-b border-slate-200/80 bg-slate-50 text-slate-500 text-[11px] uppercase tracking-wider">
+                    <th className="py-3 px-4 font-semibold">Competency</th>
+                    <th className="py-3 px-4 font-semibold">Category</th>
+                    <th className="py-3 px-4 font-semibold">Demand Velocity</th>
+                    <th className="py-3 px-4 font-semibold">Profile Match</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-slate-100">
                   {skillsList.map((s, idx) => (
-                    <tr
-                      key={s.name || idx}
-                      style={{
-                        borderBottom: "1px solid rgba(255,255,255,0.04)",
-                      }}
-                    >
-                      <td style={{ padding: "0.75rem 1rem", fontWeight: "600", color: "#f8fafc" }}>
+                    <tr key={s.name || idx} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="py-3 px-4 font-semibold text-slate-900">
                         {s.name}
                       </td>
-                      <td style={{ padding: "0.75rem 1rem", color: "#94a3b8" }}>
+                      <td className="py-3 px-4 text-slate-500">
                         {s.category}
                       </td>
-                      <td style={{ padding: "0.75rem 1rem" }}>
-                        <span style={{ color: "#34d399", fontWeight: "700" }}>{s.demandGrowth}</span>
+                      <td className="py-3 px-4">
+                        <span className="text-emerald-700 font-bold">{s.demandGrowth}</span>
                       </td>
-                      <td style={{ padding: "0.75rem 1rem" }}>
+                      <td className="py-3 px-4">
                         {s.hasSkill ? (
-                          <span
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "0.25rem",
-                              padding: "0.15rem 0.5rem",
-                              borderRadius: "999px",
-                              backgroundColor: "rgba(16,185,129,0.12)",
-                              border: "1px solid rgba(16,185,129,0.25)",
-                              color: "#34d399",
-                              fontSize: "0.7rem",
-                              fontWeight: "600",
-                            }}
-                          >
-                            <CheckCircle2 style={{ width: "11px", height: "11px" }} />
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-semibold">
+                            <CheckCircle2 className="w-3 h-3" />
                             Verified in Profile
                           </span>
                         ) : (
-                          <span
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "0.25rem",
-                              padding: "0.15rem 0.5rem",
-                              borderRadius: "999px",
-                              backgroundColor: "rgba(100,116,139,0.12)",
-                              border: "1px solid rgba(100,116,139,0.2)",
-                              color: "#94a3b8",
-                              fontSize: "0.7rem",
-                            }}
-                          >
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-600 text-[11px] font-medium">
                             Skill Opportunity
                           </span>
                         )}
@@ -506,16 +319,9 @@ export function MarketInsightsView({ masterProfile: initialProfile }: MarketInsi
         </>
       ) : (
         /* Career Handbook View */
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+        <div className="flex flex-col gap-6">
           {/* Path Selector Tabs */}
-          <div
-            style={{
-              display: "flex",
-              gap: "0.5rem",
-              overflowX: "auto",
-              paddingBottom: "0.5rem",
-            }}
-          >
+          <div className="flex gap-2 overflow-x-auto pb-1">
             {handbookData?.careerPaths.map((p, idx) => {
               const isSelected = idx === selectedPathIndex;
               return (
@@ -523,20 +329,11 @@ export function MarketInsightsView({ masterProfile: initialProfile }: MarketInsi
                   key={p.fieldId || idx}
                   type="button"
                   onClick={() => setSelectedPathIndex(idx)}
-                  style={{
-                    padding: "0.55rem 0.95rem",
-                    borderRadius: "0.5rem",
-                    border: isSelected
-                      ? "1px solid #818cf8"
-                      : "1px solid rgba(255,255,255,0.08)",
-                    backgroundColor: isSelected ? "rgba(99,102,241,0.15)" : "rgba(15,23,42,0.5)",
-                    color: isSelected ? "#818cf8" : "#94a3b8",
-                    fontSize: "0.8rem",
-                    fontWeight: isSelected ? "700" : "500",
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                    transition: "all 0.15s",
-                  }}
+                  className={`px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer whitespace-nowrap transition-all ${
+                    isSelected
+                      ? "bg-white border-2 border-[#1d68ed] text-[#1d68ed] shadow-xs font-bold"
+                      : "bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:border-slate-300"
+                  }`}
                 >
                   {p.title}
                 </button>
@@ -545,43 +342,29 @@ export function MarketInsightsView({ masterProfile: initialProfile }: MarketInsi
           </div>
 
           {activeHandbookPath ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+            <div className="flex flex-col gap-5">
               {/* Path Overview Card */}
-              <div
-                style={{
-                  padding: "1.5rem",
-                  borderRadius: "0.75rem",
-                  backgroundColor: "rgba(15,23,42,0.6)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
-                  <BookOpen style={{ width: "18px", height: "18px", color: "#818cf8" }} />
-                  <h2 style={{ fontSize: "1.25rem", fontWeight: "700", color: "#f8fafc" }}>
+              <div className="p-6 rounded-xl bg-white border border-slate-200/80 shadow-xs">
+                <div className="flex items-center gap-2 mb-2">
+                  <BookOpen className="w-5 h-5 text-[#1d68ed]" />
+                  <h2 className="text-lg font-bold text-slate-900 tracking-tight">
                     {activeHandbookPath.title}
                   </h2>
                 </div>
-                <p style={{ fontSize: "0.85rem", color: "#94a3b8", lineHeight: "1.5", maxWidth: "800px" }}>
+                <p className="text-xs text-slate-500 leading-relaxed max-w-3xl">
                   {activeHandbookPath.description}
                 </p>
 
                 {/* Common Roles */}
-                <div style={{ marginTop: "1rem" }}>
-                  <div style={{ fontSize: "0.75rem", color: "#64748b", fontWeight: "600", textTransform: "uppercase" }}>
+                <div className="mt-4">
+                  <div className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider">
                     Target Roles
                   </div>
-                  <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap", marginTop: "0.4rem" }}>
+                  <div className="flex gap-1.5 flex-wrap mt-1.5">
                     {activeHandbookPath.commonRoles.map((role) => (
                       <span
                         key={role}
-                        style={{
-                          fontSize: "0.75rem",
-                          padding: "0.2rem 0.6rem",
-                          borderRadius: "0.35rem",
-                          backgroundColor: "rgba(255,255,255,0.05)",
-                          color: "#cbd5e1",
-                          border: "1px solid rgba(255,255,255,0.08)",
-                        }}
+                        className="text-xs px-2.5 py-1 rounded-md bg-slate-50 border border-slate-200/70 text-slate-800 font-medium"
                       >
                         {role}
                       </span>
@@ -590,23 +373,15 @@ export function MarketInsightsView({ masterProfile: initialProfile }: MarketInsi
                 </div>
 
                 {/* Core Skills & Tech */}
-                <div style={{ marginTop: "1rem" }}>
-                  <div style={{ fontSize: "0.75rem", color: "#64748b", fontWeight: "600", textTransform: "uppercase" }}>
-                    Core Technologies & Competencies
+                <div className="mt-4">
+                  <div className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider">
+                    Core Technologies &amp; Competencies
                   </div>
-                  <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap", marginTop: "0.4rem" }}>
+                  <div className="flex gap-1.5 flex-wrap mt-1.5">
                     {activeHandbookPath.technologies.concat(activeHandbookPath.coreSkills).map((tech) => (
                       <span
                         key={tech}
-                        style={{
-                          fontSize: "0.75rem",
-                          padding: "0.2rem 0.6rem",
-                          borderRadius: "0.35rem",
-                          backgroundColor: "rgba(99,102,241,0.08)",
-                          color: "#818cf8",
-                          border: "1px solid rgba(99,102,241,0.2)",
-                          fontWeight: "500",
-                        }}
+                        className="text-xs px-2.5 py-1 rounded-md bg-blue-50 border border-blue-200/80 text-[#1d68ed] font-semibold"
                       >
                         {tech}
                       </span>
@@ -616,62 +391,26 @@ export function MarketInsightsView({ masterProfile: initialProfile }: MarketInsi
               </div>
 
               {/* Learning Path & Study Resources Grid */}
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-                  gap: "1.25rem",
-                }}
-              >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 {/* Learning Milestones */}
-                <div
-                  style={{
-                    padding: "1.25rem",
-                    borderRadius: "0.75rem",
-                    backgroundColor: "rgba(15,23,42,0.4)",
-                    border: "1px solid rgba(255,255,255,0.06)",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1rem" }}>
-                    <Layers style={{ width: "16px", height: "16px", color: "#818cf8" }} />
-                    <h3 style={{ fontSize: "0.95rem", fontWeight: "700", color: "#f1f5f9" }}>
+                <div className="p-5 rounded-xl bg-white border border-slate-200/80 shadow-xs">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Layers className="w-4 h-4 text-[#1d68ed]" />
+                    <h3 className="text-sm font-bold text-slate-900">
                       Curated Roadmap Milestones
                     </h3>
                   </div>
 
-                  <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                  <div className="flex flex-col gap-3">
                     {activeHandbookPath.learningPath.map((step, idx) => (
                       <div
                         key={step || idx}
-                        style={{
-                          display: "flex",
-                          alignItems: "flex-start",
-                          gap: "0.75rem",
-                          padding: "0.6rem 0.8rem",
-                          borderRadius: "0.5rem",
-                          backgroundColor: "rgba(15,23,42,0.5)",
-                          border: "1px solid rgba(255,255,255,0.04)",
-                        }}
+                        className="flex items-start gap-3 p-3 rounded-lg bg-slate-50/80 border border-slate-200/70"
                       >
-                        <span
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            width: "20px",
-                            height: "20px",
-                            borderRadius: "50%",
-                            backgroundColor: "rgba(99,102,241,0.2)",
-                            color: "#818cf8",
-                            fontSize: "0.7rem",
-                            fontWeight: "700",
-                            flexShrink: 0,
-                            marginTop: "0.1rem",
-                          }}
-                        >
+                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-100 text-[#1d68ed] text-xs font-bold shrink-0 mt-0.5">
                           {idx + 1}
                         </span>
-                        <span style={{ fontSize: "0.8rem", color: "#cbd5e1", lineHeight: "1.4" }}>
+                        <span className="text-xs text-slate-800 leading-relaxed">
                           {step}
                         </span>
                       </div>
@@ -680,45 +419,30 @@ export function MarketInsightsView({ masterProfile: initialProfile }: MarketInsi
                 </div>
 
                 {/* Study Resources */}
-                <div
-                  style={{
-                    padding: "1.25rem",
-                    borderRadius: "0.75rem",
-                    backgroundColor: "rgba(15,23,42,0.4)",
-                    border: "1px solid rgba(255,255,255,0.06)",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1rem" }}>
-                    <Globe2 style={{ width: "16px", height: "16px", color: "#818cf8" }} />
-                    <h3 style={{ fontSize: "0.95rem", fontWeight: "700", color: "#f1f5f9" }}>
+                <div className="p-5 rounded-xl bg-white border border-slate-200/80 shadow-xs">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Globe2 className="w-4 h-4 text-[#1d68ed]" />
+                    <h3 className="text-sm font-bold text-slate-900">
                       Recommended Study Resources
                     </h3>
                   </div>
 
-                  <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                  <div className="flex flex-col gap-3">
                     {activeHandbookPath.studyResources.map((res, idx) => (
                       <a
                         key={res.url || idx}
                         href={res.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        style={{
-                          display: "block",
-                          padding: "0.75rem 0.9rem",
-                          borderRadius: "0.5rem",
-                          backgroundColor: "rgba(15,23,42,0.5)",
-                          border: "1px solid rgba(255,255,255,0.05)",
-                          textDecoration: "none",
-                          transition: "border-color 0.15s",
-                        }}
+                        className="block p-3.5 rounded-lg bg-slate-50/80 border border-slate-200/70 hover:border-blue-200 hover:bg-[#f4f8ff] transition-all group"
                       >
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                          <span style={{ fontSize: "0.85rem", fontWeight: "600", color: "#818cf8" }}>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-[#1d68ed] group-hover:text-[#1555c8] transition-colors">
                             {res.title}
                           </span>
-                          <ExternalLink style={{ width: "12px", height: "12px", color: "#64748b" }} />
+                          <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
                         </div>
-                        <p style={{ fontSize: "0.75rem", color: "#94a3b8", marginTop: "0.25rem", margin: 0 }}>
+                        <p className="text-xs text-slate-500 mt-1 m-0">
                           {res.description}
                         </p>
                       </a>
@@ -728,7 +452,7 @@ export function MarketInsightsView({ masterProfile: initialProfile }: MarketInsi
               </div>
             </div>
           ) : (
-            <div style={{ padding: "2rem", textAlign: "center", color: "#64748b" }}>
+            <div className="p-8 text-center text-slate-500 text-xs">
               No handbook path selected.
             </div>
           )}

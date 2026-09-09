@@ -53,30 +53,30 @@ export function ResumeOverviewCards({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {/* Card 1: Master Profile Status */}
-      <div className="relative overflow-hidden rounded-xl border border-white/10 bg-slate-900/60 p-4 backdrop-blur-md transition-all hover:border-white/20">
+      <div className="relative overflow-hidden rounded-xl border border-slate-200/80 bg-white p-4 shadow-xs transition-all hover:border-slate-300">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-medium uppercase tracking-wider text-slate-400">
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
             Master Profile
           </span>
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-400">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 border border-blue-200/80 text-[#1d68ed]">
             <User className="h-4 w-4" />
           </div>
         </div>
         <div className="mt-3 flex items-center gap-2">
           {hasMasterData ? (
             <>
-              <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0" />
+              <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
               <div>
-                <div className="text-sm font-semibold text-emerald-400">Complete</div>
-                <div className="text-xs text-slate-400">Source of truth active</div>
+                <div className="text-sm font-semibold text-emerald-800">Complete</div>
+                <div className="text-xs text-slate-500">Source of truth active</div>
               </div>
             </>
           ) : (
             <>
-              <AlertCircle className="h-5 w-5 text-amber-400 shrink-0" />
+              <AlertCircle className="h-5 w-5 text-amber-600 shrink-0" />
               <div>
-                <div className="text-sm font-semibold text-amber-400">Incomplete</div>
-                <div className="text-xs text-slate-400">Add identity & experience</div>
+                <div className="text-sm font-semibold text-amber-900">Incomplete</div>
+                <div className="text-xs text-slate-500">Add identity &amp; experience</div>
               </div>
             </>
           )}
@@ -84,70 +84,70 @@ export function ResumeOverviewCards({
       </div>
 
       {/* Card 2: Resume Profiles */}
-      <div className="relative overflow-hidden rounded-xl border border-white/10 bg-slate-900/60 p-4 backdrop-blur-md transition-all hover:border-white/20">
+      <div className="relative overflow-hidden rounded-xl border border-slate-200/80 bg-white p-4 shadow-xs transition-all hover:border-slate-300">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-medium uppercase tracking-wider text-slate-400">
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
             Resume Profiles
           </span>
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 border border-blue-200/80 text-[#1d68ed]">
             <Layers className="h-4 w-4" />
           </div>
         </div>
         <div className="mt-3">
-          <div className="text-2xl font-bold text-white tracking-tight">
+          <div className="text-2xl font-bold text-slate-900 tracking-tight">
             {profiles.length}
           </div>
-          <div className="text-xs text-slate-400 mt-0.5">
+          <div className="text-xs text-slate-500 mt-0.5">
             {profiles.length === 1 ? "Targeted resume" : "Targeted resumes"}
           </div>
         </div>
       </div>
 
       {/* Card 3: Resume Versions */}
-      <div className="relative overflow-hidden rounded-xl border border-white/10 bg-slate-900/60 p-4 backdrop-blur-md transition-all hover:border-white/20">
+      <div className="relative overflow-hidden rounded-xl border border-slate-200/80 bg-white p-4 shadow-xs transition-all hover:border-slate-300">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-medium uppercase tracking-wider text-slate-400">
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
             Resume Versions
           </span>
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-500/10 border border-sky-500/20 text-sky-400">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 border border-amber-200 text-amber-700">
             <History className="h-4 w-4" />
           </div>
         </div>
         <div className="mt-3">
-          <div className="text-2xl font-bold text-white tracking-tight">
+          <div className="text-2xl font-bold text-slate-900 tracking-tight">
             {versions.length}
           </div>
-          <div className="text-xs text-slate-400 mt-0.5">
+          <div className="text-xs text-slate-500 mt-0.5">
             {versions.length === 1 ? "Snapshot generated" : "Snapshots generated"}
           </div>
         </div>
       </div>
 
       {/* Card 4: Latest Version */}
-      <div className="relative overflow-hidden rounded-xl border border-white/10 bg-slate-900/60 p-4 backdrop-blur-md transition-all hover:border-white/20">
+      <div className="relative overflow-hidden rounded-xl border border-slate-200/80 bg-white p-4 shadow-xs transition-all hover:border-slate-300">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-medium uppercase tracking-wider text-slate-400">
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
             Latest Version
           </span>
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700">
             <Sparkles className="h-4 w-4" />
           </div>
         </div>
         <div className="mt-3">
           {latestVersion ? (
             <div>
-              <div className="text-sm font-semibold text-white truncate max-w-[180px]">
+              <div className="text-sm font-semibold text-slate-900 truncate max-w-[180px]">
                 {latestVersion.targetRole ?? latestVersion.targetCompany ?? `Snapshot #${String(versions.length)}`}
               </div>
-              <div className="text-xs text-slate-400 mt-0.5 truncate">
+              <div className="text-xs text-slate-500 mt-0.5 truncate">
                 {latestVersion.targetCompany ? `${latestVersion.targetCompany} • ` : ""}
                 {formatDate(latestVersion.createdAt) ?? "Recently"}
               </div>
             </div>
           ) : (
             <div>
-              <div className="text-sm font-medium text-slate-400">No versions yet</div>
-              <div className="text-xs text-slate-500 mt-0.5">Create a snapshot to track</div>
+              <div className="text-sm font-medium text-slate-500">No versions yet</div>
+              <div className="text-xs text-slate-400 mt-0.5">Create a snapshot to track</div>
             </div>
           )}
         </div>

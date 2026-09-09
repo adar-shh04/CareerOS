@@ -27,16 +27,16 @@ export function JobFilters({
   availableSkills,
 }: JobFiltersProps) {
   return (
-    <div className="flex flex-wrap items-center gap-2.5">
+    <div className="flex flex-wrap items-center gap-2">
       {/* Saved Filter */}
       {onToggleSavedOnly && (
         <button
           type="button"
           onClick={() => onToggleSavedOnly(!savedOnly)}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all shadow-2xs cursor-pointer ${
             savedOnly
-              ? "bg-purple-500/20 text-purple-300 border-purple-500/40"
-              : "bg-slate-900/60 text-slate-400 border-white/10 hover:border-white/20"
+              ? "bg-purple-50 text-purple-700 border-purple-200"
+              : "bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:text-slate-900"
           }`}
         >
           <Bookmark className="w-3.5 h-3.5" />
@@ -48,10 +48,10 @@ export function JobFilters({
       <button
         type="button"
         onClick={() => onToggleRemoteOnly(!remoteOnly)}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all ${
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all shadow-2xs cursor-pointer ${
           remoteOnly
-            ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
-            : "bg-slate-900/60 text-slate-400 border-white/10 hover:border-white/20"
+            ? "bg-blue-50 text-[#1d68ed] border-blue-200"
+            : "bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:text-slate-900"
         }`}
       >
         <Globe className="w-3.5 h-3.5" />
@@ -63,10 +63,10 @@ export function JobFilters({
         <button
           type="button"
           onClick={() => onToggleShowDismissed(!showDismissed)}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all shadow-2xs cursor-pointer ${
             showDismissed
-              ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
-              : "bg-slate-900/60 text-slate-400 border-white/10 hover:border-white/20"
+              ? "bg-amber-50 text-amber-800 border-amber-200"
+              : "bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:text-slate-900"
           }`}
         >
           <EyeOff className="w-3.5 h-3.5" />
@@ -75,18 +75,18 @@ export function JobFilters({
       )}
 
       {/* Skill Filter Dropdown */}
-      <div className="flex items-center gap-1.5 bg-slate-900/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-slate-300">
-        <Filter className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+      <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 shadow-2xs">
+        <Filter className="w-3.5 h-3.5 text-[#1d68ed] shrink-0" />
         <select
           value={selectedSkill}
           onChange={(e) => onSelectSkill(e.target.value)}
-          className="bg-transparent outline-none text-white cursor-pointer"
+          className="bg-transparent outline-none text-slate-800 cursor-pointer"
         >
-          <option value="" className="bg-slate-900 text-slate-300">
+          <option value="" className="bg-white text-slate-500">
             All Skills
           </option>
           {availableSkills.map((sk) => (
-            <option key={sk} value={sk} className="bg-slate-900 text-white">
+            <option key={sk} value={sk} className="bg-white text-slate-900">
               {sk}
             </option>
           ))}

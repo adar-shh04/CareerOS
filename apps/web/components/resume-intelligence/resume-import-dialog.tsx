@@ -1,3 +1,5 @@
+"use client";
+
 import type { MasterCareerProfileInput } from "@repo/types";
 import {
   Check,
@@ -169,47 +171,13 @@ export function ResumeImportDialog({
   };
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.75)",
-        backdropFilter: "blur(6px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 100,
-        padding: "1.5rem",
-      }}
-    >
-      <div
-        className="glass-panel"
-        style={{
-          width: "100%",
-          maxWidth: stage === "input" ? "640px" : "850px",
-          maxHeight: "90vh",
-          display: "flex",
-          flexDirection: "column",
-          borderRadius: "1rem",
-          overflow: "hidden",
-          backgroundColor: "#0b0f19",
-          border: "1px solid rgba(255, 255, 255, 0.08)",
-          boxShadow: "0 20px 40px rgba(0, 0, 0, 0.6)",
-        }}
-      >
+    <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+      <div className={`w-full ${stage === "input" ? "max-w-xl" : "max-w-3xl"} max-h-[90vh] flex flex-col rounded-xl overflow-hidden bg-white border border-slate-200 shadow-2xl`}>
         {/* Header */}
-        <div
-          style={{
-            padding: "1.25rem 1.5rem",
-            borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <Upload style={{ width: "18px", height: "18px", color: "#c084fc" }} />
-            <h3 style={{ fontSize: "1.1rem", fontWeight: "700" }}>
+        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-white">
+          <div className="flex items-center gap-2">
+            <Upload className="w-4 h-4 text-[#1d68ed]" />
+            <h3 className="text-base font-bold text-slate-900">
               {stage === "input"
                 ? "Import Existing Resume"
                 : "Review Extracted Career Profile"}
@@ -217,112 +185,59 @@ export function ResumeImportDialog({
           </div>
           <button
             onClick={onClose}
-            style={{
-              background: "none",
-              border: "none",
-              color: "#94a3b8",
-              cursor: "pointer",
-              fontSize: "1.1rem",
-            }}
+            className="text-slate-400 hover:text-slate-600 cursor-pointer"
           >
-            <X style={{ width: "18px", height: "18px" }} />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Content */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "1.5rem" }}>
+        <div className="flex-1 overflow-y-auto p-6 space-y-4 text-xs">
           {error && (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0.5rem",
-                padding: "0.75rem 1rem",
-                borderRadius: "0.5rem",
-                backgroundColor: "rgba(239, 68, 68, 0.1)",
-                border: "1px solid rgba(239, 68, 68, 0.2)",
-                color: "#fca5a5",
-                fontSize: "0.85rem",
-                marginBottom: "1rem",
-              }}
-            >
-              <ShieldAlert
-                style={{ width: "16px", height: "16px", flexShrink: 0 }}
-              />
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 shadow-2xs">
+              <ShieldAlert className="w-4 h-4 shrink-0 text-rose-600" />
               <span>{error}</span>
             </div>
           )}
 
           {stage === "input" ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: "1.2rem" }}>
+            <div className="flex flex-col gap-4">
               {/* Tab Selector */}
-              <div
-                style={{
-                  display: "flex",
-                  borderRadius: "0.5rem",
-                  backgroundColor: "rgba(15, 23, 42, 0.7)",
-                  padding: "0.25rem",
-                  border: "1px solid rgba(255, 255, 255, 0.08)",
-                }}
-              >
+              <div className="flex rounded-lg bg-slate-100 p-1 border border-slate-200">
                 <button
                   type="button"
                   onClick={() => setInputMode("file")}
-                  style={{
-                    flex: 1,
-                    padding: "0.5rem",
-                    borderRadius: "0.375rem",
-                    border: "none",
-                    backgroundColor:
-                      inputMode === "file" ? "rgba(99, 102, 241, 0.2)" : "transparent",
-                    color: inputMode === "file" ? "#ffffff" : "#94a3b8",
-                    fontWeight: inputMode === "file" ? "700" : "500",
-                    fontSize: "0.85rem",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "0.4rem",
-                    transition: "all 0.15s",
-                  }}
+                  className={`flex-1 py-1.5 rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    inputMode === "file"
+                      ? "bg-white text-[#1d68ed] shadow-xs font-bold"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
                 >
-                  <UploadCloud style={{ width: "15px", height: "15px" }} />
+                  <UploadCloud className="w-3.5 h-3.5" />
                   Upload Document
                 </button>
                 <button
                   type="button"
                   onClick={() => setInputMode("latex")}
-                  style={{
-                    flex: 1,
-                    padding: "0.5rem",
-                    borderRadius: "0.375rem",
-                    border: "none",
-                    backgroundColor:
-                      inputMode === "latex" ? "rgba(99, 102, 241, 0.2)" : "transparent",
-                    color: inputMode === "latex" ? "#ffffff" : "#94a3b8",
-                    fontWeight: inputMode === "latex" ? "700" : "500",
-                    fontSize: "0.85rem",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "0.4rem",
-                    transition: "all 0.15s",
-                  }}
+                  className={`flex-1 py-1.5 rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    inputMode === "latex"
+                      ? "bg-white text-[#1d68ed] shadow-xs font-bold"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
                 >
-                  <FileCode style={{ width: "15px", height: "15px" }} />
+                  <FileCode className="w-3.5 h-3.5" />
                   LaTeX Code
                 </button>
               </div>
 
               {inputMode === "file" ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                <div className="flex flex-col gap-3">
                   <input
                     ref={fileInputRef}
                     type="file"
                     accept=".pdf,.docx,.txt,.md,.json,.tex,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown,application/json,application/x-tex,text/x-tex"
                     onChange={handleFileSelect}
-                    style={{ display: "none" }}
+                    className="hidden"
                   />
 
                   <div
@@ -333,99 +248,45 @@ export function ResumeImportDialog({
                     onDragLeave={() => setIsDragging(false)}
                     onDrop={handleFileDrop}
                     onClick={() => fileInputRef.current?.click()}
-                    style={{
-                      border: isDragging
-                        ? "2px dashed #818cf8"
-                        : "2px dashed rgba(255, 255, 255, 0.12)",
-                      borderRadius: "0.75rem",
-                      padding: "2.5rem 1.5rem",
-                      textAlign: "center",
-                      backgroundColor: isDragging
-                        ? "rgba(99, 102, 241, 0.1)"
-                        : "rgba(15, 23, 42, 0.5)",
-                      cursor: "pointer",
-                      transition: "all 0.2s",
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      gap: "0.75rem",
-                    }}
+                    className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all flex flex-col items-center gap-3 ${
+                      isDragging
+                        ? "border-[#1d68ed] bg-blue-50/50"
+                        : "border-slate-300 bg-slate-50 hover:bg-white hover:border-slate-400"
+                    }`}
                   >
-                    <div
-                      style={{
-                        width: "48px",
-                        height: "48px",
-                        borderRadius: "12px",
-                        background: "rgba(99, 102, 241, 0.15)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: "#818cf8",
-                      }}
-                    >
+                    <div className="w-12 h-12 rounded-xl bg-blue-50 text-[#1d68ed] border border-blue-200/80 flex items-center justify-center">
                       {selectedFile ? (
-                        <FileCode style={{ width: "24px", height: "24px" }} />
+                        <FileCode className="w-6 h-6" />
                       ) : (
-                        <UploadCloud style={{ width: "24px", height: "24px" }} />
+                        <UploadCloud className="w-6 h-6" />
                       )}
                     </div>
 
                     {selectedFile ? (
                       <div>
-                        <div
-                          style={{
-                            fontSize: "0.95rem",
-                            fontWeight: "700",
-                            color: "#ffffff",
-                          }}
-                        >
+                        <div className="text-sm font-bold text-slate-900">
                           {selectedFile.name}
                         </div>
-                        <div
-                          style={{
-                            fontSize: "0.75rem",
-                            color: "#94a3b8",
-                            marginTop: "0.2rem",
-                          }}
-                        >
+                        <div className="text-xs text-slate-500 mt-1">
                           {(selectedFile.size / 1024).toFixed(1)} KB • Click or
                           drop another file to replace
                         </div>
                       </div>
                     ) : (
                       <div>
-                        <div
-                          style={{
-                            fontSize: "0.9rem",
-                            fontWeight: "600",
-                            color: "#e2e8f0",
-                          }}
-                        >
-                          Click to upload or drag & drop
+                        <div className="text-sm font-semibold text-slate-900">
+                          Click to upload or drag &amp; drop
                         </div>
-                        <div
-                          style={{
-                            fontSize: "0.75rem",
-                            color: "#64748b",
-                            marginTop: "0.25rem",
-                          }}
-                        >
-                          Supported formats: PDF, DOCX, TXT, LaTeX (.tex), Markdown, JSON (up
-                          to 10MB)
+                        <div className="text-xs text-slate-500 mt-1">
+                          Supported formats: PDF, DOCX, TXT, LaTeX (.tex), Markdown, JSON (up to 10MB)
                         </div>
                       </div>
                     )}
                   </div>
                 </div>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                  <p
-                    style={{
-                      fontSize: "0.8rem",
-                      color: "#94a3b8",
-                      lineHeight: "1.4",
-                    }}
-                  >
+                <div className="flex flex-col gap-2">
+                  <p className="text-xs text-slate-500 leading-relaxed">
                     Paste your raw LaTeX resume source code. CareerOS preserves your original LaTeX
                     template design and typography as the canonical source for your Resume Profile,
                     while extracting structured evidence for your Master Career Profile.
@@ -440,80 +301,35 @@ export function ResumeImportDialog({
 \section{Experience}
 Software Engineer at Example Corp
 \end{document}`}
-                    style={{
-                      width: "100%",
-                      height: "240px",
-                      borderRadius: "0.5rem",
-                      border: "1px solid rgba(255, 255, 255, 0.08)",
-                      backgroundColor: "rgba(15, 23, 42, 0.6)",
-                      color: "#e0e7ff",
-                      padding: "1rem",
-                      fontSize: "0.825rem",
-                      fontFamily: "monospace",
-                      resize: "none",
-                      outline: "none",
-                    }}
+                    className="w-full h-60 rounded-lg border border-slate-200 bg-slate-50 p-4 text-slate-900 font-mono text-xs leading-relaxed focus:border-[#1d68ed] focus:bg-white focus:ring-2 focus:ring-[#1d68ed]/20 focus:outline-none resize-none"
                   />
                 </div>
               )}
 
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  gap: "0.75rem",
-                  marginTop: "0.5rem",
-                }}
-              >
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
                 <button
+                  type="button"
                   onClick={onClose}
-                  style={{
-                    padding: "0.5rem 1rem",
-                    borderRadius: "0.375rem",
-                    border: "1px solid rgba(255,255,255,0.06)",
-                    backgroundColor: "transparent",
-                    color: "#94a3b8",
-                    fontSize: "0.85rem",
-                    cursor: "pointer",
-                  }}
+                  className="px-3.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition-colors shadow-2xs cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
+                  type="button"
                   onClick={() => {
                     void handleParse();
                   }}
                   disabled={parsing}
-                  style={{
-                    padding: "0.5rem 1.25rem",
-                    borderRadius: "0.375rem",
-                    background:
-                      "linear-gradient(135deg, #6366f1 0%, #a855f7 100%)",
-                    color: "#ffffff",
-                    fontWeight: "600",
-                    fontSize: "0.85rem",
-                    border: "none",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.4rem",
-                    opacity: parsing ? 0.7 : 1,
-                  }}
+                  className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#1d68ed] hover:bg-[#1555c8] text-white font-semibold shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
                 >
                   {parsing ? (
                     <>
-                      <Loader2
-                        style={{
-                          width: "14px",
-                          height: "14px",
-                          animation: "spin 1s linear infinite",
-                        }}
-                      />
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
                       Parsing Resume...
                     </>
                   ) : (
                     <>
-                      <Sparkles style={{ width: "14px", height: "14px" }} />
+                      <Sparkles className="w-3.5 h-3.5" />
                       Extract Information
                     </>
                   )}
@@ -525,82 +341,63 @@ Software Engineer at Example Corp
               onSubmit={(e) => {
                 void handleImportSubmit(e);
               }}
-              style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}
+              className="flex flex-col gap-5"
             >
-              <div
-                style={{
-                  padding: "0.75rem 1rem",
-                  borderRadius: "0.5rem",
-                  backgroundColor: "rgba(16, 185, 129, 0.08)",
-                  border: "1px solid rgba(16, 185, 129, 0.15)",
-                  color: "#34d399",
-                  fontSize: "0.85rem",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.5rem",
-                }}
-              >
-                <Check style={{ width: "16px", height: "16px" }} />
+              <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2 shadow-2xs">
+                <Check className="w-4 h-4 text-emerald-600" />
                 <span>Information extracted successfully. Review and edit the fields below before finalizing.</span>
               </div>
 
               {/* Form Fields */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-                <div>
-                  <label style={{ display: "block", fontSize: "0.75rem", color: "#64748b", textTransform: "uppercase", marginBottom: "0.35rem" }}>Full Name</label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Full Name</label>
                   <input
                     type="text"
                     value={parsedData?.identity.fullName ?? ""}
                     onChange={(e) => setParsedData(prev => prev ? { ...prev, identity: { ...prev.identity, fullName: e.target.value } } : null)}
-                    style={inputStyle}
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-slate-900 focus:border-[#1d68ed] focus:bg-white focus:ring-2 focus:ring-[#1d68ed]/20 focus:outline-none"
                     required
                   />
                 </div>
-                <div>
-                  <label style={{ display: "block", fontSize: "0.75rem", color: "#64748b", textTransform: "uppercase", marginBottom: "0.35rem" }}>Headline</label>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Headline</label>
                   <input
                     type="text"
                     value={parsedData?.identity.headline ?? ""}
                     onChange={(e) => setParsedData(prev => prev ? { ...prev, identity: { ...prev.identity, headline: e.target.value } } : null)}
-                    style={inputStyle}
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-slate-900 focus:border-[#1d68ed] focus:bg-white focus:ring-2 focus:ring-[#1d68ed]/20 focus:outline-none"
                   />
                 </div>
-                <div>
-                  <label style={{ display: "block", fontSize: "0.75rem", color: "#64748b", textTransform: "uppercase", marginBottom: "0.35rem" }}>Email</label>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Email</label>
                   <input
                     type="email"
                     value={parsedData?.identity.email ?? ""}
                     onChange={(e) => setParsedData(prev => prev ? { ...prev, identity: { ...prev.identity, email: e.target.value } } : null)}
-                    style={inputStyle}
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-slate-900 focus:border-[#1d68ed] focus:bg-white focus:ring-2 focus:ring-[#1d68ed]/20 focus:outline-none"
                   />
                 </div>
-                <div>
-                  <label style={{ display: "block", fontSize: "0.75rem", color: "#64748b", textTransform: "uppercase", marginBottom: "0.35rem" }}>Location</label>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Location</label>
                   <input
                     type="text"
                     value={parsedData?.identity.location ?? ""}
                     onChange={(e) => setParsedData(prev => prev ? { ...prev, identity: { ...prev.identity, location: e.target.value } } : null)}
-                    style={inputStyle}
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-slate-900 focus:border-[#1d68ed] focus:bg-white focus:ring-2 focus:ring-[#1d68ed]/20 focus:outline-none"
                   />
                 </div>
               </div>
 
               {/* Skills Extract Summary */}
               {parsedData?.skills && parsedData.skills.length > 0 && (
-                <div>
-                  <label style={{ display: "block", fontSize: "0.75rem", color: "#64748b", textTransform: "uppercase", marginBottom: "0.5rem" }}>Skills ({parsedData.skills.length})</label>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Skills ({parsedData.skills.length})</label>
+                  <div className="flex flex-wrap gap-1.5">
                     {parsedData.skills.map((skill, index) => (
                       <span
                         key={skill.id || String(index)}
-                        style={{
-                          fontSize: "0.75rem",
-                          padding: "0.25rem 0.5rem",
-                          borderRadius: "0.375rem",
-                          backgroundColor: "rgba(255,255,255,0.06)",
-                          border: "1px solid rgba(255,255,255,0.08)",
-                          color: "#cbd5e1",
-                        }}
+                        className="text-xs px-2.5 py-1 rounded-md bg-slate-100 border border-slate-200 text-slate-800 font-medium"
                       >
                         {skill.name}
                       </span>
@@ -611,21 +408,16 @@ Software Engineer at Example Corp
 
               {/* Experiences Summary */}
               {parsedData?.experiences && parsedData.experiences.length > 0 && (
-                <div>
-                  <label style={{ display: "block", fontSize: "0.75rem", color: "#64748b", textTransform: "uppercase", marginBottom: "0.5rem" }}>Work Experience ({parsedData.experiences.length})</label>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Work Experience ({parsedData.experiences.length})</label>
+                  <div className="flex flex-col gap-2">
                     {parsedData.experiences.map((exp, index) => (
                       <div
                         key={exp.id || String(index)}
-                        style={{
-                          padding: "0.75rem",
-                          borderRadius: "0.5rem",
-                          backgroundColor: "rgba(15, 23, 42, 0.4)",
-                          border: "1px solid rgba(255,255,255,0.04)",
-                        }}
+                        className="p-3 rounded-lg bg-slate-50 border border-slate-200/70"
                       >
-                        <div style={{ fontWeight: "600", fontSize: "0.85rem" }}>{exp.title}</div>
-                        <div style={{ fontSize: "0.75rem", color: "#94a3b8" }}>{exp.company} {exp.startDate && `(${exp.startDate} - ${exp.endDate ?? "Present"})`}</div>
+                        <div className="font-semibold text-slate-900">{exp.title}</div>
+                        <div className="text-slate-500 text-[11px] mt-0.5">{exp.company} {exp.startDate && `(${exp.startDate} - ${exp.endDate ?? "Present"})`}</div>
                       </div>
                     ))}
                   </div>
@@ -633,39 +425,19 @@ Software Engineer at Example Corp
               )}
 
               {/* Action Buttons */}
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "1rem" }}>
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setStage("input")}
-                  style={{
-                    padding: "0.5rem 1rem",
-                    borderRadius: "0.375rem",
-                    border: "1px solid rgba(255,255,255,0.06)",
-                    backgroundColor: "transparent",
-                    color: "#94a3b8",
-                    fontSize: "0.85rem",
-                    cursor: "pointer",
-                  }}
+                  className="px-3.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition-colors shadow-2xs cursor-pointer"
                 >
                   Back to Text
                 </button>
                 <button
                   type="submit"
-                  style={{
-                    padding: "0.5rem 1.25rem",
-                    borderRadius: "0.375rem",
-                    background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
-                    color: "#ffffff",
-                    fontWeight: "600",
-                    fontSize: "0.85rem",
-                    border: "none",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.4rem",
-                  }}
+                  className="px-4 py-1.5 rounded-lg bg-[#1d68ed] hover:bg-[#1555c8] text-white font-semibold shadow-xs transition-colors cursor-pointer"
                 >
-                  Confirm & Save Profile
+                  Confirm &amp; Save Profile
                 </button>
               </div>
             </form>
@@ -675,14 +447,3 @@ Software Engineer at Example Corp
     </div>
   );
 }
-
-const inputStyle = {
-  width: "100%",
-  padding: "0.625rem 0.85rem",
-  borderRadius: "0.375rem",
-  border: "1px solid rgba(255, 255, 255, 0.08)",
-  backgroundColor: "rgba(15, 23, 42, 0.6)",
-  color: "#ffffff",
-  fontSize: "0.85rem",
-  outline: "none",
-};

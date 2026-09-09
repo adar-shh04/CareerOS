@@ -28,49 +28,56 @@ type ApplicationStatus =
 
 const STATUS_CONFIG: Record<
   ApplicationStatus,
-  { label: string; color: string; bg: string; border: string }
+  { label: string; textClass: string; bgClass: string; borderClass: string; badgeClass: string }
 > = {
   saved: {
     label: "Saved",
-    color: "#818cf8",
-    bg: "rgba(99,102,241,0.12)",
-    border: "rgba(99,102,241,0.3)",
+    textClass: "text-purple-700",
+    bgClass: "bg-purple-50",
+    borderClass: "border-purple-200/80",
+    badgeClass: "bg-purple-50 text-purple-700 border-purple-200/80",
   },
   applied: {
     label: "Applied",
-    color: "#22d3ee",
-    bg: "rgba(34,211,238,0.12)",
-    border: "rgba(34,211,238,0.3)",
+    textClass: "text-[#1d68ed]",
+    bgClass: "bg-blue-50",
+    borderClass: "border-blue-200/80",
+    badgeClass: "bg-blue-50 text-[#1d68ed] border-blue-200/80",
   },
   screening: {
     label: "Screening",
-    color: "#f59e0b",
-    bg: "rgba(245,158,11,0.12)",
-    border: "rgba(245,158,11,0.3)",
+    textClass: "text-amber-700",
+    bgClass: "bg-amber-50",
+    borderClass: "border-amber-200/80",
+    badgeClass: "bg-amber-50 text-amber-700 border-amber-200/80",
   },
   interview: {
     label: "Interview",
-    color: "#a855f7",
-    bg: "rgba(168,85,247,0.12)",
-    border: "rgba(168,85,247,0.3)",
+    textClass: "text-indigo-700",
+    bgClass: "bg-indigo-50",
+    borderClass: "border-indigo-200/80",
+    badgeClass: "bg-indigo-50 text-indigo-700 border-indigo-200/80",
   },
   offer: {
     label: "Offer",
-    color: "#10b981",
-    bg: "rgba(16,185,129,0.12)",
-    border: "rgba(16,185,129,0.3)",
+    textClass: "text-emerald-700",
+    bgClass: "bg-emerald-50",
+    borderClass: "border-emerald-200/80",
+    badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200/80",
   },
   rejected: {
     label: "Rejected",
-    color: "#ef4444",
-    bg: "rgba(239,68,68,0.08)",
-    border: "rgba(239,68,68,0.2)",
+    textClass: "text-rose-700",
+    bgClass: "bg-rose-50",
+    borderClass: "border-rose-200/80",
+    badgeClass: "bg-rose-50 text-rose-700 border-rose-200/80",
   },
   withdrawn: {
     label: "Withdrawn",
-    color: "#64748b",
-    bg: "rgba(100,116,139,0.08)",
-    border: "rgba(100,116,139,0.2)",
+    textClass: "text-slate-600",
+    bgClass: "bg-slate-100",
+    borderClass: "border-slate-200",
+    badgeClass: "bg-slate-100 text-slate-600 border-slate-200",
   },
 };
 
@@ -97,37 +104,11 @@ function PipelineStat({
 }) {
   const cfg = STATUS_CONFIG[status];
   return (
-    <div
-      style={{
-        flex: 1,
-        padding: "1rem",
-        borderRadius: "0.75rem",
-        backgroundColor: cfg.bg,
-        border: `1px solid ${cfg.border}`,
-        textAlign: "center",
-        minWidth: "80px",
-      }}
-    >
-      <div
-        style={{
-          fontSize: "1.6rem",
-          fontWeight: "800",
-          color: cfg.color,
-          lineHeight: 1.1,
-        }}
-      >
+    <div className="flex-1 min-w-[90px] rounded-xl border border-slate-200/80 bg-white p-4 text-center shadow-xs">
+      <div className={`text-2xl font-bold tracking-tight leading-none ${cfg.textClass}`}>
         {count}
       </div>
-      <div
-        style={{
-          fontSize: "0.7rem",
-          color: "#94a3b8",
-          textTransform: "uppercase",
-          letterSpacing: "0.06em",
-          fontWeight: "600",
-          marginTop: "0.3rem",
-        }}
-      >
+      <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mt-1.5">
         {label}
       </div>
     </div>
@@ -137,26 +118,13 @@ function PipelineStat({
 /* ── Status badge ────────────────────────────────────────────────────────── */
 
 function StatusBadge({ status }: { status: string }) {
-  const cfg = (STATUS_CONFIG as Record<string, { label: string; color: string; bg: string; border: string }>)[status] ?? {
+  const cfg = (STATUS_CONFIG as Record<string, { label: string; badgeClass: string }>)[status] ?? {
     label: status,
-    color: "#94a3b8",
-    bg: "rgba(148,163,184,0.1)",
-    border: "rgba(148,163,184,0.2)",
+    badgeClass: "bg-slate-100 text-slate-600 border-slate-200",
   };
   return (
     <span
-      style={{
-        padding: "0.2rem 0.6rem",
-        borderRadius: "999px",
-        fontSize: "0.7rem",
-        fontWeight: "700",
-        textTransform: "uppercase",
-        letterSpacing: "0.06em",
-        color: cfg.color,
-        backgroundColor: cfg.bg,
-        border: `1px solid ${cfg.border}`,
-        whiteSpace: "nowrap",
-      }}
+      className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${cfg.badgeClass}`}
     >
       {cfg.label}
     </span>
@@ -174,40 +142,17 @@ function StatusSelect({
 }) {
   const [open, setOpen] = useState(false);
   return (
-    <div style={{ position: "relative" }}>
+    <div className="relative">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "0.3rem",
-          padding: "0.25rem 0.6rem",
-          borderRadius: "0.4rem",
-          border: "1px solid rgba(255,255,255,0.1)",
-          background: "rgba(15,23,42,0.6)",
-          color: "#94a3b8",
-          fontSize: "0.75rem",
-          cursor: "pointer",
-        }}
+        className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 cursor-pointer transition-colors shadow-2xs"
       >
-        Move to <ChevronDown style={{ width: "12px", height: "12px" }} />
+        <span>Move to</span>
+        <ChevronDown className="w-3 h-3 text-slate-400" />
       </button>
       {open && (
-        <div
-          style={{
-            position: "absolute",
-            top: "calc(100% + 4px)",
-            left: 0,
-            zIndex: 50,
-            backgroundColor: "#0f172a",
-            border: "1px solid rgba(255,255,255,0.1)",
-            borderRadius: "0.6rem",
-            overflow: "hidden",
-            minWidth: "140px",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
-          }}
-        >
+        <div className="absolute top-[calc(100%+4px)] left-0 z-50 rounded-lg border border-slate-200 bg-white py-1 min-w-[140px] shadow-lg">
           {ORDERED_STATUSES.filter((s) => s !== current).map((s) => {
             const cfg = STATUS_CONFIG[s];
             return (
@@ -218,17 +163,7 @@ function StatusSelect({
                   onSelect(s);
                   setOpen(false);
                 }}
-                style={{
-                  display: "block",
-                  width: "100%",
-                  textAlign: "left",
-                  padding: "0.5rem 0.8rem",
-                  fontSize: "0.8rem",
-                  color: cfg.color,
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                }}
+                className={`block w-full text-left px-3 py-1.5 text-xs font-medium hover:bg-slate-50 transition-colors cursor-pointer ${cfg.textClass}`}
               >
                 {cfg.label}
               </button>
@@ -270,47 +205,16 @@ function ApplicationRow({
   const sourceUrl = app.job?.sourceUrl ?? null;
 
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "1rem",
-        padding: "0.9rem 1rem",
-        borderRadius: "0.6rem",
-        backgroundColor: "rgba(15,23,42,0.5)",
-        border: "1px solid rgba(255,255,255,0.06)",
-        transition: "border-color 0.15s",
-      }}
-    >
+    <div className="flex items-center gap-3 sm:gap-4 p-3.5 sm:p-4 rounded-xl border border-slate-200/80 bg-white shadow-xs hover:border-slate-300 transition-colors">
       {/* Icon */}
-      <div
-        style={{
-          width: "36px",
-          height: "36px",
-          borderRadius: "0.5rem",
-          background: "rgba(99,102,241,0.1)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
-        }}
-      >
-        <Briefcase style={{ width: "16px", height: "16px", color: "#818cf8" }} />
+      <div className="w-9 h-9 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0 text-[#1d68ed]">
+        <Briefcase className="w-4 h-4" />
       </div>
 
       {/* Job info */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-          <span
-            style={{
-              fontSize: "0.9rem",
-              fontWeight: "600",
-              color: "#f1f5f9",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5">
+          <span className="text-sm font-semibold text-slate-900 truncate">
             {title}
           </span>
           {sourceUrl && (
@@ -319,37 +223,19 @@ function ApplicationRow({
               target="_blank"
               rel="noopener noreferrer"
               title="View original job posting"
-              style={{ color: "#818cf8", display: "inline-flex", alignItems: "center" }}
+              className="text-[#1d68ed] hover:text-[#1555c8] inline-flex items-center"
             >
-              <ExternalLink style={{ width: "11px", height: "11px" }} />
+              <ExternalLink className="w-3 h-3" />
             </a>
           )}
         </div>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "0.6rem",
-            fontSize: "0.78rem",
-            color: "#64748b",
-            marginTop: "0.15rem",
-            flexWrap: "wrap",
-          }}
-        >
-          <span style={{ color: "#cbd5e1", fontWeight: "500" }}>{company}</span>
+        <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5 flex-wrap">
+          <span className="font-semibold text-slate-900">{company}</span>
           {location && <span>• {location}</span>}
-          {salary && <span style={{ color: "#10b981" }}>• {salary}</span>}
+          {salary && <span className="text-emerald-700 font-medium">• {salary}</span>}
           {appliedDate && (
-            <span style={{ color: "#475569" }}>
-              <Calendar
-                style={{
-                  width: "10px",
-                  height: "10px",
-                  display: "inline",
-                  marginRight: "0.25rem",
-                  verticalAlign: "middle",
-                }}
-              />
+            <span className="flex items-center gap-1 text-slate-400">
+              <Calendar className="w-3 h-3 inline" />
               {appliedDate}
             </span>
           )}
@@ -369,23 +255,10 @@ function ApplicationRow({
       <Link
         href={`/applications/${app.id}`}
         title="Open application workspace"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "0.25rem",
-          padding: "0.3rem 0.65rem",
-          borderRadius: "0.4rem",
-          backgroundColor: "rgba(99,102,241,0.1)",
-          border: "1px solid rgba(99,102,241,0.25)",
-          color: "#818cf8",
-          fontSize: "0.75rem",
-          fontWeight: "600",
-          textDecoration: "none",
-          transition: "all 0.15s",
-        }}
+        className="flex items-center gap-1 rounded-lg bg-[#1d68ed] hover:bg-[#1555c8] text-white px-3 py-1.5 text-xs font-semibold shadow-xs transition-colors cursor-pointer"
       >
         <span>Workspace</span>
-        <ArrowRight style={{ width: "12px", height: "12px" }} />
+        <ArrowRight className="w-3 h-3" />
       </Link>
 
       {/* Delete */}
@@ -393,18 +266,9 @@ function ApplicationRow({
         type="button"
         onClick={() => onDelete(app.id)}
         title="Remove application"
-        style={{
-          background: "none",
-          border: "none",
-          color: "#475569",
-          cursor: "pointer",
-          padding: "0.25rem",
-          borderRadius: "0.3rem",
-          display: "flex",
-          alignItems: "center",
-        }}
+        className="p-1.5 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
       >
-        <Trash2 style={{ width: "14px", height: "14px" }} />
+        <Trash2 className="w-3.5 h-3.5" />
       </button>
     </div>
   );
@@ -414,58 +278,19 @@ function ApplicationRow({
 
 function EmptyApplications({ onGoToJobs }: { onGoToJobs?: () => void }) {
   return (
-    <div
-      style={{
-        padding: "3rem 1.5rem",
-        textAlign: "center",
-        borderRadius: "0.75rem",
-        backgroundColor: "rgba(15,23,42,0.4)",
-        border: "1px dashed rgba(255,255,255,0.1)",
-      }}
-    >
-      <Briefcase
-        style={{
-          width: "40px",
-          height: "40px",
-          color: "#334155",
-          margin: "0 auto 1rem",
-        }}
-      />
-      <h3
-        style={{
-          fontSize: "1rem",
-          fontWeight: "700",
-          color: "#cbd5e1",
-          marginBottom: "0.5rem",
-        }}
-      >
+    <div className="rounded-xl border border-dashed border-slate-200 bg-white p-12 text-center shadow-xs">
+      <Briefcase className="w-10 h-10 text-[#1d68ed] mx-auto mb-3" />
+      <h3 className="text-base font-bold text-slate-900 mb-1">
         No applications yet
       </h3>
-      <p
-        style={{
-          fontSize: "0.85rem",
-          color: "#64748b",
-          maxWidth: "340px",
-          margin: "0 auto 1.25rem",
-          lineHeight: 1.5,
-        }}
-      >
+      <p className="text-xs text-slate-500 max-w-sm mx-auto mb-4 leading-relaxed">
         Save or apply to jobs from the Job Radar to begin tracking your pipeline.
       </p>
       {onGoToJobs && (
         <button
           type="button"
           onClick={onGoToJobs}
-          style={{
-            padding: "0.5rem 1.1rem",
-            borderRadius: "0.5rem",
-            background: "linear-gradient(135deg, #6366f1, #a855f7)",
-            color: "#fff",
-            fontWeight: "600",
-            fontSize: "0.85rem",
-            border: "none",
-            cursor: "pointer",
-          }}
+          className="rounded-lg bg-[#1d68ed] hover:bg-[#1555c8] px-4 py-2 text-xs font-semibold text-white shadow-xs transition-colors cursor-pointer"
         >
           Browse Job Radar
         </button>
@@ -570,41 +395,21 @@ export function ApplicationTrackerView({ onGoToJobs }: ApplicationTrackerViewPro
   /* ── Render ─────────────────────────────────────────────────────────── */
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+    <div className="flex flex-col gap-6">
       {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
+      <div className="flex items-center justify-between gap-4">
         <div>
-          <h2
-            style={{
-              fontSize: "1.35rem",
-              fontWeight: "700",
-              letterSpacing: "-0.02em",
-            }}
-          >
+          <h2 className="text-xl font-bold tracking-tight text-slate-900">
             Application Pipeline
           </h2>
-          <span style={{ fontSize: "0.8rem", color: "#94a3b8" }}>
+          <span className="text-xs text-slate-500">
             Track every application from discovery to outcome.
           </span>
         </div>
         <button
           type="button"
           onClick={() => void loadApplications()}
-          style={{
-            padding: "0.45rem 0.9rem",
-            borderRadius: "0.5rem",
-            border: "1px solid rgba(255,255,255,0.1)",
-            background: "rgba(15,23,42,0.6)",
-            color: "#94a3b8",
-            fontSize: "0.8rem",
-            cursor: "pointer",
-          }}
+          className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs cursor-pointer"
         >
           Refresh
         </button>
@@ -612,7 +417,7 @@ export function ApplicationTrackerView({ onGoToJobs }: ApplicationTrackerViewPro
 
       {/* Pipeline stats */}
       {!loading && !error && apps.length > 0 && (
-        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+        <div className="flex gap-3 flex-wrap">
           <PipelineStat label="Saved" count={stats.saved} status="saved" />
           <PipelineStat label="Applied" count={stats.applied} status="applied" />
           <PipelineStat label="Screening" count={stats.screening} status="screening" />
@@ -624,7 +429,7 @@ export function ApplicationTrackerView({ onGoToJobs }: ApplicationTrackerViewPro
 
       {/* Filter bar */}
       {!loading && apps.length > 0 && (
-        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+        <div className="flex gap-2 flex-wrap">
           {(["all", ...ORDERED_STATUSES] as const).map((s) => {
             const isActive = filterStatus === s;
             const cfg = s !== "all" ? STATUS_CONFIG[s] : null;
@@ -633,21 +438,11 @@ export function ApplicationTrackerView({ onGoToJobs }: ApplicationTrackerViewPro
                 key={s}
                 type="button"
                 onClick={() => setFilterStatus(s)}
-                style={{
-                  padding: "0.3rem 0.75rem",
-                  borderRadius: "999px",
-                  fontSize: "0.75rem",
-                  fontWeight: "600",
-                  border: isActive
-                    ? `1px solid ${cfg?.border ?? "rgba(99,102,241,0.4)"}`
-                    : "1px solid rgba(255,255,255,0.08)",
-                  background: isActive
-                    ? (cfg?.bg ?? "rgba(99,102,241,0.12)")
-                    : "transparent",
-                  color: isActive ? (cfg?.color ?? "#818cf8") : "#64748b",
-                  cursor: "pointer",
-                  transition: "all 0.15s",
-                }}
+                className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors cursor-pointer border ${
+                  isActive
+                    ? (cfg?.badgeClass ?? "bg-blue-50 text-[#1d68ed] border-blue-200/80")
+                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                }`}
               >
                 {s === "all" ? `All (${String(apps.length)})` : STATUS_CONFIG[s].label}
               </button>
@@ -658,66 +453,25 @@ export function ApplicationTrackerView({ onGoToJobs }: ApplicationTrackerViewPro
 
       {/* Content */}
       {loading ? (
-        <div
-          style={{
-            padding: "3rem",
-            textAlign: "center",
-            color: "#64748b",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "0.5rem",
-          }}
-        >
-          <Loader2
-            style={{
-              width: "16px",
-              height: "16px",
-              animation: "spin 1s linear infinite",
-            }}
-          />
-          Loading applications…
+        <div className="py-16 text-center text-slate-400 flex items-center justify-center gap-2 text-xs">
+          <Loader2 className="w-4 h-4 animate-spin text-[#1d68ed]" />
+          <span>Loading applications…</span>
         </div>
       ) : error ? (
-        <div
-          style={{
-            padding: "1.5rem",
-            borderRadius: "0.75rem",
-            backgroundColor: "rgba(239,68,68,0.08)",
-            border: "1px solid rgba(239,68,68,0.2)",
-            color: "#ef4444",
-            fontSize: "0.85rem",
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem",
-          }}
-        >
-          <XCircle style={{ width: "16px", height: "16px", flexShrink: 0 }} />
-          {error}
+        <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-700 flex items-center gap-2 shadow-2xs">
+          <XCircle className="w-4 h-4 shrink-0 text-rose-500" />
+          <span>{error}</span>
         </div>
       ) : filtered.length === 0 ? (
         apps.length === 0 ? (
           <EmptyApplications onGoToJobs={onGoToJobs} />
         ) : (
-          <div
-            style={{
-              padding: "2rem",
-              textAlign: "center",
-              color: "#64748b",
-              fontSize: "0.9rem",
-            }}
-          >
+          <div className="py-12 text-center text-slate-500 text-xs">
             No applications with status &quot;{filterStatus}&quot;.
           </div>
         )
       ) : (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "0.5rem",
-          }}
-        >
+        <div className="flex flex-col gap-2.5">
           {filtered.map((app) => (
             <ApplicationRow
               key={app.id}

@@ -73,8 +73,8 @@ export function ResumeStudioOverview() {
   if (loading) {
     return (
       <div className="flex h-96 flex-col items-center justify-center gap-3 text-slate-400">
-        <Loader2 className="h-6 w-6 animate-spin text-indigo-500" />
-        <span className="text-xs">Loading Resume Studio inventory...</span>
+        <Loader2 className="h-6 w-6 animate-spin text-[#1d68ed]" />
+        <span className="text-xs font-medium">Loading Resume Studio inventory...</span>
       </div>
     );
   }
@@ -82,20 +82,20 @@ export function ResumeStudioOverview() {
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       {/* Top Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-white/[0.08] bg-[#0b0f19] p-6 backdrop-blur-md">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-slate-200/80 bg-white p-6 shadow-xs">
         <div>
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-[#1d68ed] border border-blue-200/80">
               <FileText className="h-4 w-4" />
             </div>
-            <h1 className="text-xl font-bold tracking-tight text-white">
+            <h1 className="text-xl font-bold tracking-tight text-slate-900">
               Resume Studio
             </h1>
-            <span className="rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2.5 py-0.5 text-[10px] font-semibold text-indigo-300">
+            <span className="rounded-full border border-blue-200/80 bg-blue-50 px-2.5 py-0.5 text-[10px] font-semibold text-[#1d68ed]">
               Persistent Asset Management
             </span>
           </div>
-          <p className="mt-1 text-xs text-slate-400 max-w-2xl leading-relaxed">
+          <p className="mt-1 text-xs text-slate-500 max-w-2xl leading-relaxed">
             Resumes in CareerOS are persistent, versioned documents tailored per role focus — not disposable AI text dumps. Every version maintains full traceability to your Master Career Profile.
           </p>
         </div>
@@ -104,15 +104,15 @@ export function ResumeStudioOverview() {
           <button
             type="button"
             onClick={() => void loadData()}
-            className="flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-xs font-medium text-slate-300 hover:bg-white/[0.05] transition-colors"
+            className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition-colors shadow-2xs cursor-pointer"
           >
-            <RefreshCw className="h-3.5 w-3.5 text-slate-400" />
+            <RefreshCw className="h-3.5 w-3.5 text-slate-500" />
             <span>Refresh</span>
           </button>
 
           <Link
             href="/resumes/new"
-            className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-indigo-600/20 hover:from-indigo-500 hover:to-purple-500 transition-all"
+            className="flex items-center gap-1.5 rounded-lg bg-[#1d68ed] hover:bg-[#1555c8] px-4 py-2 text-xs font-semibold text-white shadow-xs transition-all cursor-pointer"
           >
             <Plus className="h-3.5 w-3.5" />
             <span>Create Resume Profile</span>
@@ -121,7 +121,7 @@ export function ResumeStudioOverview() {
       </div>
 
       {error && (
-        <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-xs text-rose-300">
+        <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-700 shadow-2xs">
           {error}
         </div>
       )}
@@ -129,7 +129,7 @@ export function ResumeStudioOverview() {
       {/* Profiles Grid */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-400">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
             Configured Resume Profiles ({profiles.length})
           </h2>
           <span className="text-xs text-slate-500">
@@ -138,17 +138,17 @@ export function ResumeStudioOverview() {
         </div>
 
         {profiles.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-white/10 bg-slate-900/40 p-8 text-center space-y-3">
-            <FileCode className="w-8 h-8 text-indigo-400 mx-auto" />
-            <div className="text-sm font-semibold text-white">
+          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white p-8 text-center gap-3 shadow-xs">
+            <FileCode className="w-8 h-8 text-[#1d68ed]" />
+            <div className="text-sm font-bold text-slate-900">
               No Resume Profiles Yet
             </div>
-            <p className="text-xs text-slate-400 max-w-sm mx-auto">
+            <p className="text-xs text-slate-500 max-w-sm text-center">
               Create your first profile to customize section orders, choose priority skills from your master evidence, or import a custom LaTeX template.
             </p>
             <Link
               href="/resumes/new"
-              className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[#1d68ed] hover:bg-[#1555c8] px-4 py-2 text-xs font-semibold text-white shadow-xs transition-colors cursor-pointer"
             >
               <Plus className="w-4 h-4" /> Create Profile Now
             </Link>
@@ -162,36 +162,36 @@ export function ResumeStudioOverview() {
               return (
                 <div
                   key={p.id}
-                  className="rounded-xl border border-white/[0.08] bg-[#0b0f19] p-5 space-y-3 flex flex-col justify-between hover:border-indigo-500/40 transition-colors group"
+                  className="rounded-xl border border-slate-200/80 bg-white p-5 space-y-3 flex flex-col justify-between hover:border-slate-300 transition-colors group shadow-xs"
                 >
                   <div className="space-y-1.5">
                     <div className="flex items-start justify-between gap-2">
-                      <h3 className="font-bold text-white group-hover:text-indigo-300 transition-colors text-sm">
+                      <h3 className="font-bold text-slate-900 group-hover:text-[#1d68ed] transition-colors text-sm">
                         {p.name}
                       </h3>
-                      <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] text-slate-400 font-medium">
+                      <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] text-slate-600 font-medium">
                         {versionCount} {versionCount === 1 ? "version" : "versions"}
                       </span>
                     </div>
 
-                    <p className="text-xs text-indigo-300 font-medium">
+                    <p className="text-xs text-[#1d68ed] font-semibold">
                       {p.roleFocus ?? "General Professional Focus"}
                     </p>
 
                     {p.summaryGuidance && (
-                      <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed">
+                      <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
                         {p.summaryGuidance}
                       </p>
                     )}
                   </div>
 
-                  <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs">
+                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
                     <span className="text-[10px] text-slate-500">
                       Updated {new Date(p.updatedAt).toLocaleDateString()}
                     </span>
                     <Link
                       href={`/resumes/${p.id}`}
-                      className="inline-flex items-center gap-1 text-indigo-400 hover:text-indigo-300 font-semibold text-xs"
+                      className="inline-flex items-center gap-1 text-[#1d68ed] hover:text-[#1555c8] font-semibold text-xs transition-colors"
                     >
                       Open Workspace <ArrowRight className="w-3.5 h-3.5" />
                     </Link>
@@ -206,7 +206,7 @@ export function ResumeStudioOverview() {
       {/* Persistent Versions Inventory */}
       <div className="space-y-3 pt-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-400">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
             Persistent Version Archive ({recentVersions.length})
           </h2>
           <span className="text-xs text-slate-500">
@@ -215,32 +215,32 @@ export function ResumeStudioOverview() {
         </div>
 
         {recentVersions.length === 0 ? (
-          <div className="rounded-xl border border-white/[0.08] bg-slate-900/30 p-6 text-center text-xs text-slate-400">
+          <div className="rounded-xl border border-slate-200/80 bg-white p-6 text-center text-xs text-slate-500 shadow-xs">
             No versions targeted yet. When you target a job in Job Radar or generate a snapshot, it is preserved here permanently.
           </div>
         ) : (
-          <div className="rounded-2xl border border-white/[0.08] bg-[#0b0f19] divide-y divide-white/[0.06] overflow-hidden">
+          <div className="rounded-xl border border-slate-200/80 bg-white divide-y divide-slate-100 overflow-hidden shadow-xs">
             {recentVersions.slice(0, 10).map(({ profile, version }) => (
               <div
                 key={version.id}
-                className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-white/[0.02] transition-colors"
+                className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/70 transition-colors"
               >
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold text-white text-xs">
+                    <span className="font-semibold text-slate-900 text-xs">
                       {version.targetCompany
                         ? `${version.targetCompany} — ${version.targetRole ?? "Targeted Role"}`
                         : profile.name}
                     </span>
-                    <span className="rounded border border-indigo-500/20 bg-indigo-500/10 px-1.5 py-0.5 text-[9px] uppercase font-bold text-indigo-400">
+                    <span className="rounded border border-blue-200/80 bg-blue-50 px-1.5 py-0.5 text-[9px] uppercase font-bold text-[#1d68ed]">
                       {version.outputFormat}
                     </span>
                   </div>
-                  <div className="text-[11px] text-slate-400 flex items-center gap-3">
+                  <div className="text-[11px] text-slate-500 flex items-center gap-3">
                     <span>Profile: {profile.name}</span>
                     <span>·</span>
                     <span className="flex items-center gap-1">
-                      <Clock className="w-3 h-3 text-slate-500" />
+                      <Clock className="w-3 h-3 text-slate-400" />
                       {new Date(version.createdAt).toLocaleDateString(undefined, {
                         month: "short",
                         day: "numeric",
@@ -250,7 +250,7 @@ export function ResumeStudioOverview() {
                     {version.confidence != null && (
                       <>
                         <span>·</span>
-                        <span className="text-emerald-400 font-medium">
+                        <span className="text-emerald-700 font-semibold">
                           Confidence: {Math.round(version.confidence * 100)}%
                         </span>
                       </>
@@ -261,7 +261,7 @@ export function ResumeStudioOverview() {
                 <div className="flex items-center gap-2">
                   <Link
                     href={`/resumes/${profile.id}/versions/${version.id}`}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-slate-900 px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition-colors shadow-2xs"
                   >
                     <Eye className="w-3.5 h-3.5" />
                     <span>View Snapshot</span>

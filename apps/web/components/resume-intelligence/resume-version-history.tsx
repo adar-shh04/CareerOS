@@ -14,6 +14,7 @@ import {
   FileText,
   History,
   Sparkles,
+  X,
 } from "lucide-react";
 import React, { useState } from "react";
 
@@ -62,17 +63,10 @@ export function ResumeVersionHistory({
 
   if (!selectedProfile) {
     return (
-      <div
-        className="glass-panel"
-        style={{
-          padding: "3rem 1.5rem",
-          textAlign: "center",
-          color: "#94a3b8",
-        }}
-      >
-        <History style={{ width: "36px", height: "36px", color: "#6366f1", marginBottom: "1rem" }} />
-        <h4 style={{ fontSize: "1.05rem", fontWeight: "700" }}>Select a Resume Profile</h4>
-        <p style={{ fontSize: "0.85rem", marginTop: "0.25rem" }}>
+      <div className="p-12 text-center rounded-xl border border-dashed border-slate-200 bg-white shadow-xs">
+        <History className="w-9 h-9 text-[#1d68ed] mx-auto mb-3" />
+        <h4 className="text-sm font-bold text-slate-900">Select a Resume Profile</h4>
+        <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
           Please select a profile from the &quot;Resume Profiles&quot; tab to view or create version snapshots.
         </p>
       </div>
@@ -80,159 +74,90 @@ export function ResumeVersionHistory({
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+    <div className="flex flex-col gap-6">
       {/* Header Bar */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          backgroundColor: "rgba(15, 23, 42, 0.6)",
-          padding: "1rem 1.5rem",
-          borderRadius: "0.75rem",
-          border: "1px solid rgba(255,255,255,0.08)",
-        }}
-      >
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-5 rounded-xl border border-slate-200/80 bg-white shadow-xs gap-4">
         <div>
-          <h3 style={{ fontSize: "1.1rem", fontWeight: "700" }}>
+          <h3 className="text-base font-bold text-slate-900 tracking-tight">
             Immutable Resume Versions
           </h3>
-          <p style={{ fontSize: "0.8rem", color: "#94a3b8" }}>
-            Active Profile: <strong style={{ color: "#818cf8" }}>{selectedProfile.name}</strong> • Provenance snapshots for job applications.
+          <p className="text-xs text-slate-500 mt-0.5">
+            Active Profile: <strong className="text-[#1d68ed]">{selectedProfile.name}</strong> • Provenance snapshots for job applications.
           </p>
         </div>
 
         <button
           type="button"
           onClick={() => setShowModal(true)}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem",
-            padding: "0.6rem 1.25rem",
-            borderRadius: "0.5rem",
-            background: "linear-gradient(135deg, #6366f1 0%, #a855f7 100%)",
-            color: "#ffffff",
-            fontWeight: "600",
-            fontSize: "0.85rem",
-            border: "none",
-            cursor: "pointer",
-            boxShadow: "0 4px 15px rgba(99, 102, 241, 0.3)",
-          }}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#1d68ed] hover:bg-[#1555c8] text-white font-semibold text-xs shadow-xs transition-colors cursor-pointer"
         >
-          <Sparkles style={{ width: "16px", height: "16px" }} />
+          <Sparkles className="w-4 h-4" />
           Generate New Version Snapshot
         </button>
       </div>
 
       {/* Version List */}
       {loading ? (
-        <div style={{ padding: "3rem", textAlign: "center", color: "#94a3b8" }}>
+        <div className="p-12 text-center text-slate-400 text-xs">
           Loading version history...
         </div>
       ) : versions.length === 0 ? (
-        <div
-          className="glass-panel"
-          style={{
-            padding: "3rem 1.5rem",
-            textAlign: "center",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: "1rem",
-          }}
-        >
-          <History style={{ width: "36px", height: "36px", color: "#6366f1" }} />
+        <div className="p-12 text-center rounded-xl border border-dashed border-slate-200 bg-white shadow-xs flex flex-col items-center gap-3">
+          <History className="w-9 h-9 text-[#1d68ed]" />
           <div>
-            <h4 style={{ fontSize: "1.05rem", fontWeight: "700" }}>No Version Snapshots Created</h4>
-            <p style={{ fontSize: "0.85rem", color: "#94a3b8", marginTop: "0.25rem" }}>
+            <h4 className="text-sm font-bold text-slate-900">No Version Snapshots Created</h4>
+            <p className="text-xs text-slate-500 mt-1 max-w-sm">
               Generate an immutable resume snapshot for a specific application to lock in record provenance.
             </p>
           </div>
           <button
             type="button"
             onClick={() => setShowModal(true)}
-            style={{
-              padding: "0.5rem 1rem",
-              borderRadius: "0.5rem",
-              backgroundColor: "rgba(99, 102, 241, 0.2)",
-              border: "1px solid rgba(99, 102, 241, 0.3)",
-              color: "#818cf8",
-              fontSize: "0.85rem",
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
+            className="px-4 py-2 rounded-lg bg-[#1d68ed] hover:bg-[#1555c8] text-white font-semibold text-xs shadow-xs transition-colors cursor-pointer"
           >
             + Generate First Snapshot
           </button>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+        <div className="flex flex-col gap-3">
           {versions.map((ver) => (
             <div
               key={ver.id}
-              className="glass-panel"
-              style={{
-                padding: "1.25rem 1.5rem",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
+              className="p-4 sm:p-5 rounded-xl border border-slate-200/80 bg-white shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:border-slate-300 transition-colors"
             >
-              <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+              <div className="flex items-center gap-3.5">
                 <FormatBadge format={ver.outputFormat} />
                 <div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                    <h4 style={{ fontSize: "1rem", fontWeight: "700" }}>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="text-sm font-bold text-slate-900">
                       {ver.targetCompany ? `${ver.targetCompany} — ` : ""}{ver.targetRole ?? "General Application"}
                     </h4>
                     {ver.confidence && (
-                      <span
-                        style={{
-                          fontSize: "0.7rem",
-                          fontWeight: "700",
-                          color: "#10b981",
-                          backgroundColor: "rgba(16, 185, 129, 0.15)",
-                          padding: "0.15rem 0.5rem",
-                          borderRadius: "999px",
-                        }}
-                      >
+                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
                         {Math.round(ver.confidence * 100)}% Fit Score
                       </span>
                     )}
                   </div>
-                  <p style={{ fontSize: "0.8rem", color: "#94a3b8", marginTop: "0.2rem" }}>
+                  <p className="text-xs text-slate-500 mt-0.5">
                     {ver.explanation ?? `Generated snapshot template ${ver.templateVersion ?? "v1.0"}`}
                   </p>
                 </div>
               </div>
 
-              <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
-                <div style={{ textAlign: "right", fontSize: "0.75rem", color: "#64748b" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
-                    <Clock style={{ width: "12px", height: "12px" }} />
+              <div className="flex items-center gap-4 self-end sm:self-auto">
+                <div className="text-right text-xs text-slate-400">
+                  <div className="flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-slate-400" />
                     {new Date(ver.createdAt).toLocaleString()}
                   </div>
-                  <div>ID: {ver.id.slice(0, 8)}...</div>
+                  <div className="text-[10px] text-slate-400">ID: {ver.id.slice(0, 8)}...</div>
                 </div>
 
                 <button
                   type="button"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.35rem",
-                    padding: "0.4rem 0.75rem",
-                    borderRadius: "0.375rem",
-                    backgroundColor: "rgba(255,255,255,0.05)",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    color: "#f8fafc",
-                    fontSize: "0.8rem",
-                    fontWeight: 500,
-                    cursor: "pointer",
-                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 text-xs font-medium shadow-2xs transition-colors cursor-pointer"
                 >
-                  <FileDown style={{ width: "14px", height: "14px" }} />
+                  <FileDown className="w-3.5 h-3.5" />
                   Export {ver.outputFormat.toUpperCase()}
                 </button>
               </div>
@@ -243,106 +168,67 @@ export function ResumeVersionHistory({
 
       {/* Generate Version Modal */}
       {showModal && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            backgroundColor: "rgba(0,0,0,0.6)",
-            backdropFilter: "blur(6px)",
-            zIndex: 60,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "1.5rem",
-          }}
-        >
-          <div
-            className="glass-panel"
-            style={{
-              width: "100%",
-              maxWidth: "500px",
-              padding: "1.75rem",
-              display: "flex",
-              flexDirection: "column",
-              gap: "1.25rem",
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h3 style={{ fontSize: "1.25rem", fontWeight: "700" }}>Generate Resume Snapshot</h3>
+        <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-xl bg-white border border-slate-200 p-6 space-y-4 shadow-xl">
+            <div className="flex justify-between items-center">
+              <h3 className="text-base font-bold text-slate-900">Generate Resume Snapshot</h3>
               <button
                 type="button"
                 onClick={() => setShowModal(false)}
-                style={{ background: "none", border: "none", color: "#94a3b8", fontSize: "1.25rem", cursor: "pointer" }}
+                className="text-slate-400 hover:text-slate-600 cursor-pointer"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={(e) => void handleGenerate(e)} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-              <label style={labelStyle}>
-                <span style={labelText}>Target Company</span>
+            <form onSubmit={(e) => void handleGenerate(e)} className="space-y-3 text-xs">
+              <div className="space-y-1">
+                <label className="text-slate-900 font-semibold block">Target Company</label>
                 <input
                   type="text"
                   value={targetCompany}
                   onChange={(e) => setTargetCompany(e.target.value)}
                   placeholder="e.g. Anthropic, Scale AI, Vercel"
-                  style={inputStyle}
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-slate-900 focus:border-[#1d68ed] focus:bg-white focus:ring-2 focus:ring-[#1d68ed]/20 focus:outline-none"
                 />
-              </label>
+              </div>
 
-              <label style={labelStyle}>
-                <span style={labelText}>Target Role</span>
+              <div className="space-y-1">
+                <label className="text-slate-900 font-semibold block">Target Role</label>
                 <input
                   type="text"
                   value={targetRole}
                   onChange={(e) => setTargetRole(e.target.value)}
                   placeholder="e.g. Staff AI Platform Lead"
-                  style={inputStyle}
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-slate-900 focus:border-[#1d68ed] focus:bg-white focus:ring-2 focus:ring-[#1d68ed]/20 focus:outline-none"
                 />
-              </label>
+              </div>
 
-              <label style={labelStyle}>
-                <span style={labelText}>Output Format</span>
+              <div className="space-y-1">
+                <label className="text-slate-900 font-semibold block">Output Format</label>
                 <select
                   value={outputFormat}
                   onChange={(e) => setOutputFormat(e.target.value as ResumeOutputFormat)}
-                  style={inputStyle}
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-slate-900 focus:border-[#1d68ed] focus:bg-white focus:ring-2 focus:ring-[#1d68ed]/20 focus:outline-none"
                 >
                   <option value="html">Interactive Web (HTML)</option>
                   <option value="latex">LaTeX Source Document (.tex)</option>
                   <option value="pdf">Compiled PDF Document (.pdf)</option>
                 </select>
-              </label>
+              </div>
 
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "0.5rem" }}>
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  style={{
-                    padding: "0.5rem 1rem",
-                    borderRadius: "0.5rem",
-                    backgroundColor: "transparent",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    color: "#94a3b8",
-                    fontSize: "0.85rem",
-                    cursor: "pointer",
-                  }}
+                  className="px-3.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  style={{
-                    padding: "0.5rem 1.25rem",
-                    borderRadius: "0.5rem",
-                    background: "linear-gradient(135deg, #6366f1 0%, #a855f7 100%)",
-                    color: "#ffffff",
-                    fontWeight: 600,
-                    fontSize: "0.85rem",
-                    border: "none",
-                    cursor: "pointer",
-                  }}
+                  className="px-4 py-1.5 rounded-lg bg-[#1d68ed] hover:bg-[#1555c8] text-white font-semibold text-xs shadow-xs transition-colors cursor-pointer disabled:opacity-50"
                 >
                   {submitting ? "Generating..." : "Create Snapshot"}
                 </button>
@@ -358,49 +244,16 @@ export function ResumeVersionHistory({
 function FormatBadge({ format }: { format: ResumeOutputFormat }) {
   const icon =
     format === "latex" ? (
-      <FileCode style={{ width: "16px", height: "16px", color: "#a855f7" }} />
+      <FileCode className="w-4 h-4 text-purple-600" />
     ) : format === "pdf" ? (
-      <FileText style={{ width: "16px", height: "16px", color: "#f43f5e" }} />
+      <FileText className="w-4 h-4 text-rose-600" />
     ) : (
-      <Code style={{ width: "16px", height: "16px", color: "#06b6d4" }} />
+      <Code className="w-4 h-4 text-[#1d68ed]" />
     );
 
   return (
-    <div
-      style={{
-        width: "40px",
-        height: "40px",
-        borderRadius: "10px",
-        backgroundColor: "rgba(15, 23, 42, 0.8)",
-        border: "1px solid rgba(255, 255, 255, 0.08)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
+    <div className="w-9 h-9 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center shrink-0">
       {icon}
     </div>
   );
 }
-
-const labelStyle = {
-  display: "flex",
-  flexDirection: "column" as const,
-  gap: "0.35rem",
-};
-
-const labelText = {
-  fontSize: "0.8rem",
-  fontWeight: 600,
-  color: "#cbd5e1",
-};
-
-const inputStyle = {
-  padding: "0.6rem 0.85rem",
-  borderRadius: "0.5rem",
-  backgroundColor: "rgba(15, 23, 42, 0.8)",
-  border: "1px solid rgba(255,255,255,0.1)",
-  color: "#f8fafc",
-  fontSize: "0.85rem",
-  outline: "none",
-};

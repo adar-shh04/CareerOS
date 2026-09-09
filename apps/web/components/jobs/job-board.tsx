@@ -138,16 +138,16 @@ export function JobBoard({
   return (
     <div className="flex flex-col gap-6 max-w-7xl mx-auto p-4 sm:p-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-white/10">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-slate-200/80">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center">
-            <Briefcase className="w-5 h-5 text-indigo-400" />
+          <div className="w-10 h-10 rounded-lg bg-[#0d131f] text-[#38bdf8] flex items-center justify-center shadow-xs">
+            <Briefcase className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">
-              Job Radar & Board
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+              Job Radar &amp; Board
             </h1>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-500">
               Personalized job intelligence matching your Master Career Profile.
             </p>
           </div>
@@ -160,7 +160,7 @@ export function JobBoard({
               void handleIngestJobs();
             }}
             disabled={ingesting}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border border-indigo-500/30 text-indigo-200 text-xs font-semibold hover:border-indigo-500/50 transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-[#1d68ed] hover:bg-[#1555c8] text-white text-xs font-semibold shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
           >
             <Sparkles className={`w-3.5 h-3.5 ${ingesting ? "animate-spin" : ""}`} />
             {ingesting ? "Ingesting Market Data..." : "Fetch Live Market Jobs"}
@@ -171,7 +171,7 @@ export function JobBoard({
             onClick={() => {
               void fetchJobs(searchQuery);
             }}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-900/60 border border-white/10 text-slate-300 text-xs font-semibold hover:border-white/20 transition-colors"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 text-xs font-medium shadow-2xs transition-colors cursor-pointer"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
             Refresh Radar
@@ -181,12 +181,12 @@ export function JobBoard({
 
       {/* Ingestion Error Alert */}
       {ingestError && (
-        <div className="flex items-center justify-between gap-3 p-3.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs">
+        <div className="flex items-center justify-between gap-3 p-3.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs">
           <span>{ingestError}</span>
           <button
             type="button"
             onClick={() => setIngestError(null)}
-            className="text-rose-400 hover:text-rose-200 font-bold px-1.5 py-0.5"
+            className="text-rose-600 hover:text-rose-800 font-bold px-1.5 py-0.5"
           >
             ✕
           </button>

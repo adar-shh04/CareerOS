@@ -31,55 +31,69 @@ type ApplicationStatus =
   | "rejected"
   | "withdrawn";
 
-const STAGES: { key: ApplicationStatus; label: string; color: string; bg: string; border: string }[] = [
+const STAGES: {
+  key: ApplicationStatus;
+  label: string;
+  color: string;
+  bg: string;
+  border: string;
+  activeClass: string;
+}[] = [
   {
     key: "saved",
     label: "Saved",
-    color: "#818cf8",
-    bg: "rgba(99,102,241,0.12)",
-    border: "rgba(99,102,241,0.3)",
+    color: "#7e22ce",
+    bg: "#faf5ff",
+    border: "#e9d5ff",
+    activeClass: "border-purple-300 bg-purple-50 text-purple-700",
   },
   {
     key: "applied",
     label: "Applied",
-    color: "#22d3ee",
-    bg: "rgba(34,211,238,0.12)",
-    border: "rgba(34,211,238,0.3)",
+    color: "#1d68ed",
+    bg: "#f0f7ff",
+    border: "#bfdbfe",
+    activeClass: "border-blue-300 bg-blue-50 text-[#1d68ed]",
   },
   {
     key: "screening",
     label: "Screening",
-    color: "#f59e0b",
-    bg: "rgba(245,158,11,0.12)",
-    border: "rgba(245,158,11,0.3)",
+    color: "#b45309",
+    bg: "#fffbeb",
+    border: "#fde68a",
+    activeClass: "border-amber-300 bg-amber-50 text-amber-700",
   },
   {
     key: "interview",
     label: "Interview",
-    color: "#a855f7",
-    bg: "rgba(168,85,247,0.12)",
-    border: "rgba(168,85,247,0.3)",
+    color: "#4338ca",
+    bg: "#eef2ff",
+    border: "#c7d2fe",
+    activeClass: "border-indigo-300 bg-indigo-50 text-indigo-700",
   },
   {
     key: "offer",
     label: "Offer",
-    color: "#10b981",
-    bg: "rgba(16,185,129,0.12)",
-    border: "rgba(16,185,129,0.3)",
+    color: "#047857",
+    bg: "#ecfdf5",
+    border: "#a7f3d0",
+    activeClass: "border-emerald-300 bg-emerald-50 text-emerald-700",
   },
   {
     key: "rejected",
     label: "Rejected",
-    color: "#ef4444",
-    bg: "rgba(239,68,68,0.08)",
-    border: "rgba(239,68,68,0.2)",
+    color: "#b91c1c",
+    bg: "#fef2f2",
+    border: "#fecaca",
+    activeClass: "border-rose-300 bg-rose-50 text-rose-700",
   },
   {
     key: "withdrawn",
     label: "Withdrawn",
-    color: "#64748b",
-    bg: "rgba(100,116,139,0.08)",
-    border: "rgba(100,116,139,0.2)",
+    color: "#475569",
+    bg: "#f8fafc",
+    border: "#e2e8f0",
+    activeClass: "border-slate-300 bg-slate-100 text-slate-700",
   },
 ];
 
@@ -206,60 +220,25 @@ export function ApplicationDetailView({ applicationId }: ApplicationDetailViewPr
 
   if (loading) {
     return (
-      <div
-        style={{
-          padding: "4rem",
-          textAlign: "center",
-          color: "#94a3b8",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: "0.5rem",
-        }}
-      >
-        <Loader2
-          style={{
-            width: "18px",
-            height: "18px",
-            animation: "spin 1s linear infinite",
-          }}
-        />
-        Loading application workspace…
+      <div className="py-24 text-center text-slate-400 flex items-center justify-center gap-2">
+        <Loader2 className="w-5 h-5 animate-spin text-[#1d68ed]" />
+        <span className="text-xs font-medium">Loading application workspace…</span>
       </div>
     );
   }
 
   if (error || !app) {
     return (
-      <div style={{ maxWidth: "600px", margin: "2rem auto", padding: "1.5rem" }}>
-        <div
-          style={{
-            padding: "1.5rem",
-            borderRadius: "0.75rem",
-            backgroundColor: "rgba(239,68,68,0.08)",
-            border: "1px solid rgba(239,68,68,0.2)",
-            color: "#ef4444",
-            display: "flex",
-            alignItems: "center",
-            gap: "0.75rem",
-            marginBottom: "1rem",
-          }}
-        >
-          <XCircle style={{ width: "20px", height: "20px", flexShrink: 0 }} />
-          <span>{error ?? "Application not found"}</span>
+      <div className="max-w-xl mx-auto my-8 p-6">
+        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 flex items-center gap-3 mb-4 text-xs">
+          <XCircle className="w-5 h-5 shrink-0 text-rose-500" />
+          <span className="font-medium">{error ?? "Application not found"}</span>
         </div>
         <Link
           href="/applications"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "0.4rem",
-            fontSize: "0.85rem",
-            color: "#818cf8",
-            textDecoration: "none",
-          }}
+          className="inline-flex items-center gap-1.5 text-xs text-[#1d68ed] hover:text-[#1555c8] font-medium transition-colors"
         >
-          <ArrowLeft style={{ width: "14px", height: "14px" }} />
+          <ArrowLeft className="w-4 h-4" />
           Back to Applications
         </Link>
       </div>
@@ -270,111 +249,49 @@ export function ApplicationDetailView({ applicationId }: ApplicationDetailViewPr
     STAGES.find((s) => s.key === app.status) ?? STAGES[0];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1.75rem" }}>
+    <div className="flex flex-col gap-6">
       {/* Top navigation */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          flexWrap: "wrap",
-          gap: "1rem",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-3">
           <Link
             href="/applications"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "0.35rem",
-              padding: "0.35rem 0.75rem",
-              borderRadius: "0.4rem",
-              backgroundColor: "rgba(255,255,255,0.05)",
-              color: "#94a3b8",
-              fontSize: "0.8rem",
-              textDecoration: "none",
-              border: "1px solid rgba(255,255,255,0.08)",
-            }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 text-xs font-medium shadow-2xs transition-colors"
           >
-            <ArrowLeft style={{ width: "12px", height: "12px" }} />
+            <ArrowLeft className="w-3.5 h-3.5" />
             Pipeline
           </Link>
-          <span style={{ color: "#475569", fontSize: "0.85rem" }}>/</span>
-          <span style={{ color: "#cbd5e1", fontSize: "0.85rem", fontWeight: "600" }}>
+          <span className="text-slate-300 text-sm">/</span>
+          <span className="text-slate-900 text-sm font-semibold">
             {app.job?.title ?? "Application Workspace"}
           </span>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+        <div className="flex items-center gap-2">
           {app.jobId && (
             <Link
               href={`/jobs/${app.jobId}`}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "0.35rem",
-                padding: "0.4rem 0.8rem",
-                borderRadius: "0.45rem",
-                backgroundColor: "rgba(99,102,241,0.1)",
-                color: "#818cf8",
-                fontSize: "0.8rem",
-                fontWeight: "600",
-                textDecoration: "none",
-                border: "1px solid rgba(99,102,241,0.25)",
-              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-[#1d68ed] hover:bg-blue-100/70 border border-blue-200/80 text-xs font-semibold transition-colors"
             >
-              <Briefcase style={{ width: "13px", height: "13px" }} />
+              <Briefcase className="w-3.5 h-3.5" />
               View Job Match
             </Link>
           )}
           <button
             type="button"
             onClick={() => void handleDelete()}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "0.35rem",
-              padding: "0.4rem 0.8rem",
-              borderRadius: "0.45rem",
-              backgroundColor: "rgba(239,68,68,0.1)",
-              color: "#f87171",
-              fontSize: "0.8rem",
-              fontWeight: "600",
-              border: "1px solid rgba(239,68,68,0.2)",
-              cursor: "pointer",
-            }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 text-xs font-semibold cursor-pointer transition-colors"
           >
-            <Trash2 style={{ width: "13px", height: "13px" }} />
+            <Trash2 className="w-3.5 h-3.5" />
             Delete
           </button>
         </div>
       </div>
 
       {/* Main header banner */}
-      <div
-        style={{
-          padding: "1.5rem",
-          borderRadius: "0.75rem",
-          backgroundColor: "rgba(15,23,42,0.6)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          flexWrap: "wrap",
-          gap: "1.25rem",
-        }}
-      >
-        <div style={{ flex: 1, minWidth: "260px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-            <h1
-              style={{
-                fontSize: "1.5rem",
-                fontWeight: "700",
-                color: "#f8fafc",
-                letterSpacing: "-0.02em",
-              }}
-            >
+      <div className="p-6 rounded-xl bg-white border border-slate-200/80 shadow-xs flex justify-between items-start flex-wrap gap-5">
+        <div className="flex-1 min-w-[260px]">
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
               {app.job?.title ?? "Tracked Opportunity"}
             </h1>
             {app.job?.sourceUrl && (
@@ -383,50 +300,29 @@ export function ApplicationDetailView({ applicationId }: ApplicationDetailViewPr
                 target="_blank"
                 rel="noopener noreferrer"
                 title="View original posting"
-                style={{ color: "#818cf8" }}
+                className="text-[#1d68ed] hover:text-[#1555c8] transition-colors"
               >
-                <ExternalLink style={{ width: "14px", height: "14px" }} />
+                <ExternalLink className="w-4 h-4" />
               </a>
             )}
           </div>
-          <p style={{ color: "#94a3b8", fontSize: "0.95rem", marginTop: "0.25rem" }}>
+          <p className="text-slate-500 text-xs mt-1">
             {app.job?.company ?? "Unknown Company"}
             {app.job?.location ? ` • ${app.job.location}` : ""}
             {app.job?.isRemote ? " (Remote)" : ""}
           </p>
           {app.job?.salaryRange && (
-            <p
-              style={{
-                color: "#10b981",
-                fontSize: "0.85rem",
-                fontWeight: "600",
-                marginTop: "0.25rem",
-              }}
-            >
+            <p className="text-emerald-700 text-xs font-semibold mt-1">
               {app.job.salaryRange}
             </p>
           )}
 
           {app.job?.requiredSkills && app.job.requiredSkills.length > 0 && (
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: "0.35rem",
-                marginTop: "0.75rem",
-              }}
-            >
+            <div className="flex flex-wrap gap-1.5 mt-3">
               {app.job.requiredSkills.slice(0, 8).map((skill) => (
                 <span
                   key={skill}
-                  style={{
-                    fontSize: "0.7rem",
-                    padding: "0.15rem 0.5rem",
-                    borderRadius: "0.3rem",
-                    backgroundColor: "rgba(255,255,255,0.05)",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    color: "#cbd5e1",
-                  }}
+                  className="text-xs px-2.5 py-0.5 rounded-md bg-slate-50 border border-slate-200/70 text-slate-700 font-medium"
                 >
                   {skill}
                 </span>
@@ -437,24 +333,18 @@ export function ApplicationDetailView({ applicationId }: ApplicationDetailViewPr
 
         {/* Current status indicator */}
         <div
+          className="p-3.5 px-5 rounded-xl text-right border shadow-2xs"
           style={{
-            padding: "0.85rem 1.25rem",
-            borderRadius: "0.6rem",
-            backgroundColor: currentStageConfig?.bg ?? "rgba(255,255,255,0.05)",
-            border: `1px solid ${currentStageConfig?.border ?? "rgba(255,255,255,0.1)"}`,
-            textAlign: "right",
+            backgroundColor: currentStageConfig?.bg ?? "#f8fafc",
+            borderColor: currentStageConfig?.border ?? "#e2e8f0",
           }}
         >
-          <div style={{ fontSize: "0.7rem", color: "#94a3b8", textTransform: "uppercase", fontWeight: "600" }}>
+          <div className="text-[10px] text-slate-500 uppercase font-semibold tracking-wider">
             Current Status
           </div>
           <div
-            style={{
-              fontSize: "1.2rem",
-              fontWeight: "800",
-              color: currentStageConfig?.color ?? "#f8fafc",
-              marginTop: "0.2rem",
-            }}
+            className="text-lg font-extrabold mt-0.5"
+            style={{ color: currentStageConfig?.color ?? "#0f172a" }}
           >
             {currentStageConfig?.label ?? app.status}
           </div>
@@ -462,18 +352,11 @@ export function ApplicationDetailView({ applicationId }: ApplicationDetailViewPr
       </div>
 
       {/* Stage Transition Stepper */}
-      <div
-        style={{
-          padding: "1.25rem",
-          borderRadius: "0.75rem",
-          backgroundColor: "rgba(15,23,42,0.4)",
-          border: "1px solid rgba(255,255,255,0.06)",
-        }}
-      >
-        <div style={{ fontSize: "0.85rem", fontWeight: "600", color: "#cbd5e1", marginBottom: "0.75rem" }}>
+      <div className="p-5 rounded-xl bg-white border border-slate-200/80 shadow-xs">
+        <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-3">
           Pipeline Stage
         </div>
-        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+        <div className="flex gap-2 flex-wrap">
           {STAGES.map((s) => {
             const isCurrent = app.status === s.key;
             return (
@@ -481,22 +364,11 @@ export function ApplicationDetailView({ applicationId }: ApplicationDetailViewPr
                 key={s.key}
                 type="button"
                 onClick={() => void handleStatusChange(s.key)}
-                style={{
-                  flex: 1,
-                  minWidth: "90px",
-                  padding: "0.6rem 0.8rem",
-                  borderRadius: "0.5rem",
-                  border: isCurrent
-                    ? `2px solid ${s.color}`
-                    : "1px solid rgba(255,255,255,0.08)",
-                  backgroundColor: isCurrent ? s.bg : "rgba(15,23,42,0.5)",
-                  color: isCurrent ? s.color : "#94a3b8",
-                  cursor: "pointer",
-                  textAlign: "center",
-                  fontSize: "0.8rem",
-                  fontWeight: isCurrent ? "700" : "500",
-                  transition: "all 0.15s",
-                }}
+                className={`flex-1 min-w-[90px] py-2 px-3 rounded-lg border text-center text-xs transition-all cursor-pointer ${
+                  isCurrent
+                    ? `${s.activeClass} font-bold shadow-xs`
+                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium"
+                }`}
               >
                 {s.label}
               </button>
@@ -506,42 +378,18 @@ export function ApplicationDetailView({ applicationId }: ApplicationDetailViewPr
       </div>
 
       {/* Details Grid: Left: Notes & Linked Artifacts, Right: Status History */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-          gap: "1.5rem",
-        }}
-      >
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Left Column: Notes & Metadata */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+        <div className="flex flex-col gap-5">
           {/* Notes & Date Card */}
-          <div
-            style={{
-              padding: "1.25rem",
-              borderRadius: "0.75rem",
-              backgroundColor: "rgba(15,23,42,0.4)",
-              border: "1px solid rgba(255,255,255,0.06)",
-              display: "flex",
-              flexDirection: "column",
-              gap: "1rem",
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h3 style={{ fontSize: "0.95rem", fontWeight: "600", color: "#e2e8f0" }}>
+          <div className="p-5 rounded-xl bg-white border border-slate-200/80 shadow-xs flex flex-col gap-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-sm font-semibold text-slate-900">
                 Application Notes & Schedule
               </h3>
               {notesSaved && (
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "0.25rem",
-                    color: "#10b981",
-                    fontSize: "0.75rem",
-                  }}
-                >
-                  <CheckCircle2 style={{ width: "13px", height: "13px" }} />
+                <span className="inline-flex items-center gap-1 text-emerald-600 text-xs font-medium">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
                   Saved
                 </span>
               )}
@@ -550,45 +398,23 @@ export function ApplicationDetailView({ applicationId }: ApplicationDetailViewPr
             <div>
               <label
                 htmlFor="applied-date-input"
-                style={{
-                  display: "block",
-                  fontSize: "0.75rem",
-                  color: "#94a3b8",
-                  marginBottom: "0.35rem",
-                  fontWeight: "600",
-                }}
+                className="block text-xs text-slate-700 mb-1.5 font-medium"
               >
                 Applied Date
               </label>
-              <div style={{ position: "relative" }}>
-                <input
-                  id="applied-date-input"
-                  type="date"
-                  value={appliedAt}
-                  onChange={(e) => setAppliedAt(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "0.5rem 0.75rem",
-                    borderRadius: "0.4rem",
-                    backgroundColor: "rgba(15,23,42,0.6)",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    color: "#f1f5f9",
-                    fontSize: "0.85rem",
-                  }}
-                />
-              </div>
+              <input
+                id="applied-date-input"
+                type="date"
+                value={appliedAt}
+                onChange={(e) => setAppliedAt(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:border-[#1d68ed] focus:bg-white focus:ring-2 focus:ring-[#1d68ed]/20 focus:outline-none"
+              />
             </div>
 
             <div>
               <label
                 htmlFor="application-notes-input"
-                style={{
-                  display: "block",
-                  fontSize: "0.75rem",
-                  color: "#94a3b8",
-                  marginBottom: "0.35rem",
-                  fontWeight: "600",
-                }}
+                className="block text-xs text-slate-700 mb-1.5 font-medium"
               >
                 Notes, Contacts & Interview Prep
               </label>
@@ -598,17 +424,7 @@ export function ApplicationDetailView({ applicationId }: ApplicationDetailViewPr
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Log recruiter notes, follow-up dates, salary expectations, interview feedback, or questions to ask..."
-                style={{
-                  width: "100%",
-                  padding: "0.75rem",
-                  borderRadius: "0.4rem",
-                  backgroundColor: "rgba(15,23,42,0.6)",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  color: "#f1f5f9",
-                  fontSize: "0.85rem",
-                  resize: "vertical",
-                  lineHeight: "1.4",
-                }}
+                className="w-full p-3 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 text-xs resize-y leading-relaxed focus:border-[#1d68ed] focus:bg-white focus:ring-2 focus:ring-[#1d68ed]/20 focus:outline-none placeholder:text-slate-400"
               />
             </div>
 
@@ -616,63 +432,32 @@ export function ApplicationDetailView({ applicationId }: ApplicationDetailViewPr
               type="button"
               onClick={() => void handleSaveNotes()}
               disabled={savingNotes}
-              style={{
-                alignSelf: "flex-end",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "0.35rem",
-                padding: "0.45rem 1rem",
-                borderRadius: "0.45rem",
-                background: "linear-gradient(135deg, #6366f1, #a855f7)",
-                color: "#fff",
-                fontSize: "0.8rem",
-                fontWeight: "600",
-                border: "none",
-                cursor: savingNotes ? "not-allowed" : "pointer",
-                opacity: savingNotes ? 0.7 : 1,
-              }}
+              className="self-end inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#1d68ed] hover:bg-[#1555c8] text-white text-xs font-semibold shadow-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               {savingNotes ? (
-                <Loader2 style={{ width: "13px", height: "13px", animation: "spin 1s linear infinite" }} />
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
               ) : (
-                <Save style={{ width: "13px", height: "13px" }} />
+                <Save className="w-3.5 h-3.5" />
               )}
               {savingNotes ? "Saving…" : "Save Details"}
             </button>
           </div>
 
           {/* Linked Resume Profile Card */}
-          <div
-            style={{
-              padding: "1.25rem",
-              borderRadius: "0.75rem",
-              backgroundColor: "rgba(15,23,42,0.4)",
-              border: "1px solid rgba(255,255,255,0.06)",
-            }}
-          >
-            <h3 style={{ fontSize: "0.95rem", fontWeight: "600", color: "#e2e8f0", marginBottom: "0.6rem" }}>
+          <div className="p-5 rounded-xl bg-white border border-slate-200/80 shadow-xs">
+            <h3 className="text-sm font-semibold text-slate-900 mb-2.5">
               Linked Resume Asset
             </h3>
             {app.resumeProfileId ? (
-              <div
-                style={{
-                  padding: "0.75rem 1rem",
-                  borderRadius: "0.5rem",
-                  backgroundColor: "rgba(99,102,241,0.08)",
-                  border: "1px solid rgba(99,102,241,0.2)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                  <FileText style={{ width: "16px", height: "16px", color: "#818cf8" }} />
+              <div className="p-3.5 px-4 rounded-lg bg-[#f4f8ff] border border-blue-100 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <FileText className="w-4 h-4 text-[#1d68ed]" />
                   <div>
-                    <div style={{ fontSize: "0.85rem", fontWeight: "600", color: "#e0e7ff" }}>
+                    <div className="text-xs font-semibold text-slate-900">
                       Resume Profile Linked
                     </div>
                     {app.resumeVersionId && (
-                      <div style={{ fontSize: "0.75rem", color: "#94a3b8" }}>
+                      <div className="text-[11px] text-slate-500">
                         Version: {app.resumeVersionId.slice(0, 8)}…
                       </div>
                     )}
@@ -684,20 +469,15 @@ export function ApplicationDetailView({ applicationId }: ApplicationDetailViewPr
                       ? `/resumes/${app.resumeProfileId}/versions/${app.resumeVersionId}`
                       : `/resumes/${app.resumeProfileId}`
                   }
-                  style={{
-                    fontSize: "0.75rem",
-                    fontWeight: "600",
-                    color: "#818cf8",
-                    textDecoration: "none",
-                  }}
+                  className="text-xs font-semibold text-[#1d68ed] hover:text-[#1555c8] transition-colors"
                 >
                   Open Studio →
                 </Link>
               </div>
             ) : (
-              <div style={{ fontSize: "0.8rem", color: "#64748b" }}>
+              <div className="text-xs text-slate-500">
                 No custom resume version was linked to this application. You can tailor one in{" "}
-                <Link href="/resumes" style={{ color: "#818cf8", textDecoration: "underline" }}>
+                <Link href="/resumes" className="text-[#1d68ed] hover:underline font-medium">
                   Resume Studio
                 </Link>
                 .
@@ -707,43 +487,25 @@ export function ApplicationDetailView({ applicationId }: ApplicationDetailViewPr
         </div>
 
         {/* Right Column: Status History Timeline */}
-        <div
-          style={{
-            padding: "1.25rem",
-            borderRadius: "0.75rem",
-            backgroundColor: "rgba(15,23,42,0.4)",
-            border: "1px solid rgba(255,255,255,0.06)",
-            display: "flex",
-            flexDirection: "column",
-            gap: "1rem",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <History style={{ width: "16px", height: "16px", color: "#818cf8" }} />
-            <h3 style={{ fontSize: "0.95rem", fontWeight: "600", color: "#e2e8f0" }}>
+        <div className="p-5 rounded-xl bg-white border border-slate-200/80 shadow-xs flex flex-col gap-4">
+          <div className="flex items-center gap-2">
+            <History className="w-4 h-4 text-[#1d68ed]" />
+            <h3 className="text-sm font-semibold text-slate-900">
               Status History Timeline
             </h3>
           </div>
 
           {historyLoading ? (
-            <div style={{ padding: "2rem", textAlign: "center", color: "#64748b", fontSize: "0.85rem" }}>
-              <Loader2
-                style={{
-                  width: "14px",
-                  height: "14px",
-                  display: "inline-block",
-                  animation: "spin 1s linear infinite",
-                  marginRight: "0.5rem",
-                }}
-              />
+            <div className="p-8 text-center text-slate-400 text-xs">
+              <Loader2 className="w-3.5 h-3.5 inline-block animate-spin mr-2 text-[#1d68ed]" />
               Loading audit timeline…
             </div>
           ) : history.length === 0 ? (
-            <div style={{ padding: "1.5rem", textAlign: "center", color: "#64748b", fontSize: "0.85rem" }}>
+            <div className="p-6 text-center text-slate-400 text-xs">
               No status changes recorded yet.
             </div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+            <div className="flex flex-col gap-3">
               {history.map((entry, idx) => {
                 const stageCfg =
                   STAGES.find((s) => s.key === entry.status) ?? STAGES[0];
@@ -757,60 +519,27 @@ export function ApplicationDetailView({ applicationId }: ApplicationDetailViewPr
                 return (
                   <div
                     key={entry.id || idx}
-                    style={{
-                      display: "flex",
-                      alignItems: "flex-start",
-                      gap: "0.75rem",
-                      padding: "0.6rem 0.8rem",
-                      borderRadius: "0.5rem",
-                      backgroundColor: "rgba(15,23,42,0.5)",
-                      border: "1px solid rgba(255,255,255,0.05)",
-                    }}
+                    className="flex items-start gap-3 p-3 rounded-lg bg-slate-50/80 border border-slate-200/70"
                   >
                     <div
-                      style={{
-                        marginTop: "0.2rem",
-                        width: "8px",
-                        height: "8px",
-                        borderRadius: "50%",
-                        backgroundColor: stageCfg?.color ?? "#818cf8",
-                        flexShrink: 0,
-                      }}
+                      className="mt-1 w-2 h-2 rounded-full shrink-0"
+                      style={{ backgroundColor: stageCfg?.color ?? "#1d68ed" }}
                     />
-                    <div style={{ flex: 1 }}>
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          marginBottom: "0.2rem",
-                        }}
-                      >
+                    <div className="flex-1">
+                      <div className="flex justify-between items-center mb-1">
                         <span
-                          style={{
-                            fontSize: "0.8rem",
-                            fontWeight: "700",
-                            color: stageCfg?.color ?? "#cbd5e1",
-                            textTransform: "uppercase",
-                          }}
+                          className="text-xs font-bold uppercase tracking-wider"
+                          style={{ color: stageCfg?.color ?? "#0f172a" }}
                         >
                           {stageCfg?.label ?? entry.status}
                         </span>
-                        <span
-                          style={{
-                            fontSize: "0.7rem",
-                            color: "#64748b",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "0.25rem",
-                          }}
-                        >
-                          <Clock style={{ width: "11px", height: "11px" }} />
+                        <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
                           {dateStr}
                         </span>
                       </div>
                       {entry.notes && (
-                        <p style={{ fontSize: "0.75rem", color: "#94a3b8", margin: 0 }}>
+                        <p className="text-xs text-slate-600 m-0">
                           {entry.notes}
                         </p>
                       )}

@@ -3,14 +3,11 @@
 import type { MasterCareerProfile, ResumeProfile, ResumeVersion } from "@repo/types";
 import {
   Bot,
-  BrainCircuit,
   Briefcase,
   Compass,
   FileText,
   KeyRound,
-  LogOut,
   Sparkles,
-  Target,
   TrendingUp,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -47,70 +44,20 @@ function ComingSoonCard({
   description: string;
 }) {
   return (
-    <div className="glass-panel" style={{ padding: "1.5rem" }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "0.6rem",
-          marginBottom: "1rem",
-        }}
-      >
-        {icon}
-        <h3 style={{ fontSize: "1.05rem", fontWeight: "700" }}>{title}</h3>
+    <div className="bg-white border border-[#0f172a]/10 rounded-xl p-6 shadow-2xs">
+      <div className="flex items-center gap-2.5 mb-4">
+        <div className="text-[#1d68ed]">{icon}</div>
+        <h3 className="text-base font-bold text-[#0f172a]">{title}</h3>
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "2.5rem 1.5rem",
-          borderRadius: "0.75rem",
-          backgroundColor: "rgba(15, 23, 42, 0.6)",
-          border: "1px dashed rgba(255, 255, 255, 0.1)",
-          textAlign: "center",
-        }}
-      >
-        <div
-          style={{
-            width: "48px",
-            height: "48px",
-            borderRadius: "12px",
-            background: "rgba(99, 102, 241, 0.1)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            marginBottom: "1rem",
-          }}
-        >
+      <div className="flex flex-col items-center justify-center p-8 rounded-xl bg-[#f8fafc] border border-dashed border-[#0f172a]/15 text-center">
+        <div className="w-10 h-10 rounded-xl bg-[#1d68ed]/10 flex items-center justify-center text-[#1d68ed] mb-3">
           {icon}
         </div>
-        <span
-          style={{
-            display: "inline-block",
-            padding: "0.25rem 0.75rem",
-            borderRadius: "999px",
-            fontSize: "0.7rem",
-            fontWeight: "700",
-            textTransform: "uppercase",
-            letterSpacing: "0.08em",
-            backgroundColor: "rgba(99, 102, 241, 0.12)",
-            color: "#818cf8",
-            marginBottom: "0.75rem",
-          }}
-        >
+        <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#1d68ed]/15 text-[#1d68ed] mb-2">
           Coming Soon
         </span>
-        <p
-          style={{
-            color: "#94a3b8",
-            fontSize: "0.85rem",
-            lineHeight: "1.5",
-            maxWidth: "320px",
-          }}
-        >
+        <p className="text-xs text-[#64748b] max-w-sm leading-relaxed">
           {description}
         </p>
       </div>
@@ -124,39 +71,13 @@ function ComingSoonCard({
 
 function DashboardSkeleton() {
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        backgroundColor: "#080b11",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        flexDirection: "column",
-        gap: "1rem",
-      }}
-    >
-      <div
-        style={{
-          width: "40px",
-          height: "40px",
-          borderRadius: "10px",
-          background: "linear-gradient(135deg, #6366f1 0%, #a855f7 100%)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          boxShadow: "0 0 30px rgba(99, 102, 241, 0.4)",
-        }}
-      >
-        <BrainCircuit
-          style={{ width: "22px", height: "22px", color: "#ffffff" }}
-        />
-      </div>
-      <span style={{ color: "#94a3b8", fontSize: "0.9rem" }}>
-        Loading your command center…
-      </span>
+    <div className="min-h-[50vh] flex flex-col items-center justify-center gap-3 text-[#64748b]">
+      <div className="w-8 h-8 rounded-full border-2 border-[#1d68ed] border-t-transparent animate-spin" />
+      <div className="text-xs font-medium">Loading your career workspace...</div>
     </div>
   );
 }
+
 
 /* ────────────────────────────────────────────────────────────────────────── */
 /*  Main Component                                                           */
@@ -164,7 +85,7 @@ function DashboardSkeleton() {
 
 export default function CareerCommandCenter() {
   const router = useRouter();
-  const { session, loading, logout } = useAuth();
+  const { session, loading } = useAuth();
 
   const [activeTab, setActiveTab] = useState<
     | "dashboard"
@@ -293,625 +214,308 @@ export default function CareerCommandCenter() {
   /* ── Render ────────────────────────────────────────────────────────── */
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        backgroundColor: "#080b11",
-        color: "#f8fafc",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      {/* ═══════════════════════ Top Header ═══════════════════════ */}
-      <header
-        style={{
-          borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
-          backgroundColor: "rgba(11, 15, 25, 0.8)",
-          backdropFilter: "blur(12px)",
-          padding: "1rem 2rem",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          position: "sticky",
-          top: 0,
-          zIndex: 40,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "2.5rem" }}>
-          <div
-            style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
-          >
-            <div
-              style={{
-                width: "36px",
-                height: "36px",
-                borderRadius: "10px",
-                background: "linear-gradient(135deg, #6366f1 0%, #a855f7 100%)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                boxShadow: "0 0 20px rgba(99, 102, 241, 0.4)",
-              }}
-            >
-              <BrainCircuit
-                style={{ width: "20px", height: "20px", color: "#ffffff" }}
-              />
-            </div>
-            <div>
-              <h1
-                style={{
-                  fontSize: "1.25rem",
-                  fontWeight: "700",
-                  letterSpacing: "-0.02em",
-                }}
-              >
-                CareerOS
-              </h1>
-              <span
-                style={{
-                  fontSize: "0.65rem",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.1em",
-                  color: "#6366f1",
-                  fontWeight: "700",
-                }}
-              >
-                AI Operating System v1.0
+    <div className="w-full space-y-6">
+      {/* ── Welcome Banner ───────────────────────────────────────── */}
+      <div className="bg-white border border-[#0f172a]/10 rounded-xl p-6 sm:p-8 shadow-2xs relative overflow-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 relative z-10">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#1d68ed]">
+                Career Intelligence Command Center
               </span>
+              <span className="w-2 h-2 rounded-full bg-[#0d9488] animate-pulse" />
             </div>
+            <h2
+              id="welcome-heading"
+              className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0f172a]"
+            >
+              Welcome back, {displayName}.
+            </h2>
+            <p className="text-sm text-[#64748b] mt-1 max-w-xl leading-relaxed">
+              Your career command center is synchronized with your Master Career Profile, verified evidence, and active job radar feeds.
+            </p>
           </div>
 
-          <nav style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            {[
-              { id: "dashboard", label: "Command Center", icon: Compass },
-              { id: "resume", label: "Resume Intelligence", icon: FileText },
-              { id: "jobs", label: "Job Radar", icon: Briefcase },
-              { id: "applications", label: "Applications", icon: TrendingUp },
-              { id: "coach", label: "AI Coach", icon: Bot },
-              { id: "insights", label: "Insights", icon: Target },
-              { id: "settings", label: "Settings", icon: KeyRound },
-            ].map((item) => {
-              const Icon = item.icon;
-              const isActive = activeTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  id={`nav-${item.id}`}
-                  onClick={() => {
-                    setActiveTab(
-                      item.id as
-                        | "dashboard"
-                        | "resume"
-                        | "jobs"
-                        | "applications"
-                        | "coach"
-                        | "insights"
-                        | "settings",
-                    );
-                  }}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.5rem",
-                    padding: "0.5rem 0.85rem",
-                    borderRadius: "0.5rem",
-                    fontSize: "0.85rem",
-                    fontWeight: isActive ? "600" : "500",
-                    color: isActive ? "#ffffff" : "#94a3b8",
-                    backgroundColor: isActive
-                      ? "rgba(99, 102, 241, 0.15)"
-                      : "transparent",
-                    border: isActive
-                      ? "1px solid rgba(99, 102, 241, 0.3)"
-                      : "1px solid transparent",
-                    cursor: "pointer",
-                    transition: "all 0.2s",
-                  }}
-                >
-                  <Icon
-                    style={{
-                      width: "16px",
-                      height: "16px",
-                      color: isActive ? "#818cf8" : "#64748b",
-                    }}
-                  />
-                  {item.label}
-                </button>
-              );
-            })}
-          </nav>
+          <div className="flex items-center gap-3">
+            <div className="text-center px-4 py-2.5 rounded-lg bg-[#f8fafc] border border-[#0f172a]/10">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-[#64748b]">
+                Workspace
+              </div>
+              <div className="text-xs font-semibold text-[#0f172a] mt-0.5">
+                {session.workspace.slug}
+              </div>
+            </div>
+            <div className="text-center px-4 py-2.5 rounded-lg bg-[#f8fafc] border border-[#0f172a]/10">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-[#64748b]">
+                Active Account
+              </div>
+              <div className="text-xs font-semibold text-[#0f172a] mt-0.5 truncate max-w-[150px]">
+                {session.user.email}
+              </div>
+            </div>
+          </div>
         </div>
+      </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-          {/* BYOK Badge — opens Settings */}
-          <button
-            type="button"
-            id="byok-badge"
-            onClick={() => setActiveTab("settings")}
-            title="Configure AI Providers in Settings"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              padding: "0.35rem 0.75rem",
-              borderRadius: "2rem",
-              backgroundColor: byokStatus.configured
-                ? "rgba(16, 185, 129, 0.1)"
-                : "rgba(148, 163, 184, 0.08)",
-              border: byokStatus.configured
-                ? "1px solid rgba(16, 185, 129, 0.2)"
-                : "1px solid rgba(148, 163, 184, 0.15)",
-              cursor: "pointer",
-            }}
-          >
-            <KeyRound
-              style={{
-                width: "14px",
-                height: "14px",
-                color: byokStatus.configured ? "#10b981" : "#64748b",
-              }}
-            />
-            <span
-              style={{
-                fontSize: "0.75rem",
-                color: byokStatus.configured ? "#10b981" : "#94a3b8",
-                fontWeight: "600",
-              }}
-            >
-              {byokStatus.configured
-                ? `BYOK Active · ${byokStatus.providers.join(", ")}`
-                : "BYOK Not Configured"}
-            </span>
-          </button>
-
-          {/* AI Coach Button */}
-          <button
-            id="open-ai-coach"
-            onClick={() => {
-              setActiveTab("coach");
-            }}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              padding: "0.5rem 1rem",
-              borderRadius: "0.5rem",
-              background: "linear-gradient(135deg, #6366f1 0%, #a855f7 100%)",
-              color: "#ffffff",
-              fontWeight: "600",
-              fontSize: "0.85rem",
-              border: "none",
-              cursor: "pointer",
-              boxShadow: "0 4px 15px rgba(99, 102, 241, 0.3)",
-            }}
-          >
-            <Bot style={{ width: "16px", height: "16px" }} />
-            AI Coach
-          </button>
-
-          {/* Logout Button */}
-          <button
-            id="logout-button"
-            onClick={() => void logout()}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.4rem",
-              padding: "0.5rem 0.85rem",
-              borderRadius: "0.5rem",
-              backgroundColor: "rgba(255, 255, 255, 0.04)",
-              border: "1px solid rgba(255, 255, 255, 0.1)",
-              color: "#94a3b8",
-              fontSize: "0.8rem",
-              fontWeight: "500",
-              cursor: "pointer",
-              transition: "all 0.2s",
-            }}
-          >
-            <LogOut style={{ width: "14px", height: "14px" }} />
-            Sign out
-          </button>
-        </div>
-      </header>
-
-      {/* ═══════════════════════ Main Content ═══════════════════════ */}
-      <main
-        style={{
-          flex: 1,
-          padding: "2rem",
-          maxWidth: "1400px",
-          margin: "0 auto",
-          width: "100%",
-        }}
-      >
-        {/* ── Welcome Banner ───────────────────────────────────────── */}
-        <div
-          className="glass-panel"
-          style={{
-            padding: "1.75rem 2rem",
-            marginBottom: "2rem",
-            position: "relative",
-            overflow: "hidden",
-          }}
+      {/* ── Telemetry Quick Stats ─────────────────────────────────── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <button
+          type="button"
+          onClick={() => router.push("/career")}
+          className="bg-white border border-[#0f172a]/10 hover:border-[#1d68ed]/40 rounded-xl p-4 text-left transition-all shadow-2xs group"
         >
-          <div
-            style={{
-              position: "absolute",
-              top: 0,
-              right: 0,
-              width: "300px",
-              height: "100%",
-              background:
-                "radial-gradient(circle, rgba(99,102,241,0.15) 0%, rgba(0,0,0,0) 70%)",
-              pointerEvents: "none",
-            }}
-          />
+          <div className="flex items-center justify-between text-[#64748b] mb-1">
+            <span className="text-xs font-medium">Master Profile</span>
+            <Compass className="w-4 h-4 text-[#1d68ed]" />
+          </div>
+          <div className="text-lg font-bold text-[#0f172a]">
+            {profileSnapshot ? `${String(profileSnapshot.skills.length)} Skills` : "Empty Profile"}
+          </div>
+          <div className="text-[11px] text-[#64748b] mt-1 group-hover:text-[#1d68ed] transition-colors">
+            {profileSnapshot ? "Verified evidence baseline" : "Configure profile →"}
+          </div>
+        </button>
 
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <div>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.5rem",
-                  marginBottom: "0.35rem",
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: "0.75rem",
-                    fontWeight: "700",
-                    color: "#818cf8",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.08em",
-                  }}
+        <button
+          type="button"
+          onClick={() => router.push("/jobs")}
+          className="bg-white border border-[#0f172a]/10 hover:border-[#1d68ed]/40 rounded-xl p-4 text-left transition-all shadow-2xs group"
+        >
+          <div className="flex items-center justify-between text-[#64748b] mb-1">
+            <span className="text-xs font-medium">Job Radar</span>
+            <Briefcase className="w-4 h-4 text-[#1d68ed]" />
+          </div>
+          <div className="text-lg font-bold text-[#0f172a]">
+            Active Radar
+          </div>
+          <div className="text-[11px] text-[#64748b] mt-1 group-hover:text-[#1d68ed] transition-colors">
+            Explore live market jobs →
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => router.push("/applications")}
+          className="bg-white border border-[#0f172a]/10 hover:border-[#1d68ed]/40 rounded-xl p-4 text-left transition-all shadow-2xs group"
+        >
+          <div className="flex items-center justify-between text-[#64748b] mb-1">
+            <span className="text-xs font-medium">Applications</span>
+            <TrendingUp className="w-4 h-4 text-[#0d9488]" />
+          </div>
+          <div className="text-lg font-bold text-[#0f172a]">
+            Pipeline CRM
+          </div>
+          <div className="text-[11px] text-[#64748b] mt-1 group-hover:text-[#1d68ed] transition-colors">
+            Track interview stages →
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => router.push("/settings")}
+          className="bg-white border border-[#0f172a]/10 hover:border-[#1d68ed]/40 rounded-xl p-4 text-left transition-all shadow-2xs group"
+        >
+          <div className="flex items-center justify-between text-[#64748b] mb-1">
+            <span className="text-xs font-medium">AI Readiness</span>
+            <KeyRound className="w-4 h-4 text-[#1d68ed]" />
+          </div>
+          <div className="text-lg font-bold text-[#0f172a]">
+            {byokStatus.configured ? "BYOK Active" : "Setup Keys"}
+          </div>
+          <div className="text-[11px] text-[#64748b] mt-1 group-hover:text-[#1d68ed] transition-colors">
+            {byokStatus.configured ? `${String(byokStatus.providers.length)} provider(s) linked` : "Configure BYOK →"}
+          </div>
+        </button>
+      </div>
+
+      {/* ── Subviews (if triggered) or Main Command Center Grid ─────── */}
+      {activeTab === "resume" ? (
+        <ResumeIntelligenceView
+          initialVersion={targetedVersion}
+          initialProfile={targetedProfile}
+        />
+      ) : activeTab === "jobs" ? (
+        <JobBoard onNavigateToResume={handleNavigateToResume} />
+      ) : activeTab === "applications" ? (
+        <ApplicationTrackerView
+          onGoToJobs={() => router.push("/jobs")}
+        />
+      ) : activeTab === "coach" ? (
+        <AICoachView
+          masterProfile={profileSnapshot}
+          resumeProfiles={resumeProfiles}
+          selectedProfileId={selectedProfileId}
+          onSelectProfile={setSelectedProfileId}
+          onUpdateProfile={handleUpdateResumeProfile}
+          onNavigateToResumeStudio={() => router.push("/resumes")}
+        />
+      ) : activeTab === "insights" ? (
+        <MarketInsightsView masterProfile={profileSnapshot} />
+      ) : activeTab === "settings" ? (
+        <ByokSettingsView />
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Main Left Column (8 cols) */}
+          <div className="lg:col-span-8 flex flex-col gap-6">
+            {/* Profile Snapshot Card */}
+            <div className="bg-white border border-[#0f172a]/10 rounded-xl p-6 shadow-2xs">
+              <div className="flex items-center justify-between gap-4 mb-4 pb-3 border-b border-[#0f172a]/8">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-[#1d68ed]/10 flex items-center justify-center text-[#1d68ed]">
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-[#0f172a]">
+                      Profile Snapshot
+                    </h3>
+                    <p className="text-xs text-[#64748b]">
+                      Your canonical career evidence anchor
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => router.push("/career")}
+                  className="text-xs font-semibold text-[#1d68ed] hover:text-[#1555c8] hover:underline"
                 >
-                  Career Intelligence
-                </span>
-                <span
-                  style={{
-                    width: "6px",
-                    height: "6px",
-                    borderRadius: "50%",
-                    backgroundColor: "#10b981",
-                  }}
-                />
+                  Edit Profile →
+                </button>
               </div>
-              <h2
-                id="welcome-heading"
-                style={{
-                  fontSize: "1.75rem",
-                  fontWeight: "700",
-                  letterSpacing: "-0.02em",
-                }}
-              >
-                Welcome back, {displayName}.{" "}
-                <span className="gradient-text">
-                  {session.workspace.name}
-                </span>
-              </h2>
-              <p
-                style={{
-                  color: "#94a3b8",
-                  fontSize: "0.9rem",
-                  marginTop: "0.35rem",
-                }}
-              >
-                Your career command center is ready. Enable modules below as
-                they become available.
-              </p>
+
+              {profileLoading ? (
+                <div className="text-xs text-[#64748b] py-6 text-center">
+                  Loading profile evidence…
+                </div>
+              ) : profileSnapshot ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="p-3.5 rounded-lg bg-[#f8fafc] border border-[#0f172a]/8">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-[#64748b]">
+                      Full Name
+                    </div>
+                    <div className="font-semibold text-sm text-[#0f172a] mt-1">
+                      {profileSnapshot.identity.fullName}
+                    </div>
+                  </div>
+                  <div className="p-3.5 rounded-lg bg-[#f8fafc] border border-[#0f172a]/8">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-[#64748b]">
+                      Headline
+                    </div>
+                    <div className="font-semibold text-sm text-[#0f172a] mt-1 truncate">
+                      {profileSnapshot.identity.headline ?? "Add headline"}
+                    </div>
+                  </div>
+                  <div className="p-3.5 rounded-lg bg-[#f8fafc] border border-[#0f172a]/8">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-[#64748b]">
+                      Location
+                    </div>
+                    <div className="font-semibold text-sm text-[#0f172a] mt-1 truncate">
+                      {profileSnapshot.identity.location ?? "Add location"}
+                    </div>
+                  </div>
+                  <div className="p-3.5 rounded-lg bg-[#f8fafc] border border-[#0f172a]/8">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-[#64748b]">
+                      Profile Version
+                    </div>
+                    <div className="font-semibold text-sm text-[#0f172a] mt-1">
+                      Version #{profileSnapshot.version}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-6 rounded-lg bg-[#f8fafc] text-center space-y-2">
+                  <p className="text-xs text-[#64748b]">
+                    No master profile has been established for this workspace yet.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => router.push("/career")}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#1d68ed] text-white text-xs font-medium hover:bg-[#1555c8] transition-colors shadow-2xs"
+                  >
+                    Establish Career Profile
+                  </button>
+                </div>
+              )}
             </div>
 
-            <div style={{ display: "flex", gap: "1rem" }}>
-              <div
-                style={{
-                  textAlign: "center",
-                  padding: "0.75rem 1.25rem",
-                  borderRadius: "0.75rem",
-                  backgroundColor: "rgba(15, 23, 42, 0.6)",
-                  border: "1px solid rgba(255,255,255,0.06)",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: "0.7rem",
-                    color: "#64748b",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.05em",
-                    marginBottom: "0.25rem",
-                  }}
-                >
-                  Workspace
+            {/* Explainable AI Recommendations */}
+            <ComingSoonCard
+              icon={<Sparkles className="w-4 h-4 text-[#1d68ed]" />}
+              title="Explainable AI Recommendations"
+              description="Connect an AI provider via BYOK in Settings to unlock personalized, explainable recommendations powered strictly by your verified Master Career Profile."
+            />
+          </div>
+
+          {/* Right Column (4 cols) */}
+          <div className="lg:col-span-4 flex flex-col gap-6">
+            {/* Quick-access to Job Radar */}
+            <div className="bg-white border border-[#0f172a]/10 rounded-xl p-6 shadow-2xs">
+              <div className="flex items-center gap-2.5 mb-3">
+                <div className="w-8 h-8 rounded-lg bg-[#1d68ed]/10 flex items-center justify-center text-[#1d68ed]">
+                  <Briefcase className="w-4 h-4" />
                 </div>
-                <div
-                  style={{
-                    fontSize: "0.85rem",
-                    fontWeight: "600",
-                    color: "#cbd5e1",
-                  }}
-                >
-                  {session.workspace.slug}
-                </div>
+                <h3 className="text-base font-bold text-[#0f172a]">
+                  Job Radar
+                </h3>
               </div>
-              <div
-                style={{
-                  textAlign: "center",
-                  padding: "0.75rem 1.25rem",
-                  borderRadius: "0.75rem",
-                  backgroundColor: "rgba(15, 23, 42, 0.6)",
-                  border: "1px solid rgba(255,255,255,0.06)",
-                }}
+              <p className="text-xs text-[#64748b] leading-relaxed mb-4">
+                Discover, filter, and track live opportunities matched deterministically against your verified competencies.
+              </p>
+              <button
+                type="button"
+                onClick={() => router.push("/jobs")}
+                className="w-full py-2.5 rounded-lg bg-[#1d68ed] text-white font-semibold text-xs hover:bg-[#1555c8] transition-colors shadow-2xs"
               >
-                <div
-                  style={{
-                    fontSize: "0.7rem",
-                    color: "#64748b",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.05em",
-                    marginBottom: "0.25rem",
-                  }}
-                >
-                  Email
+                Open Job Radar →
+              </button>
+            </div>
+
+            {/* Quick-access to Applications */}
+            <div className="bg-white border border-[#0f172a]/10 rounded-xl p-6 shadow-2xs">
+              <div className="flex items-center gap-2.5 mb-3">
+                <div className="w-8 h-8 rounded-lg bg-[#0d9488]/10 flex items-center justify-center text-[#0d9488]">
+                  <TrendingUp className="w-4 h-4" />
                 </div>
-                <div
-                  style={{
-                    fontSize: "0.85rem",
-                    fontWeight: "600",
-                    color: "#cbd5e1",
-                  }}
-                >
-                  {session.user.email}
-                </div>
+                <h3 className="text-base font-bold text-[#0f172a]">
+                  Application Pipeline
+                </h3>
               </div>
+              <p className="text-xs text-[#64748b] leading-relaxed mb-4">
+                Monitor submissions from discovery through interview and offer with persistent notes and version history.
+              </p>
+              <button
+                type="button"
+                onClick={() => router.push("/applications")}
+                className="w-full py-2.5 rounded-lg border border-[#0f172a]/15 bg-white text-[#0f172a] font-semibold text-xs hover:bg-[#f8fafc] transition-colors shadow-2xs"
+              >
+                View Pipeline →
+              </button>
+            </div>
+
+            {/* Quick-access to AI Coach */}
+            <div className="bg-white border border-[#0f172a]/10 rounded-xl p-6 shadow-2xs">
+              <div className="flex items-center gap-2.5 mb-3">
+                <div className="w-8 h-8 rounded-lg bg-[#0f172a]/10 flex items-center justify-center text-[#0f172a]">
+                  <Bot className="w-4 h-4" />
+                </div>
+                <h3 className="text-base font-bold text-[#0f172a]">
+                  AI Career Coach
+                </h3>
+              </div>
+              <p className="text-xs text-[#64748b] leading-relaxed mb-4">
+                Receive section-level critique and resume sharpening grounded in your verified career evidence.
+              </p>
+              <button
+                type="button"
+                onClick={() => router.push("/coach")}
+                className="w-full py-2.5 rounded-lg bg-[#0f172a] text-white font-semibold text-xs hover:bg-[#0b2227] transition-colors shadow-2xs"
+              >
+                Launch AI Coach →
+              </button>
             </div>
           </div>
         </div>
-
-        {/* ── Dashboard Grid or Resume Intelligence or Job Board ─────── */}
-        {activeTab === "resume" ? (
-          <ResumeIntelligenceView
-            initialVersion={targetedVersion}
-            initialProfile={targetedProfile}
-          />
-        ) : activeTab === "jobs" ? (
-          <JobBoard onNavigateToResume={handleNavigateToResume} />
-        ) : activeTab === "applications" ? (
-          <ApplicationTrackerView
-            onGoToJobs={() => setActiveTab("jobs")}
-          />
-        ) : activeTab === "coach" ? (
-          <AICoachView
-            masterProfile={profileSnapshot}
-            resumeProfiles={resumeProfiles}
-            selectedProfileId={selectedProfileId}
-            onSelectProfile={setSelectedProfileId}
-            onUpdateProfile={handleUpdateResumeProfile}
-            onNavigateToResumeStudio={() => setActiveTab("resume")}
-          />
-        ) : activeTab === "insights" ? (
-          <MarketInsightsView masterProfile={profileSnapshot} />
-        ) : activeTab === "settings" ? (
-          <ByokSettingsView />
-        ) : (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(12, 1fr)",
-              gap: "1.5rem",
-            }}
-          >
-            <div
-              style={{
-                gridColumn: "span 8",
-                display: "flex",
-                flexDirection: "column",
-                gap: "1.5rem",
-              }}
-            >
-              <div className="glass-panel" style={{ padding: "1.5rem" }}>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.6rem",
-                    marginBottom: "1rem",
-                  }}
-                >
-                  <FileText
-                    style={{ width: "18px", height: "18px", color: "#a855f7" }}
-                  />
-                  <h3 style={{ fontSize: "1.05rem", fontWeight: "700" }}>
-                    Profile Snapshot
-                  </h3>
-                </div>
-
-                {profileLoading ? (
-                  <div style={{ color: "#94a3b8" }}>
-                    Loading your profile…
-                  </div>
-                ) : profileSnapshot ? (
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-                      gap: "1rem",
-                    }}
-                  >
-                    <div
-                      style={{
-                        padding: "1rem",
-                        borderRadius: "0.9rem",
-                        backgroundColor: "rgba(15, 23, 42, 0.6)",
-                        border: "1px solid rgba(255,255,255,0.06)",
-                      }}
-                    >
-                      <div style={{ color: "#64748b", fontSize: "0.72rem" }}>
-                        Full name
-                      </div>
-                      <div style={{ fontWeight: "700", marginTop: "0.35rem" }}>
-                        {profileSnapshot.identity.fullName}
-                      </div>
-                    </div>
-                    <div
-                      style={{
-                        padding: "1rem",
-                        borderRadius: "0.9rem",
-                        backgroundColor: "rgba(15, 23, 42, 0.6)",
-                        border: "1px solid rgba(255,255,255,0.06)",
-                      }}
-                    >
-                      <div style={{ color: "#64748b", fontSize: "0.72rem" }}>
-                        Headline
-                      </div>
-                      <div style={{ fontWeight: "700", marginTop: "0.35rem" }}>
-                        {profileSnapshot.identity.headline ?? "Add a headline"}
-                      </div>
-                    </div>
-                    <div
-                      style={{
-                        padding: "1rem",
-                        borderRadius: "0.9rem",
-                        backgroundColor: "rgba(15, 23, 42, 0.6)",
-                        border: "1px solid rgba(255,255,255,0.06)",
-                      }}
-                    >
-                      <div style={{ color: "#64748b", fontSize: "0.72rem" }}>
-                        Location
-                      </div>
-                      <div style={{ fontWeight: "700", marginTop: "0.35rem" }}>
-                        {profileSnapshot.identity.location ?? "Add a location"}
-                      </div>
-                    </div>
-                    <div
-                      style={{
-                        padding: "1rem",
-                        borderRadius: "0.9rem",
-                        backgroundColor: "rgba(15, 23, 42, 0.6)",
-                        border: "1px solid rgba(255,255,255,0.06)",
-                      }}
-                    >
-                      <div style={{ color: "#64748b", fontSize: "0.72rem" }}>
-                        Version
-                      </div>
-                      <div style={{ fontWeight: "700", marginTop: "0.35rem" }}>
-                        {profileSnapshot.version}
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div style={{ color: "#94a3b8" }}>
-                    No master profile has been saved for this workspace yet.
-                    Open Resume Intelligence to create one.
-                  </div>
-                )}
-              </div>
-
-              <ComingSoonCard
-                icon={
-                  <Sparkles
-                    style={{ width: "18px", height: "18px", color: "#818cf8" }}
-                  />
-                }
-                title="Explainable AI Recommendations"
-                description="Connect an AI provider via BYOK to unlock personalized, explainable career recommendations powered by your Master Career Profile."
-              />
-            </div>
-
-              <div
-                style={{
-                  gridColumn: "span 4",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "1.5rem",
-                }}
-              >
-                {/* Quick-access to Job Radar */}
-                <div className="glass-panel" style={{ padding: "1.5rem" }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "0.6rem",
-                      marginBottom: "1rem",
-                    }}
-                  >
-                    <Briefcase
-                      style={{ width: "18px", height: "18px", color: "#22d3ee" }}
-                    />
-                    <h3 style={{ fontSize: "1.05rem", fontWeight: "700" }}>
-                      Job Radar
-                    </h3>
-                  </div>
-                  <p style={{ fontSize: "0.85rem", color: "#94a3b8", lineHeight: 1.5, marginBottom: "1rem" }}>
-                    Discover and save job opportunities matched to your profile.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab("jobs")}
-                    style={{
-                      width: "100%",
-                      padding: "0.6rem",
-                      borderRadius: "0.5rem",
-                      background: "rgba(34,211,238,0.1)",
-                      border: "1px solid rgba(34,211,238,0.2)",
-                      color: "#22d3ee",
-                      fontWeight: "600",
-                      fontSize: "0.85rem",
-                      cursor: "pointer",
-                    }}
-                  >
-                    Open Job Radar
-                  </button>
-                </div>
-
-                {/* Quick-access to Applications */}
-                <div className="glass-panel" style={{ padding: "1.5rem" }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "0.6rem",
-                      marginBottom: "1rem",
-                    }}
-                  >
-                    <TrendingUp
-                      style={{ width: "18px", height: "18px", color: "#10b981" }}
-                    />
-                    <h3 style={{ fontSize: "1.05rem", fontWeight: "700" }}>
-                      Application Pipeline
-                    </h3>
-                  </div>
-                  <p style={{ fontSize: "0.85rem", color: "#94a3b8", lineHeight: 1.5, marginBottom: "1rem" }}>
-                    Track applications from discovery through offer.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab("applications")}
-                    style={{
-                      width: "100%",
-                      padding: "0.6rem",
-                      borderRadius: "0.5rem",
-                      background: "rgba(16,185,129,0.1)",
-                      border: "1px solid rgba(16,185,129,0.2)",
-                      color: "#10b981",
-                      fontWeight: "600",
-                      fontSize: "0.85rem",
-                      cursor: "pointer",
-                    }}
-                  >
-                    View Pipeline
-                  </button>
-                </div>
-              </div>
-          </div>
-        )}
-      </main>
+      )}
 
       {/* ═══════════════════════ AI Coach Drawer ═══════════════════ */}
       {coachOpen && (

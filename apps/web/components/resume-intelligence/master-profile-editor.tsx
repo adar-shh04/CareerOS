@@ -135,17 +135,18 @@ export function MasterProfileEditor({ profile, onSave, saving }: Props) {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          backgroundColor: "rgba(15, 23, 42, 0.6)",
+          backgroundColor: "#ffffff",
           padding: "1rem 1.5rem",
           borderRadius: "0.75rem",
-          border: "1px solid rgba(255,255,255,0.08)",
+          border: "1px solid #e2e8f0",
+          boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
         }}
       >
         <div>
-          <h3 style={{ fontSize: "1.1rem", fontWeight: "700" }}>
+          <h3 style={{ fontSize: "1.1rem", fontWeight: "700", color: "#0f172a" }}>
             Master Career Profile
           </h3>
-          <p style={{ fontSize: "0.8rem", color: "#94a3b8" }}>
+          <p style={{ fontSize: "0.8rem", color: "#64748b" }}>
             Your canonical career source of truth. Version #
             {profile?.version ?? 1}
           </p>
@@ -158,7 +159,8 @@ export function MasterProfileEditor({ profile, onSave, saving }: Props) {
             <span
               style={{
                 fontSize: "0.8rem",
-                color: message.type === "success" ? "#34d399" : "#f87171",
+                fontWeight: 600,
+                color: message.type === "success" ? "#16a34a" : "#e11d48",
               }}
             >
               {message.text}
@@ -184,7 +186,7 @@ export function MasterProfileEditor({ profile, onSave, saving }: Props) {
         style={{
           display: "flex",
           gap: "0.5rem",
-          borderBottom: "1px solid rgba(255,255,255,0.08)",
+          borderBottom: "1px solid #e2e8f0",
           paddingBottom: "0.5rem",
           flexWrap: "wrap",
         }}
@@ -213,12 +215,12 @@ export function MasterProfileEditor({ profile, onSave, saving }: Props) {
                 borderRadius: "0.5rem",
                 fontSize: "0.85rem",
                 fontWeight: isActive ? "600" : "500",
-                color: isActive ? "#ffffff" : "#94a3b8",
+                color: isActive ? "#1d68ed" : "#64748b",
                 backgroundColor: isActive
-                  ? "rgba(99, 102, 241, 0.15)"
+                  ? "#eff6ff"
                   : "transparent",
                 border: isActive
-                  ? "1px solid rgba(99, 102, 241, 0.3)"
+                  ? "1px solid #bfdbfe"
                   : "1px solid transparent",
                 cursor: "pointer",
               }}
@@ -430,7 +432,7 @@ export function MasterProfileEditor({ profile, onSave, saving }: Props) {
                   </div>
 
                   <label
-                    style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.85rem", color: "#cbd5e1" }}
+                    style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.85rem", color: "#475569" }}
                   >
                     <input
                       type="checkbox"
@@ -438,7 +440,7 @@ export function MasterProfileEditor({ profile, onSave, saving }: Props) {
                       onChange={(e) =>
                         setExperiences(updateItem(experiences, exp.id, { current: e.target.checked }))
                       }
-                      style={{ accentColor: "#6366f1", width: "16px", height: "16px" }}
+                      style={{ accentColor: "#1d68ed", width: "16px", height: "16px" }}
                     />
                     Currently working here
                   </label>
@@ -1051,7 +1053,7 @@ function SectionHeader({
         alignItems: "center",
         gap: "0.5rem",
         marginBottom: "1rem",
-        color: "#e2e8f0",
+        color: "#0f172a",
       }}
     >
       {icon}
@@ -1075,7 +1077,7 @@ function SectionSubHeader({
         display: "flex",
         alignItems: "center",
         gap: "0.4rem",
-        color: "#cbd5e1",
+        color: "#0f172a",
       }}
     >
       {icon}
@@ -1101,7 +1103,7 @@ function DeleteButton({ onClick }: { onClick: () => void }) {
       style={{
         background: "none",
         border: "none",
-        color: "#f87171",
+        color: "#e11d48",
         cursor: "pointer",
         display: "flex",
         alignItems: "center",
@@ -1132,9 +1134,9 @@ function EmptyState({
       style={{
         textAlign: "center",
         padding: "2rem 1.5rem",
-        border: "1px dashed rgba(255,255,255,0.12)",
+        border: "1px dashed #cbd5e1",
         borderRadius: "0.75rem",
-        backgroundColor: "rgba(15,23,42,0.4)",
+        backgroundColor: "#f8fafc",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
@@ -1146,17 +1148,17 @@ function EmptyState({
           width: "52px",
           height: "52px",
           borderRadius: "12px",
-          backgroundColor: "rgba(99,102,241,0.1)",
+          backgroundColor: "#eff6ff",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          color: "#818cf8",
+          color: "#1d68ed",
         }}
       >
         {icon}
       </div>
-      <h5 style={{ fontSize: "0.95rem", fontWeight: 700 }}>{title}</h5>
-      <p style={{ fontSize: "0.8rem", color: "#94a3b8", maxWidth: "380px" }}>
+      <h5 style={{ fontSize: "0.95rem", fontWeight: 700, color: "#0f172a" }}>{title}</h5>
+      <p style={{ fontSize: "0.8rem", color: "#64748b", maxWidth: "380px" }}>
         {description}
       </p>
       <button type="button" onClick={onAction} style={actionBtnStyle}>
@@ -1174,6 +1176,10 @@ const panelStyle: CSSProperties = {
   display: "flex",
   flexDirection: "column",
   gap: "0.9rem",
+  backgroundColor: "#ffffff",
+  borderRadius: "0.75rem",
+  border: "1px solid #e2e8f0",
+  boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
 };
 
 const labelStyle: CSSProperties = {
@@ -1185,15 +1191,15 @@ const labelStyle: CSSProperties = {
 const labelText: CSSProperties = {
   fontSize: "0.75rem",
   fontWeight: 600,
-  color: "#cbd5e1",
+  color: "#334155",
 };
 
 const inputStyle: CSSProperties = {
   padding: "0.5rem 0.75rem",
   borderRadius: "0.5rem",
-  backgroundColor: "rgba(15, 23, 42, 0.8)",
-  border: "1px solid rgba(255,255,255,0.1)",
-  color: "#f8fafc",
+  backgroundColor: "#ffffff",
+  border: "1px solid #cbd5e1",
+  color: "#0f172a",
   fontSize: "0.85rem",
   outline: "none",
 };
@@ -1204,9 +1210,9 @@ const actionBtnStyle: CSSProperties = {
   gap: "0.4rem",
   padding: "0.4rem 0.85rem",
   borderRadius: "0.375rem",
-  backgroundColor: "rgba(99, 102, 241, 0.15)",
-  border: "1px solid rgba(99, 102, 241, 0.3)",
-  color: "#818cf8",
+  backgroundColor: "#eff6ff",
+  border: "1px solid #bfdbfe",
+  color: "#1d68ed",
   fontSize: "0.8rem",
   fontWeight: 600,
   cursor: "pointer",
@@ -1218,19 +1224,20 @@ const primaryBtnStyle: CSSProperties = {
   gap: "0.5rem",
   padding: "0.6rem 1.25rem",
   borderRadius: "0.5rem",
-  background: "linear-gradient(135deg, #6366f1 0%, #a855f7 100%)",
+  backgroundColor: "#1d68ed",
   color: "#ffffff",
   fontWeight: 600,
   fontSize: "0.85rem",
   border: "none",
-  boxShadow: "0 4px 15px rgba(99, 102, 241, 0.3)",
+  boxShadow: "0 1px 2px 0 rgba(29, 104, 237, 0.2)",
+  cursor: "pointer",
 };
 
 const entryCardStyle: CSSProperties = {
   padding: "1rem",
   borderRadius: "0.5rem",
-  backgroundColor: "rgba(15, 23, 42, 0.6)",
-  border: "1px solid rgba(255,255,255,0.06)",
+  backgroundColor: "#f8fafc",
+  border: "1px solid #e2e8f0",
   display: "flex",
   flexDirection: "column",
   gap: "0.75rem",
@@ -1242,6 +1249,6 @@ const entryRowStyle: CSSProperties = {
   gap: "0.5rem",
   padding: "0.6rem 0.85rem",
   borderRadius: "0.5rem",
-  backgroundColor: "rgba(15, 23, 42, 0.6)",
-  border: "1px solid rgba(255,255,255,0.06)",
+  backgroundColor: "#f8fafc",
+  border: "1px solid #e2e8f0",
 };

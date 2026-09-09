@@ -218,8 +218,8 @@ export function JobDetailPageView({ jobId }: JobDetailPageViewProps) {
 
   if (loading) {
     return (
-      <div className="flex h-96 flex-col items-center justify-center gap-3 text-slate-400">
-        <Loader2 className="h-6 w-6 animate-spin text-indigo-500" />
+      <div className="flex h-96 flex-col items-center justify-center gap-3 text-slate-500">
+        <Loader2 className="h-6 w-6 animate-spin text-[#1d68ed]" />
         <span className="text-xs">Loading opportunity details...</span>
       </div>
     );
@@ -227,14 +227,14 @@ export function JobDetailPageView({ jobId }: JobDetailPageViewProps) {
 
   if (!job) {
     return (
-      <div className="max-w-4xl mx-auto rounded-2xl border border-white/[0.08] bg-[#0b0f19] p-8 text-center space-y-4">
-        <h2 className="text-lg font-bold text-white">Opportunity Not Found</h2>
-        <p className="text-xs text-slate-400">
+      <div className="max-w-4xl mx-auto rounded-xl border border-slate-200/80 bg-white p-8 text-center space-y-4 shadow-xs">
+        <h2 className="text-lg font-bold text-slate-900">Opportunity Not Found</h2>
+        <p className="text-xs text-slate-500">
           The requested job posting may have expired or does not exist.
         </p>
         <Link
           href="/jobs"
-          className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-[#1d68ed] hover:bg-[#1555c8] px-4 py-2 text-xs font-semibold text-white transition-colors shadow-xs"
         >
           <ArrowLeft className="w-4 h-4" /> Back to Job Radar
         </Link>
@@ -252,7 +252,7 @@ export function JobDetailPageView({ jobId }: JobDetailPageViewProps) {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <Link
           href="/jobs"
-          className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-400 hover:text-white transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-900 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Back to Job Radar</span>
@@ -264,7 +264,7 @@ export function JobDetailPageView({ jobId }: JobDetailPageViewProps) {
             type="button"
             disabled={matching}
             onClick={() => void handleRunMatch()}
-            className="flex items-center gap-1.5 rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-1.5 text-xs font-medium text-indigo-300 hover:bg-indigo-500/20 transition-colors"
+            className="flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50/70 hover:bg-blue-100/70 px-3 py-1.5 text-xs font-medium text-[#1d68ed] transition-colors cursor-pointer disabled:opacity-50"
           >
             {matching ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -279,10 +279,10 @@ export function JobDetailPageView({ jobId }: JobDetailPageViewProps) {
             type="button"
             disabled={actionLoading}
             onClick={() => void handleSaveToggle()}
-            className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+            className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors shadow-2xs cursor-pointer ${
               isSaved
-                ? "border-indigo-500 bg-indigo-600 text-white"
-                : "border-white/10 bg-slate-900 text-slate-300 hover:bg-slate-800"
+                ? "border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100"
+                : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900"
             }`}
           >
             <Bookmark className="h-3.5 w-3.5" />
@@ -294,10 +294,10 @@ export function JobDetailPageView({ jobId }: JobDetailPageViewProps) {
             type="button"
             disabled={actionLoading}
             onClick={() => void handleDismissToggle()}
-            className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+            className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors shadow-2xs cursor-pointer ${
               isDismissed
-                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"
-                : "border-white/10 bg-slate-900 text-slate-400 hover:text-slate-200"
+                ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                : "border-slate-200 bg-white text-slate-500 hover:text-slate-900 hover:bg-slate-50"
             }`}
           >
             {isDismissed ? (
@@ -318,7 +318,7 @@ export function JobDetailPageView({ jobId }: JobDetailPageViewProps) {
             type="button"
             disabled={creatingResume}
             onClick={() => void handleCreateTargetedResume()}
-            className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-md shadow-indigo-600/20 hover:from-indigo-500 hover:to-purple-500 transition-all"
+            className="flex items-center gap-1.5 rounded-lg bg-[#1d68ed] hover:bg-[#1555c8] px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs transition-all cursor-pointer disabled:opacity-50"
           >
             {creatingResume ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -334,7 +334,7 @@ export function JobDetailPageView({ jobId }: JobDetailPageViewProps) {
               href={job.sourceUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-slate-900 px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-2xs transition-colors"
             >
               <span>View Source</span>
               <ExternalLink className="h-3.5 w-3.5" />
@@ -344,36 +344,36 @@ export function JobDetailPageView({ jobId }: JobDetailPageViewProps) {
       </div>
 
       {actionSuccess && (
-        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-300 flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800 flex items-center gap-2 shadow-2xs">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
           <span>{actionSuccess}</span>
         </div>
       )}
 
       {error && (
-        <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-300">
+        <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800 shadow-2xs">
           {error}
         </div>
       )}
 
       {/* Main Job Hero Header */}
-      <div className="rounded-2xl border border-white/[0.08] bg-[#0b0f19] p-6 sm:p-8 space-y-4 backdrop-blur-md">
+      <div className="rounded-xl border border-slate-200/80 bg-white p-6 sm:p-8 space-y-4 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-white">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
               {job.title}
             </h1>
-            <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-slate-300">
-              <span className="flex items-center gap-1.5 font-semibold text-indigo-300">
-                <Building2 className="h-4 w-4 text-indigo-400" />
+            <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-slate-500">
+              <span className="flex items-center gap-1.5 font-semibold text-slate-900">
+                <Building2 className="h-4 w-4 text-[#1d68ed]" />
                 {job.company}
               </span>
-              <span className="flex items-center gap-1 text-slate-400">
+              <span className="flex items-center gap-1 text-slate-500">
                 <MapPin className="h-3.5 w-3.5 text-slate-500" />
                 {job.location}
               </span>
               {job.isRemote && (
-                <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">
+                <span className="rounded-full border border-blue-200/80 bg-blue-50 px-2.5 py-0.5 text-[10px] font-semibold text-[#1d68ed]">
                   Remote Policy: {job.remotePolicy ?? "Remote"}
                 </span>
               )}
@@ -388,28 +388,28 @@ export function JobDetailPageView({ jobId }: JobDetailPageViewProps) {
         </div>
 
         {/* Metadata pill grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-white/[0.08] text-xs">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-slate-100 text-xs">
           <div>
             <span className="text-slate-500 block text-[11px]">Salary Range</span>
-            <span className="text-slate-200 font-medium">
+            <span className="text-slate-900 font-medium">
               {job.salaryRange ?? "Not Disclosed"}
             </span>
           </div>
           <div>
             <span className="text-slate-500 block text-[11px]">Employment Type</span>
-            <span className="text-slate-200 font-medium">
+            <span className="text-slate-900 font-medium">
               {job.employmentType ?? "Full-time"}
             </span>
           </div>
           <div>
             <span className="text-slate-500 block text-[11px]">Source Adapter</span>
-            <span className="text-slate-200 font-medium uppercase tracking-wider text-[10px]">
+            <span className="text-slate-900 font-medium uppercase tracking-wider text-[10px]">
               {job.source}
             </span>
           </div>
           <div>
             <span className="text-slate-500 block text-[11px]">Posting Date</span>
-            <span className="text-slate-200 font-medium">
+            <span className="text-slate-900 font-medium">
               {job.postedAt
                 ? new Date(job.postedAt).toLocaleDateString()
                 : "Recently Added"}
@@ -419,23 +419,23 @@ export function JobDetailPageView({ jobId }: JobDetailPageViewProps) {
       </div>
 
       {/* Match Explainability Panel */}
-      <div className="rounded-2xl border border-white/[0.08] bg-[#0b0f19] p-6 space-y-5">
+      <div className="rounded-xl border border-slate-200/80 bg-white p-6 space-y-5 shadow-xs">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-indigo-400" />
-            <h2 className="text-base font-bold text-white tracking-tight">
+            <Sparkles className="w-5 h-5 text-[#1d68ed]" />
+            <h2 className="text-base font-bold text-slate-900 tracking-tight">
               Deterministic Fit Breakdown
             </h2>
           </div>
           {matchResult && (
-            <span className="text-xs text-slate-400">
+            <span className="text-xs text-slate-500">
               Confidence: {Math.round(matchResult.confidence * 100)}%
             </span>
           )}
         </div>
 
         {/* Explanation text */}
-        <div className="rounded-xl border border-indigo-500/20 bg-indigo-950/20 p-4 text-xs text-slate-200 leading-relaxed">
+        <div className="rounded-xl border border-blue-100 bg-[#f4f8ff] p-4 text-xs text-slate-800 leading-relaxed">
           {job.whyFits ??
             matchResult?.explanation ??
             "Match analysis evaluates your Master Career Profile skills, title similarity, and experience against the requirements of this role."}
@@ -444,33 +444,33 @@ export function JobDetailPageView({ jobId }: JobDetailPageViewProps) {
         {/* Dimension scores */}
         {matchResult?.dimensionScores && (
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
-            <div className="rounded-lg border border-white/[0.06] bg-slate-900/60 p-3">
-              <div className="text-slate-400 text-[11px]">Skills Match</div>
-              <div className="text-base font-bold text-white mt-0.5">
+            <div className="rounded-lg border border-slate-200/80 bg-slate-50/70 p-3">
+              <div className="text-slate-500 text-[11px]">Skills Match</div>
+              <div className="text-base font-bold text-slate-900 mt-0.5">
                 {Math.round(matchResult.dimensionScores.skill * 100)}%
               </div>
             </div>
-            <div className="rounded-lg border border-white/[0.06] bg-slate-900/60 p-3">
-              <div className="text-slate-400 text-[11px]">Role Relevance</div>
-              <div className="text-base font-bold text-white mt-0.5">
+            <div className="rounded-lg border border-slate-200/80 bg-slate-50/70 p-3">
+              <div className="text-slate-500 text-[11px]">Role Relevance</div>
+              <div className="text-base font-bold text-slate-900 mt-0.5">
                 {Math.round(matchResult.dimensionScores.role * 100)}%
               </div>
             </div>
-            <div className="rounded-lg border border-white/[0.06] bg-slate-900/60 p-3">
-              <div className="text-slate-400 text-[11px]">Experience Depth</div>
-              <div className="text-base font-bold text-white mt-0.5">
+            <div className="rounded-lg border border-slate-200/80 bg-slate-50/70 p-3">
+              <div className="text-slate-500 text-[11px]">Experience Depth</div>
+              <div className="text-base font-bold text-slate-900 mt-0.5">
                 {Math.round(matchResult.dimensionScores.experience * 100)}%
               </div>
             </div>
-            <div className="rounded-lg border border-white/[0.06] bg-slate-900/60 p-3">
-              <div className="text-slate-400 text-[11px]">Location Alignment</div>
-              <div className="text-base font-bold text-white mt-0.5">
+            <div className="rounded-lg border border-slate-200/80 bg-slate-50/70 p-3">
+              <div className="text-slate-500 text-[11px]">Location Alignment</div>
+              <div className="text-base font-bold text-slate-900 mt-0.5">
                 {Math.round(matchResult.dimensionScores.location * 100)}%
               </div>
             </div>
-            <div className="rounded-lg border border-white/[0.06] bg-slate-900/60 p-3">
-              <div className="text-slate-400 text-[11px]">Seniority Score</div>
-              <div className="text-base font-bold text-white mt-0.5">
+            <div className="rounded-lg border border-slate-200/80 bg-slate-50/70 p-3">
+              <div className="text-slate-500 text-[11px]">Seniority Score</div>
+              <div className="text-base font-bold text-slate-900 mt-0.5">
                 {Math.round(matchResult.dimensionScores.seniority * 100)}%
               </div>
             </div>
@@ -480,21 +480,21 @@ export function JobDetailPageView({ jobId }: JobDetailPageViewProps) {
         {/* Matched vs Missing Skills breakdown */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
           <div className="space-y-2">
-            <span className="text-emerald-400 font-semibold flex items-center gap-1.5">
-              <CheckCircle2 className="w-4 h-4" /> Matched Verified Skills
+            <span className="text-emerald-700 font-semibold flex items-center gap-1.5">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Matched Verified Skills
             </span>
             <div className="flex flex-wrap gap-1.5">
               {(matchResult?.matchedSkills ?? []).length > 0 ? (
                 matchResult?.matchedSkills.map((s, idx) => (
                   <span
                     key={idx}
-                    className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-emerald-300 font-medium"
+                    className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-emerald-800 font-medium"
                   >
                     {s}
                   </span>
                 ))
               ) : (
-                <span className="text-slate-500 italic text-[11px]">
+                <span className="text-slate-400 italic text-[11px]">
                   No exact skills overlap detected.
                 </span>
               )}
@@ -502,8 +502,8 @@ export function JobDetailPageView({ jobId }: JobDetailPageViewProps) {
           </div>
 
           <div className="space-y-2">
-            <span className="text-amber-400 font-semibold flex items-center gap-1.5">
-              <XCircle className="w-4 h-4" /> Missing / Gap Requirements
+            <span className="text-amber-800 font-semibold flex items-center gap-1.5">
+              <XCircle className="w-4 h-4 text-amber-600" /> Missing / Gap Requirements
             </span>
             <div className="flex flex-wrap gap-1.5">
               {(matchResult?.missingSkills ?? job.missingSkills ?? []).length > 0 ? (
@@ -511,14 +511,14 @@ export function JobDetailPageView({ jobId }: JobDetailPageViewProps) {
                   (s, idx) => (
                     <span
                       key={idx}
-                      className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-amber-300 font-medium"
+                      className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-amber-900 font-medium"
                     >
                       {s}
                     </span>
                   ),
                 )
               ) : (
-                <span className="text-slate-500 italic text-[11px]">
+                <span className="text-slate-400 italic text-[11px]">
                   All required skills found in your master profile.
                 </span>
               )}
@@ -528,13 +528,13 @@ export function JobDetailPageView({ jobId }: JobDetailPageViewProps) {
       </div>
 
       {/* Application Tracking Status & Notes */}
-      <div className="rounded-2xl border border-white/[0.08] bg-[#0b0f19] p-6 space-y-4">
+      <div className="rounded-xl border border-slate-200/80 bg-white p-6 space-y-4 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h3 className="text-base font-bold text-white tracking-tight">
+            <h3 className="text-base font-bold text-slate-900 tracking-tight">
               Application Lifecycle
             </h3>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-500">
               Track your stage in the hiring process for this specific opportunity.
             </p>
           </div>
@@ -553,10 +553,10 @@ export function JobDetailPageView({ jobId }: JobDetailPageViewProps) {
                   key={stage.id}
                   type="button"
                   onClick={() => void handleUpdateApplicationStatus(stage.id)}
-                  className={`rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors ${
+                  className={`rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors shadow-2xs cursor-pointer ${
                     isActive
-                      ? "border-cyan-500 bg-cyan-500/20 text-cyan-300 font-bold"
-                      : "border-white/10 bg-slate-900 text-slate-400 hover:text-white"
+                      ? "border-blue-200 bg-blue-50 text-[#1d68ed] font-semibold"
+                      : "border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50"
                   }`}
                 >
                   {stage.label}
@@ -568,21 +568,21 @@ export function JobDetailPageView({ jobId }: JobDetailPageViewProps) {
 
         {/* Notes */}
         <div className="space-y-2 pt-2">
-          <label className="text-xs text-slate-300 font-medium">
+          <label className="text-xs text-slate-700 font-medium">
             Internal Opportunity Notes
           </label>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Recruiter contacts, interview questions, research links, compensation notes..."
-            className="w-full h-24 rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-white text-xs focus:border-indigo-500 focus:outline-none resize-none leading-relaxed"
+            className="w-full h-24 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-slate-900 text-xs focus:border-[#1d68ed] focus:bg-white focus:ring-2 focus:ring-[#1d68ed]/20 focus:outline-none resize-none leading-relaxed placeholder:text-slate-400"
           />
           <div className="flex justify-end">
             <button
               type="button"
               disabled={savingNotes}
               onClick={() => void handleSaveNotes()}
-              className="rounded-lg border border-white/10 bg-slate-900 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-800 transition-colors"
+              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs cursor-pointer disabled:opacity-50"
             >
               {savingNotes ? "Saving Notes..." : "Save Notes"}
             </button>
@@ -591,11 +591,11 @@ export function JobDetailPageView({ jobId }: JobDetailPageViewProps) {
       </div>
 
       {/* Full Job Description */}
-      <div className="rounded-2xl border border-white/[0.08] bg-[#0b0f19] p-6 sm:p-8 space-y-4">
-        <h3 className="text-base font-bold text-white tracking-tight">
+      <div className="rounded-xl border border-slate-200/80 bg-white p-6 sm:p-8 space-y-4 shadow-xs">
+        <h3 className="text-base font-bold text-slate-900 tracking-tight">
           Role Description & Requirements
         </h3>
-        <div className="text-xs text-slate-300 leading-relaxed whitespace-pre-line font-sans space-y-3">
+        <div className="text-xs text-slate-700 leading-relaxed whitespace-pre-line font-sans space-y-3">
           {job.description ?? "No detailed description provided by the source adapter."}
         </div>
       </div>

@@ -199,20 +199,20 @@ export function ResumeProfileWorkspace({ profileId }: ResumeProfileWorkspaceProp
   if (loading) {
     return (
       <div className="flex h-96 flex-col items-center justify-center gap-3 text-slate-400">
-        <Loader2 className="h-6 w-6 animate-spin text-indigo-500" />
-        <span className="text-xs">Loading resume workspace...</span>
+        <Loader2 className="h-6 w-6 animate-spin text-[#1d68ed]" />
+        <span className="text-xs font-medium">Loading resume workspace...</span>
       </div>
     );
   }
 
   if (!profile) {
     return (
-      <div className="max-w-4xl mx-auto rounded-2xl border border-white/[0.08] bg-[#0b0f19] p-8 text-center space-y-4">
-        <h2 className="text-lg font-bold text-white">Profile Not Found</h2>
-        <p className="text-xs text-slate-400">The requested resume profile does not exist.</p>
+      <div className="max-w-4xl mx-auto rounded-xl border border-slate-200/80 bg-white p-8 text-center space-y-4 shadow-xs">
+        <h2 className="text-lg font-bold text-slate-900">Profile Not Found</h2>
+        <p className="text-xs text-slate-500">The requested resume profile does not exist.</p>
         <Link
           href="/resumes"
-          className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-[#1d68ed] hover:bg-[#1555c8] px-4 py-2 text-xs font-semibold text-white shadow-xs transition-colors"
         >
           <ArrowLeft className="w-4 h-4" /> Back to Resume Studio
         </Link>
@@ -223,21 +223,21 @@ export function ResumeProfileWorkspace({ profileId }: ResumeProfileWorkspaceProp
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-white/[0.08] bg-[#0b0f19] p-6 backdrop-blur-md">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-slate-200/80 bg-white p-6 shadow-xs">
         <div className="space-y-1">
           <Link
             href="/resumes"
-            className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400 hover:text-white transition-colors mb-1"
+            className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 hover:text-slate-900 transition-colors mb-1"
           >
             <ArrowLeft className="w-3 h-3" /> Back to All Profiles
           </Link>
           <div className="flex items-center gap-2.5">
-            <h1 className="text-xl font-bold tracking-tight text-white">{profile.name}</h1>
-            <span className="rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2.5 py-0.5 text-[10px] font-semibold text-indigo-300">
+            <h1 className="text-xl font-bold tracking-tight text-slate-900">{profile.name}</h1>
+            <span className="rounded-full border border-blue-200/80 bg-blue-50 px-2.5 py-0.5 text-[10px] font-semibold text-[#1d68ed]">
               {profile.roleFocus ?? "General Profile"}
             </span>
           </div>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-500">
             Persistent workspace asset · {String(versions.length)} immutable snapshots preserved
           </p>
         </div>
@@ -247,7 +247,7 @@ export function ResumeProfileWorkspace({ profileId }: ResumeProfileWorkspaceProp
             type="button"
             onClick={() => void handleSaveProfile()}
             disabled={saving}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/20 transition-all disabled:opacity-50"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#1d68ed] hover:bg-[#1555c8] text-white text-xs font-semibold shadow-xs transition-all disabled:opacity-50 cursor-pointer"
           >
             {saving ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -260,23 +260,23 @@ export function ResumeProfileWorkspace({ profileId }: ResumeProfileWorkspaceProp
       </div>
 
       {actionSuccess && (
-        <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 shrink-0" />
+        <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2 shadow-2xs">
+          <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
           <span>{actionSuccess}</span>
         </div>
       )}
 
       {error && (
-        <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-center gap-2">
+        <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2 shadow-2xs">
           <span>{error}</span>
         </div>
       )}
 
       {/* Quick Snapshot Trigger Form */}
-      <div className="p-4 rounded-xl border border-white/[0.08] bg-[#0f172a]/60 backdrop-blur-sm">
+      <div className="p-5 rounded-xl border border-slate-200/80 bg-white shadow-xs">
         <form onSubmit={(e) => void handleCreateSnapshot(e)} className="flex flex-col sm:flex-row items-end gap-3 text-xs">
           <div className="flex-1 w-full space-y-1">
-            <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+            <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
               Snapshot Target Role
             </label>
             <input
@@ -284,12 +284,12 @@ export function ResumeProfileWorkspace({ profileId }: ResumeProfileWorkspaceProp
               value={targetRole}
               onChange={(e) => setTargetRole(e.target.value)}
               placeholder="e.g. Senior Backend Engineer"
-              className="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-white/10 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500"
+              className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#1d68ed] focus:ring-2 focus:ring-[#1d68ed]/20"
             />
           </div>
 
           <div className="flex-1 w-full space-y-1">
-            <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+            <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
               Target Company
             </label>
             <input
@@ -297,14 +297,14 @@ export function ResumeProfileWorkspace({ profileId }: ResumeProfileWorkspaceProp
               value={targetCompany}
               onChange={(e) => setTargetCompany(e.target.value)}
               placeholder="e.g. Vercel, Stripe"
-              className="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-white/10 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500"
+              className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#1d68ed] focus:ring-2 focus:ring-[#1d68ed]/20"
             />
           </div>
 
           <button
             type="submit"
             disabled={creatingSnapshot}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-all disabled:opacity-50 shrink-0"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold transition-all disabled:opacity-50 shrink-0 shadow-xs cursor-pointer"
           >
             {creatingSnapshot ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -317,7 +317,7 @@ export function ResumeProfileWorkspace({ profileId }: ResumeProfileWorkspaceProp
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-white/[0.08] gap-1 text-xs">
+      <div className="flex border-b border-slate-200 gap-1 text-xs">
         {[
           { id: "preview", label: "Live Typeset Preview", icon: Eye },
           { id: "evidence", label: "Evidence Prioritization", icon: Layers },
@@ -331,13 +331,13 @@ export function ResumeProfileWorkspace({ profileId }: ResumeProfileWorkspaceProp
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id as typeof activeTab)}
-              className={`flex items-center gap-2 px-4 py-2.5 font-medium border-b-2 transition-all ${
+              className={`flex items-center gap-2 px-4 py-2.5 font-medium border-b-2 transition-all cursor-pointer ${
                 isActive
-                  ? "border-indigo-500 text-white font-semibold bg-white/[0.02]"
-                  : "border-transparent text-slate-400 hover:text-slate-200"
+                  ? "border-[#1d68ed] text-[#1d68ed] font-bold bg-blue-50/50"
+                  : "border-transparent text-slate-500 hover:text-slate-900"
               }`}
             >
-              <Icon className={`w-3.5 h-3.5 ${isActive ? "text-indigo-400" : ""}`} />
+              <Icon className={`w-3.5 h-3.5 ${isActive ? "text-[#1d68ed]" : ""}`} />
               <span>{tab.label}</span>
             </button>
           );
@@ -346,7 +346,7 @@ export function ResumeProfileWorkspace({ profileId }: ResumeProfileWorkspaceProp
 
       {/* TAB CONTENT: PREVIEW */}
       {activeTab === "preview" && (
-        <div className="rounded-2xl border border-white/[0.08] bg-[#0b0f19] p-6 backdrop-blur-sm">
+        <div className="rounded-xl border border-slate-200/80 bg-white p-6 shadow-xs">
           <ResumePreview
             masterProfile={masterProfile}
             selectedProfile={profile}
@@ -364,17 +364,17 @@ export function ResumeProfileWorkspace({ profileId }: ResumeProfileWorkspaceProp
 
       {/* TAB CONTENT: EVIDENCE PRIORITIZATION */}
       {activeTab === "evidence" && (
-        <div className="rounded-2xl border border-white/[0.08] bg-[#0b0f19] p-6 space-y-6">
+        <div className="rounded-xl border border-slate-200/80 bg-white p-6 space-y-6 shadow-xs">
           <div>
-            <h2 className="text-base font-bold text-white tracking-tight">Evidence Prioritization</h2>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <h2 className="text-base font-bold text-slate-900 tracking-tight">Evidence Prioritization</h2>
+            <p className="text-xs text-slate-500 mt-0.5">
               Choose which verified records from your Master Career Profile should be highlighted prominently on this resume track.
             </p>
           </div>
 
           {/* Priority Skills */}
           <div className="space-y-2">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-indigo-400">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-[#1d68ed]">
               Priority Skills ({prioritySkillIds.length} selected)
             </h3>
             <div className="flex flex-wrap gap-1.5">
@@ -385,10 +385,10 @@ export function ResumeProfileWorkspace({ profileId }: ResumeProfileWorkspaceProp
                     key={skill.id}
                     type="button"
                     onClick={() => togglePrioritySkill(skill.id)}
-                    className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-all ${
+                    className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-all cursor-pointer ${
                       isSelected
-                        ? "border-indigo-500 bg-indigo-600/30 text-white font-semibold"
-                        : "border-white/10 bg-slate-900 text-slate-400 hover:text-slate-200"
+                        ? "border-blue-300 bg-blue-50/80 text-[#1d68ed] font-bold shadow-2xs"
+                        : "border-slate-200 bg-slate-50 text-slate-600 hover:text-slate-900 hover:bg-white"
                     }`}
                   >
                     {isSelected ? `✓ ${skill.name}` : skill.name}
@@ -399,8 +399,8 @@ export function ResumeProfileWorkspace({ profileId }: ResumeProfileWorkspaceProp
           </div>
 
           {/* Priority Projects */}
-          <div className="space-y-2 pt-2 border-t border-white/[0.06]">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-purple-400">
+          <div className="space-y-2 pt-2 border-t border-slate-100">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-purple-700">
               Priority Projects ({priorityProjectIds.length} selected)
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
@@ -411,15 +411,15 @@ export function ResumeProfileWorkspace({ profileId }: ResumeProfileWorkspaceProp
                     key={proj.id}
                     type="button"
                     onClick={() => togglePriorityProject(proj.id)}
-                    className={`rounded-xl border p-3 text-left transition-all ${
+                    className={`rounded-xl border p-3 text-left transition-all cursor-pointer ${
                       isSelected
-                        ? "border-purple-500 bg-purple-600/20 text-white"
-                        : "border-white/10 bg-slate-900/50 text-slate-400 hover:text-slate-200"
+                        ? "border-purple-300 bg-purple-50/70 text-slate-900 shadow-2xs"
+                        : "border-slate-200 bg-slate-50 text-slate-600 hover:text-slate-900 hover:bg-white"
                     }`}
                   >
-                    <div className="font-semibold text-slate-200">{proj.name}</div>
+                    <div className="font-semibold text-slate-900">{proj.name}</div>
                     {proj.description && (
-                      <p className="text-[11px] text-slate-400 mt-1 line-clamp-1">{proj.description}</p>
+                      <p className="text-[11px] text-slate-500 mt-1 line-clamp-1">{proj.description}</p>
                     )}
                   </button>
                 );
@@ -428,8 +428,8 @@ export function ResumeProfileWorkspace({ profileId }: ResumeProfileWorkspaceProp
           </div>
 
           {/* Priority Experience */}
-          <div className="space-y-2 pt-2 border-t border-white/[0.06]">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-cyan-400">
+          <div className="space-y-2 pt-2 border-t border-slate-100">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-700">
               Priority Experience Roles ({priorityExperienceIds.length} selected)
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
@@ -440,26 +440,26 @@ export function ResumeProfileWorkspace({ profileId }: ResumeProfileWorkspaceProp
                     key={exp.id}
                     type="button"
                     onClick={() => togglePriorityExperience(exp.id)}
-                    className={`rounded-xl border p-3 text-left transition-all ${
+                    className={`rounded-xl border p-3 text-left transition-all cursor-pointer ${
                       isSelected
-                        ? "border-cyan-500 bg-cyan-600/20 text-white"
-                        : "border-white/10 bg-slate-900/50 text-slate-400 hover:text-slate-200"
+                        ? "border-emerald-300 bg-emerald-50/70 text-slate-900 shadow-2xs"
+                        : "border-slate-200 bg-slate-50 text-slate-600 hover:text-slate-900 hover:bg-white"
                     }`}
                   >
-                    <div className="font-semibold text-slate-200">{exp.title}</div>
-                    <div className="text-[11px] text-slate-400 mt-0.5">{exp.company}</div>
+                    <div className="font-semibold text-slate-900">{exp.title}</div>
+                    <div className="text-[11px] text-slate-500 mt-0.5">{exp.company}</div>
                   </button>
                 );
               })}
             </div>
           </div>
 
-          <div className="pt-4 border-t border-white/[0.08] flex justify-end">
+          <div className="pt-4 border-t border-slate-100 flex justify-end">
             <button
               type="button"
               onClick={() => void handleSaveProfile()}
               disabled={saving}
-              className="rounded-xl bg-indigo-600 hover:bg-indigo-500 px-5 py-2 text-xs font-semibold text-white shadow-md transition-colors"
+              className="rounded-lg bg-[#1d68ed] hover:bg-[#1555c8] px-5 py-2 text-xs font-semibold text-white shadow-xs transition-colors cursor-pointer"
             >
               Save Evidence Selections
             </button>
@@ -469,54 +469,54 @@ export function ResumeProfileWorkspace({ profileId }: ResumeProfileWorkspaceProp
 
       {/* TAB CONTENT: VERSIONS */}
       {activeTab === "versions" && (
-        <div className="rounded-2xl border border-white/[0.08] bg-[#0b0f19] p-6 space-y-4">
+        <div className="rounded-xl border border-slate-200/80 bg-white p-6 space-y-4 shadow-xs">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-base font-bold text-white tracking-tight">Version Archive</h2>
-              <p className="text-xs text-slate-400">
+              <h2 className="text-base font-bold text-slate-900 tracking-tight">Version Archive</h2>
+              <p className="text-xs text-slate-500">
                 Immutable, persistent snapshots derived from this profile.
               </p>
             </div>
             <button
               type="button"
               onClick={() => setShowSnapshotModal(true)}
-              className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500"
+              className="flex items-center gap-1.5 rounded-lg bg-[#1d68ed] hover:bg-[#1555c8] px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" /> Snapshot Version
             </button>
           </div>
 
           {versions.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-white/10 p-8 text-center text-xs text-slate-400 space-y-2">
+            <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center text-xs text-slate-500 space-y-2">
               <p>No snapshots generated for this profile yet.</p>
               <button
                 type="button"
                 onClick={() => setShowSnapshotModal(true)}
-                className="text-indigo-400 hover:underline"
+                className="text-[#1d68ed] hover:underline font-semibold cursor-pointer"
               >
                 Create your first version snapshot
               </button>
             </div>
           ) : (
-            <div className="divide-y divide-white/[0.06]">
+            <div className="divide-y divide-slate-100">
               {versions.map((v) => (
                 <div
                   key={v.id}
-                  className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                  className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs hover:bg-slate-50/70 px-2 rounded-lg transition-colors"
                 >
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-semibold text-white">
+                      <span className="font-semibold text-slate-900">
                         {v.targetCompany
                           ? `${v.targetCompany} (${v.targetRole ?? "Targeted"})`
                           : "General Version"}
                       </span>
-                      <span className="rounded border border-indigo-500/20 bg-indigo-500/10 px-1.5 py-0.5 text-[9px] uppercase font-bold text-indigo-400">
+                      <span className="rounded border border-blue-200/80 bg-blue-50 px-1.5 py-0.5 text-[9px] uppercase font-bold text-[#1d68ed]">
                         {v.outputFormat}
                       </span>
                     </div>
-                    <div className="text-[11px] text-slate-400 flex items-center gap-2">
-                      <Clock className="w-3 h-3 text-slate-500" />
+                    <div className="text-[11px] text-slate-500 flex items-center gap-2">
+                      <Clock className="w-3 h-3 text-slate-400" />
                       <span>{new Date(v.createdAt).toLocaleString()}</span>
                       {v.confidence != null && (
                         <span>· Confidence: {Math.round(v.confidence * 100)}%</span>
@@ -526,7 +526,7 @@ export function ResumeProfileWorkspace({ profileId }: ResumeProfileWorkspaceProp
 
                   <Link
                     href={`/resumes/${profile.id}/versions/${v.id}`}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-slate-900 px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition-colors shadow-2xs"
                   >
                     <Eye className="w-3.5 h-3.5" />
                     <span>View Snapshot</span>
@@ -540,42 +540,42 @@ export function ResumeProfileWorkspace({ profileId }: ResumeProfileWorkspaceProp
 
       {/* TAB CONTENT: SETTINGS */}
       {activeTab === "settings" && (
-        <div className="rounded-2xl border border-white/[0.08] bg-[#0b0f19] p-6 space-y-4 max-w-2xl text-xs">
+        <div className="rounded-xl border border-slate-200/80 bg-white p-6 space-y-4 max-w-2xl text-xs shadow-xs">
           <div className="space-y-1">
-            <label className="text-slate-300 font-medium">Profile Name</label>
+            <label className="text-slate-900 font-semibold">Profile Name</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-white text-xs focus:border-indigo-500 focus:outline-none"
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-slate-900 text-xs focus:border-[#1d68ed] focus:bg-white focus:ring-2 focus:ring-[#1d68ed]/20 focus:outline-none"
             />
           </div>
 
           <div className="space-y-1">
-            <label className="text-slate-300 font-medium">Role Focus / Title</label>
+            <label className="text-slate-900 font-semibold">Role Focus / Title</label>
             <input
               type="text"
               value={roleFocus}
               onChange={(e) => setRoleFocus(e.target.value)}
-              className="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-white text-xs focus:border-indigo-500 focus:outline-none"
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-slate-900 text-xs focus:border-[#1d68ed] focus:bg-white focus:ring-2 focus:ring-[#1d68ed]/20 focus:outline-none"
             />
           </div>
 
           <div className="space-y-1">
-            <label className="text-slate-300 font-medium">Summary Guidance</label>
+            <label className="text-slate-900 font-semibold">Summary Guidance</label>
             <textarea
               value={summaryGuidance}
               onChange={(e) => setSummaryGuidance(e.target.value)}
-              className="w-full h-24 rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-white text-xs focus:border-indigo-500 focus:outline-none resize-none leading-relaxed"
+              className="w-full h-24 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-slate-900 text-xs focus:border-[#1d68ed] focus:bg-white focus:ring-2 focus:ring-[#1d68ed]/20 focus:outline-none resize-none leading-relaxed"
             />
           </div>
 
-          <div className="pt-3 border-t border-white/[0.08] flex justify-end">
+          <div className="pt-3 border-t border-slate-100 flex justify-end">
             <button
               type="button"
               disabled={saving}
               onClick={() => void handleSaveProfile()}
-              className="rounded-xl bg-indigo-600 hover:bg-indigo-500 px-5 py-2 text-xs font-semibold text-white shadow-md transition-colors"
+              className="rounded-lg bg-[#1d68ed] hover:bg-[#1555c8] px-5 py-2 text-xs font-semibold text-white shadow-xs transition-colors cursor-pointer"
             >
               {saving ? "Saving..." : "Save Settings"}
             </button>
@@ -585,33 +585,33 @@ export function ResumeProfileWorkspace({ profileId }: ResumeProfileWorkspaceProp
 
       {/* Snapshot Modal */}
       {showSnapshotModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-white/[0.08] bg-[#0b0f19] p-6 space-y-4 shadow-2xl">
-            <h3 className="text-base font-bold text-white">Create Version Snapshot</h3>
-            <p className="text-xs text-slate-400 leading-relaxed">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 space-y-4 shadow-xl">
+            <h3 className="text-base font-bold text-slate-900">Create Version Snapshot</h3>
+            <p className="text-xs text-slate-500 leading-relaxed">
               Snapshots freeze your current master profile evidence and settings into an immutable version asset.
             </p>
 
             <form onSubmit={(e) => void handleCreateSnapshot(e)} className="space-y-3 text-xs">
               <div className="space-y-1">
-                <label className="text-slate-300 font-medium">Target Company (Optional)</label>
+                <label className="text-slate-900 font-semibold">Target Company (Optional)</label>
                 <input
                   type="text"
                   value={targetCompany}
                   onChange={(e) => setTargetCompany(e.target.value)}
                   placeholder="e.g. Stripe / Anthropic / Google"
-                  className="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-white text-xs focus:border-indigo-500 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-slate-900 text-xs focus:border-[#1d68ed] focus:bg-white focus:ring-2 focus:ring-[#1d68ed]/20 focus:outline-none"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-slate-300 font-medium">Target Role Title (Optional)</label>
+                <label className="text-slate-900 font-semibold">Target Role Title (Optional)</label>
                 <input
                   type="text"
                   value={targetRole}
                   onChange={(e) => setTargetRole(e.target.value)}
                   placeholder="e.g. Senior Distributed Systems Engineer"
-                  className="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-white text-xs focus:border-indigo-500 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-slate-900 text-xs focus:border-[#1d68ed] focus:bg-white focus:ring-2 focus:ring-[#1d68ed]/20 focus:outline-none"
                 />
               </div>
 
@@ -619,14 +619,14 @@ export function ResumeProfileWorkspace({ profileId }: ResumeProfileWorkspaceProp
                 <button
                   type="button"
                   onClick={() => setShowSnapshotModal(false)}
-                  className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-slate-400 hover:text-white"
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-50 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={creatingSnapshot}
-                  className="rounded-lg bg-indigo-600 hover:bg-indigo-500 px-4 py-1.5 text-xs font-semibold text-white shadow-md"
+                  className="rounded-lg bg-[#1d68ed] hover:bg-[#1555c8] px-4 py-1.5 text-xs font-semibold text-white shadow-xs cursor-pointer"
                 >
                   {creatingSnapshot ? "Saving..." : "Create Snapshot"}
                 </button>

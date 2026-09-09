@@ -1,7 +1,7 @@
 "use client";
 
 import type { ResumeProfile, ResumeProfileInput } from "@repo/types";
-import { Check, FileText, Layers, Plus } from "lucide-react";
+import { Check, FileText, Layers, Plus, X } from "lucide-react";
 import React, { useState } from "react";
 
 interface Props {
@@ -64,24 +64,14 @@ export function ResumeProfilesManager({
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+    <div className="flex flex-col gap-6">
       {/* Header Bar */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          backgroundColor: "rgba(15, 23, 42, 0.6)",
-          padding: "1rem 1.5rem",
-          borderRadius: "0.75rem",
-          border: "1px solid rgba(255,255,255,0.08)",
-        }}
-      >
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-5 rounded-xl border border-slate-200/80 bg-white shadow-xs gap-4">
         <div>
-          <h3 style={{ fontSize: "1.1rem", fontWeight: "700" }}>
+          <h3 className="text-base font-bold text-slate-900 tracking-tight">
             Targeted Resume Profiles
           </h3>
-          <p style={{ fontSize: "0.8rem", color: "#94a3b8" }}>
+          <p className="text-xs text-slate-500 mt-0.5">
             Tailor section ordering, highlight emphasis, and summary messaging for specific target roles.
           </p>
         </div>
@@ -89,168 +79,73 @@ export function ResumeProfilesManager({
         <button
           type="button"
           onClick={() => setShowModal(true)}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem",
-            padding: "0.6rem 1.25rem",
-            borderRadius: "0.5rem",
-            background: "linear-gradient(135deg, #6366f1 0%, #a855f7 100%)",
-            color: "#ffffff",
-            fontWeight: "600",
-            fontSize: "0.85rem",
-            border: "none",
-            cursor: "pointer",
-            boxShadow: "0 4px 15px rgba(99, 102, 241, 0.3)",
-          }}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#1d68ed] hover:bg-[#1555c8] text-white font-semibold text-xs shadow-xs transition-colors cursor-pointer"
         >
-          <Plus style={{ width: "16px", height: "16px" }} />
+          <Plus className="w-4 h-4" />
           Create Resume Profile
         </button>
       </div>
 
       {/* Profiles Grid */}
       {loading ? (
-        <div style={{ padding: "3rem", textAlign: "center", color: "#94a3b8" }}>
+        <div className="p-12 text-center text-slate-400 text-xs">
           Loading profiles...
         </div>
       ) : profiles.length === 0 ? (
-        <div
-          className="glass-panel"
-          style={{
-            padding: "3rem 1.5rem",
-            textAlign: "center",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: "1rem",
-          }}
-        >
-          <FileText style={{ width: "36px", height: "36px", color: "#6366f1" }} />
+        <div className="p-12 text-center rounded-xl border border-dashed border-slate-200 bg-white shadow-xs flex flex-col items-center gap-3">
+          <FileText className="w-9 h-9 text-[#1d68ed]" />
           <div>
-            <h4 style={{ fontSize: "1.05rem", fontWeight: "700" }}>No Resume Profiles Yet</h4>
-            <p style={{ fontSize: "0.85rem", color: "#94a3b8", marginTop: "0.25rem" }}>
+            <h4 className="text-sm font-bold text-slate-900">No Resume Profiles Yet</h4>
+            <p className="text-xs text-slate-500 mt-1 max-w-sm">
               Create your first named resume profile to generate tailored resume versions.
             </p>
           </div>
           <button
             type="button"
             onClick={() => setShowModal(true)}
-            style={{
-              padding: "0.5rem 1rem",
-              borderRadius: "0.5rem",
-              backgroundColor: "rgba(99, 102, 241, 0.2)",
-              border: "1px solid rgba(99, 102, 241, 0.3)",
-              color: "#818cf8",
-              fontSize: "0.85rem",
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
+            className="px-4 py-2 rounded-lg bg-[#1d68ed] hover:bg-[#1555c8] text-white font-semibold text-xs shadow-xs transition-colors cursor-pointer"
           >
             + Create First Profile
           </button>
         </div>
       ) : (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-            gap: "1.25rem",
-          }}
-        >
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {profiles.map((prof) => {
             const isSelected = selectedProfileId === prof.id;
             return (
               <div
                 key={prof.id}
                 onClick={() => onSelectProfile(prof.id)}
-                className="glass-panel-interactive"
-                style={{
-                  padding: "1.25rem",
-                  borderRadius: "0.75rem",
-                  border: isSelected
-                    ? "1px solid rgba(99, 102, 241, 0.6)"
-                    : "1px solid rgba(255, 255, 255, 0.08)",
-                  backgroundColor: isSelected
-                    ? "rgba(99, 102, 241, 0.1)"
-                    : "rgba(17, 24, 39, 0.7)",
-                  cursor: "pointer",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "space-between",
-                  gap: "1rem",
-                }}
+                className={`p-5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between gap-3 shadow-xs ${
+                  isSelected
+                    ? "border-blue-300 bg-blue-50/50"
+                    : "border-slate-200/80 bg-white hover:border-slate-300"
+                }`}
               >
                 <div>
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "flex-start",
-                      marginBottom: "0.5rem",
-                    }}
-                  >
-                    <h4 style={{ fontSize: "1.05rem", fontWeight: "700" }}>
+                  <div className="flex justify-between items-start mb-1.5">
+                    <h4 className="text-sm font-bold text-slate-900">
                       {prof.name}
                     </h4>
                     {isSelected && (
-                      <span
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "0.25rem",
-                          padding: "0.2rem 0.5rem",
-                          borderRadius: "999px",
-                          fontSize: "0.7rem",
-                          fontWeight: "700",
-                          backgroundColor: "rgba(16, 185, 129, 0.15)",
-                          color: "#10b981",
-                        }}
-                      >
-                        <Check style={{ width: "12px", height: "12px" }} /> Selected
+                      <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <Check className="w-3 h-3 text-emerald-600" /> Selected
                       </span>
                     )}
                   </div>
-                  <div
-                    style={{
-                      fontSize: "0.8rem",
-                      color: "#818cf8",
-                      fontWeight: "600",
-                      marginBottom: "0.5rem",
-                    }}
-                  >
+                  <div className="text-xs text-[#1d68ed] font-semibold mb-1.5">
                     Focus: {prof.roleFocus ?? "General Software Engineering"}
                   </div>
                   {prof.summaryGuidance && (
-                    <p
-                      style={{
-                        fontSize: "0.8rem",
-                        color: "#94a3b8",
-                        lineHeight: "1.4",
-                        display: "-webkit-box",
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: "vertical",
-                        overflow: "hidden",
-                      }}
-                    >
+                    <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
                       &quot;{prof.summaryGuidance}&quot;
                     </p>
                   )}
                 </div>
 
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    paddingTop: "0.75rem",
-                    borderTop: "1px solid rgba(255, 255, 255, 0.06)",
-                    fontSize: "0.75rem",
-                    color: "#64748b",
-                  }}
-                >
-                  <span style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}>
-                    <Layers style={{ width: "12px", height: "12px" }} />
+                <div className="flex items-center justify-between pt-3 border-t border-slate-100 text-xs text-slate-500">
+                  <span className="flex items-center gap-1">
+                    <Layers className="w-3.5 h-3.5 text-slate-400" />
                     {prof.visibleSections.length} Active Sections
                   </span>
                   <span>
@@ -265,105 +160,66 @@ export function ResumeProfilesManager({
 
       {/* Create Profile Modal */}
       {showModal && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            backgroundColor: "rgba(0,0,0,0.6)",
-            backdropFilter: "blur(6px)",
-            zIndex: 60,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "1.5rem",
-          }}
-        >
-          <div
-            className="glass-panel"
-            style={{
-              width: "100%",
-              maxWidth: "500px",
-              padding: "1.75rem",
-              display: "flex",
-              flexDirection: "column",
-              gap: "1.25rem",
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h3 style={{ fontSize: "1.25rem", fontWeight: "700" }}>Create Named Resume Profile</h3>
+        <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-xl bg-white border border-slate-200 p-6 space-y-4 shadow-xl">
+            <div className="flex justify-between items-center">
+              <h3 className="text-base font-bold text-slate-900">Create Named Resume Profile</h3>
               <button
                 type="button"
                 onClick={() => setShowModal(false)}
-                style={{ background: "none", border: "none", color: "#94a3b8", fontSize: "1.25rem", cursor: "pointer" }}
+                className="text-slate-400 hover:text-slate-600 cursor-pointer"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={(e) => void handleCreate(e)} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-              <label style={labelStyle}>
-                <span style={labelText}>Profile Name</span>
+            <form onSubmit={(e) => void handleCreate(e)} className="space-y-3 text-xs">
+              <div className="space-y-1">
+                <label className="text-slate-900 font-semibold block">Profile Name</label>
                 <input
                   type="text"
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. Staff AI Systems Engineer"
-                  style={inputStyle}
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-slate-900 focus:border-[#1d68ed] focus:bg-white focus:ring-2 focus:ring-[#1d68ed]/20 focus:outline-none"
                 />
-              </label>
+              </div>
 
-              <label style={labelStyle}>
-                <span style={labelText}>Role Focus / Target Keywords</span>
+              <div className="space-y-1">
+                <label className="text-slate-900 font-semibold block">Role Focus / Target Keywords</label>
                 <input
                   type="text"
                   value={roleFocus}
                   onChange={(e) => setRoleFocus(e.target.value)}
                   placeholder="e.g. LLM Infrastructure, Distributed Systems, Node.js"
-                  style={inputStyle}
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-slate-900 focus:border-[#1d68ed] focus:bg-white focus:ring-2 focus:ring-[#1d68ed]/20 focus:outline-none"
                 />
-              </label>
+              </div>
 
-              <label style={labelStyle}>
-                <span style={labelText}>Summary Guidance</span>
+              <div className="space-y-1">
+                <label className="text-slate-900 font-semibold block">Summary Guidance</label>
                 <textarea
                   value={summaryGuidance}
                   onChange={(e) => setSummaryGuidance(e.target.value)}
                   placeholder="Emphasize distributed consensus, high-throughput pipelines, and AI platform architecture..."
                   rows={3}
-                  style={{ ...inputStyle, resize: "none" }}
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-slate-900 focus:border-[#1d68ed] focus:bg-white focus:ring-2 focus:ring-[#1d68ed]/20 focus:outline-none resize-none leading-relaxed"
                 />
-              </label>
+              </div>
 
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "0.5rem" }}>
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  style={{
-                    padding: "0.5rem 1rem",
-                    borderRadius: "0.5rem",
-                    backgroundColor: "transparent",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    color: "#94a3b8",
-                    fontSize: "0.85rem",
-                    cursor: "pointer",
-                  }}
+                  className="px-3.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  style={{
-                    padding: "0.5rem 1.25rem",
-                    borderRadius: "0.5rem",
-                    background: "linear-gradient(135deg, #6366f1 0%, #a855f7 100%)",
-                    color: "#ffffff",
-                    fontWeight: 600,
-                    fontSize: "0.85rem",
-                    border: "none",
-                    cursor: "pointer",
-                  }}
+                  className="px-4 py-1.5 rounded-lg bg-[#1d68ed] hover:bg-[#1555c8] text-white font-semibold text-xs shadow-xs transition-colors cursor-pointer disabled:opacity-50"
                 >
                   {submitting ? "Creating..." : "Save Profile"}
                 </button>
@@ -375,25 +231,3 @@ export function ResumeProfilesManager({
     </div>
   );
 }
-
-const labelStyle = {
-  display: "flex",
-  flexDirection: "column" as const,
-  gap: "0.35rem",
-};
-
-const labelText = {
-  fontSize: "0.8rem",
-  fontWeight: 600,
-  color: "#cbd5e1",
-};
-
-const inputStyle = {
-  padding: "0.6rem 0.85rem",
-  borderRadius: "0.5rem",
-  backgroundColor: "rgba(15, 23, 42, 0.8)",
-  border: "1px solid rgba(255,255,255,0.1)",
-  color: "#f8fafc",
-  fontSize: "0.85rem",
-  outline: "none",
-};

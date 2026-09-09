@@ -40,24 +40,24 @@ export function JobCard({ job, trackedApplication, onSelect }: JobCardProps) {
   return (
     <div
       onClick={() => onSelect(job)}
-      className="group relative rounded-xl border border-white/10 bg-slate-900/60 p-5 backdrop-blur-md transition-all hover:border-indigo-500/40 hover:bg-slate-900/80 cursor-pointer space-y-4 shadow-lg shadow-black/20"
+      className="group relative rounded-xl border border-slate-200/80 bg-white p-5 hover:border-[#1d68ed]/40 hover:shadow-md transition-all cursor-pointer space-y-4 shadow-xs"
     >
       <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
         <div>
-          <h3 className="text-base font-bold text-white group-hover:text-indigo-300 transition-colors">
+          <h3 className="text-base font-bold text-slate-900 group-hover:text-[#1d68ed] transition-colors">
             {job.title}
           </h3>
-          <div className="flex items-center gap-3 text-xs text-slate-400 mt-1">
-            <span className="flex items-center gap-1 text-slate-300 font-medium">
-              <Building2 className="w-3.5 h-3.5 text-indigo-400" />
+          <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
+            <span className="flex items-center gap-1 text-slate-800 font-medium">
+              <Building2 className="w-3.5 h-3.5 text-[#1d68ed]" />
               {job.company}
             </span>
             <span className="flex items-center gap-1">
-              <MapPin className="w-3.5 h-3.5 text-slate-500" />
+              <MapPin className="w-3.5 h-3.5 text-slate-400" />
               {job.location}
             </span>
             {job.isRemote && (
-              <span className="inline-flex items-center gap-1 text-emerald-400 font-semibold px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-[10px]">
+              <span className="inline-flex items-center gap-1 text-emerald-700 font-semibold px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-[10px]">
                 <Globe className="w-3 h-3" /> Remote
               </span>
             )}
@@ -66,18 +66,18 @@ export function JobCard({ job, trackedApplication, onSelect }: JobCardProps) {
 
         <div className="flex items-center gap-2 flex-wrap">
           {trackedApplication && (
-            <span className="inline-flex items-center gap-1 text-cyan-300 font-semibold px-2 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/30 text-[10px]">
-              <TrendingUp className="w-3 h-3 text-cyan-400" /> In Pipeline ({trackedApplication.status})
+            <span className="inline-flex items-center gap-1 text-blue-700 font-semibold px-2 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-[10px]">
+              <TrendingUp className="w-3 h-3 text-[#1d68ed]" /> In Pipeline ({trackedApplication.status})
             </span>
           )}
           {job.workspaceState?.isSaved && !trackedApplication && (
-            <span className="inline-flex items-center gap-1 text-purple-300 font-semibold px-2 py-0.5 rounded bg-purple-500/10 border border-purple-500/30 text-[10px]">
-              <Bookmark className="w-3 h-3 fill-purple-400/40 text-purple-400" /> Saved
+            <span className="inline-flex items-center gap-1 text-purple-700 font-semibold px-2 py-0.5 rounded-full bg-purple-50 border border-purple-200 text-[10px]">
+              <Bookmark className="w-3 h-3 fill-purple-400 text-purple-600" /> Saved
             </span>
           )}
           {job.workspaceState?.isDismissed && (
-            <span className="inline-flex items-center gap-1 text-amber-300 font-semibold px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-[10px]">
-              <EyeOff className="w-3 h-3 text-amber-400" /> Dismissed
+            <span className="inline-flex items-center gap-1 text-amber-700 font-semibold px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-[10px]">
+              <EyeOff className="w-3 h-3 text-amber-600" /> Dismissed
             </span>
           )}
           {job.matchScore != null && <JobMatchBadge score={job.matchScore} />}
@@ -85,8 +85,8 @@ export function JobCard({ job, trackedApplication, onSelect }: JobCardProps) {
       </div>
 
       {job.whyFits && (
-        <p className="text-xs text-slate-300 leading-relaxed bg-indigo-500/5 p-3 rounded-lg border border-indigo-500/10">
-          <span className="font-semibold text-indigo-300">Match Reason:</span> {job.whyFits}
+        <p className="text-xs text-slate-700 leading-relaxed bg-[#f4f8ff] p-3 rounded-lg border border-blue-100">
+          <span className="font-semibold text-[#1d68ed]">Match Reason:</span> {job.whyFits}
         </p>
       )}
 
@@ -94,23 +94,23 @@ export function JobCard({ job, trackedApplication, onSelect }: JobCardProps) {
         {job.requiredSkills.slice(0, 4).map((skill) => (
           <span
             key={skill}
-            className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-[11px] font-medium border border-white/5"
+            className="px-2 py-0.5 rounded bg-slate-100 text-slate-800 text-[11px] font-medium border border-slate-200/60"
           >
             {skill}
           </span>
         ))}
         {job.requiredSkills.length > 4 && (
-          <span className="px-2 py-0.5 rounded bg-slate-800/60 text-slate-400 text-[11px]">
+          <span className="px-2 py-0.5 rounded bg-slate-50 text-slate-500 text-[11px]">
             +{job.requiredSkills.length - 4} more
           </span>
         )}
       </div>
 
-      <div className="flex justify-between items-center pt-3 border-t border-white/5 text-xs text-slate-400">
+      <div className="flex justify-between items-center pt-3 border-t border-slate-100 text-xs text-slate-500">
         <div className="flex items-center gap-3">
           {job.salaryRange && (
-            <span className="flex items-center gap-1 text-slate-300 font-semibold">
-              <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="flex items-center gap-1 text-slate-800 font-semibold">
+              <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
               {job.salaryRange}
             </span>
           )}
@@ -122,7 +122,7 @@ export function JobCard({ job, trackedApplication, onSelect }: JobCardProps) {
 
         <button
           type="button"
-          className="flex items-center gap-1 text-indigo-400 hover:text-indigo-300 font-semibold text-xs transition-colors"
+          className="flex items-center gap-1 text-[#1d68ed] hover:text-[#1555c8] font-semibold text-xs transition-colors cursor-pointer"
         >
           Details <ExternalLink className="w-3.5 h-3.5" />
         </button>
