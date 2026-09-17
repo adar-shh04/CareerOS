@@ -47,7 +47,18 @@ apps/api/src/generated/prisma/
 # Agent / IDE tooling (local only, not shared)
 .sixth/
 
-#docs for agent info
-docs
+# Local session diffs and status snapshots
+changes.diff
+diff-stat.txt
+status.txt
 
+# Local API debugging utilities
+apps/api/profile-proof.ts
+apps/api/query-users.sql
+
+# Local developer notes & transient agent scratch material
+docs/_local/
+
+# Local IDE configuration
+.vscode/
 .playwright-mcp

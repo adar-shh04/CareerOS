@@ -94,7 +94,7 @@ apps/api     — NestJS API + Prisma
 packages/*   — Shared types, utilities
 ```
 
-See [`docs/architecture/System_Architecture.md`](../architecture/System_Architecture.md) for the full architecture reference.
+See [`docs/architecture/System_Architecture.md`](docs/architecture/System_Architecture.md) for the full architecture reference.
 
 ## Documentation index
 

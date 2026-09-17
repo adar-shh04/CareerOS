@@ -1,36 +1,62 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/create-next-app).
+# CareerOS Web Application
 
-## Getting Started
+The frontend client for CareerOS, built with Next.js 16 (React 19), TypeScript, and Tailwind CSS v4. It delivers a fast, responsive, and distraction-free user interface designed around clarity, agency, and verified career data.
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Features
+
+- **Job Radar (`/jobs`, `/jobs/[id]`, `/jobs/saved`)**: Real-time search, filters (remote, role, salary, skills), deterministic match score explanations, and one-click save/dismiss workflows.
+- **Master Career Profile (`/career`)**: Canonical, single-source-of-truth profile editor for experiences, education, skills, technologies, projects, achievements, certifications, publications, and links.
+- **Resume Profiles (`/resumes`, `/resumes/[id]`)**: Direction-specific persistent resume configurations (e.g. "Staff Fullstack", "AI Engineer") with automated LaTeX generation and version snapshots.
+- **Applications CRM (`/applications`, `/applications/[id]`)**: End-to-end application lifecycle tracking (saved → applied → screening → interview → offer → decision) with stage notes and status history.
+- **AI Coach (`/coach`)**: Role analysis, section-level recommendations grounded in Master Profile evidence, and one-click application to Resume Profiles (never mutates Master Profile).
+- **Career Handbook (`/insights`)**: Permanently offline field guide covering career ladders, core skills, and expectations across 7 industries.
+- **Authentication & Onboarding (`/login`, `/register`, `/onboarding`)**: Better Auth client integration with multi-tenant organization creation and multi-field onboarding.
+
+---
+
+## Architecture & Conventions
+
+```text
+apps/web/
+├── app/                  # Next.js App Router (pages and API route proxies)
+│   ├── (auth)/           # Authentication routes (/login, /register, /onboarding)
+│   ├── api/              # Route handlers bridging to the NestJS API
+│   ├── applications/     # Application CRM views
+│   ├── career/           # Master Career Profile editor
+│   ├── coach/            # AI Coach interface
+│   ├── dashboard/        # Career command center
+│   ├── insights/         # Career Handbook and Market Insights
+│   ├── jobs/             # Job Radar views
+│   └── resumes/          # Resume Profile manager and studio
+├── components/           # Feature-sliced UI components
+├── lib/                  # Auth client, API client, and utilities
+└── providers/            # Client context providers (Auth, Query)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- **Styling**: Tailwind CSS v4 using CSS variables and `--careeros-*` design tokens defined in `app/globals.css`.
+- **Contracts**: Strongly typed using shared models from `@repo/types`.
+- **Auth**: Client authentication via `better-auth/react`, respecting `activeOrganizationId`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load Inter, a custom Google Font.
+## Development
 
-## Learn More
+```bash
+# Run standalone dev server (from monorepo root)
+pnpm --filter web dev
 
-To learn more about Next.js, take a look at the following resources:
+# Or run via Turborepo root
+pnpm dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The application runs at `http://localhost:3000`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Quality Commands
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+pnpm --filter web check-types   # Type check with next typegen + tsc
+pnpm --filter web lint          # ESLint with zero-warning threshold
+pnpm --filter web build         # Production Next.js build
+```

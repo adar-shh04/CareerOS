@@ -13,8 +13,17 @@ const prisma = new PrismaClient({
 
 async function main(): Promise<void> {
   const demoEmail = 'demo@careeros.dev';
-  const demoPassword = 'CareerOS2026!';
+  const demoPassword =
+    process.env.SEED_USER_PASSWORD || process.env.DEMO_USER_PASSWORD;
   const demoName = 'Alex Rivera';
+
+  if (!demoPassword) {
+    console.error(
+      'Error: SEED_USER_PASSWORD environment variable is required to run the development seed.\n' +
+        'Example: SEED_USER_PASSWORD="YourLocalDevPassword" pnpm --filter careeros-api db:seed',
+    );
+    process.exit(1);
+  }
 
   const existing = await prisma.user.findUnique({
     where: { email: demoEmail },
@@ -56,9 +65,8 @@ async function main(): Promise<void> {
     });
   }
 
-  console.log('Seed complete.');
+  console.log('Seed complete (development only).');
   console.log(`  Demo user: ${demoEmail}`);
-  console.log(`  Demo password: ${demoPassword}`);
   console.log(`  Workspace: ${organization?.name ?? '(none created)'}`);
 }
 
