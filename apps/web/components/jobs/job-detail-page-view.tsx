@@ -39,6 +39,8 @@ export function JobDetailPageView({ jobId }: JobDetailPageViewProps) {
   const [notes, setNotes] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Set when the job could not be loaded for a reason other than "not found".
+  const [loadFailure, setLoadFailure] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
   const fetchJobData = useCallback(async () => {
@@ -47,8 +49,18 @@ export function JobDetailPageView({ jobId }: JobDetailPageViewProps) {
     try {
       const res = await fetch(`/api/jobs/${jobId}`, { cache: "no-store" });
       if (!res.ok) {
-        throw new Error("Job opportunity not found.");
+        const body = (await res.json().catch(() => ({}))) as {
+          message?: string;
+        };
+        setLoadFailure(
+          res.status === 404
+            ? null
+            : (body.message ?? "Failed to load job details."),
+        );
+        setJob(null);
+        return;
       }
+      setLoadFailure(null);
       const data = (await res.json()) as JobOpportunity;
       setJob(data);
       setNotes(data.workspaceState?.notes ?? "");
@@ -228,9 +240,12 @@ export function JobDetailPageView({ jobId }: JobDetailPageViewProps) {
   if (!job) {
     return (
       <div className="max-w-4xl mx-auto rounded-xl border border-slate-200/80 bg-white p-8 text-center space-y-4 shadow-xs">
-        <h2 className="text-lg font-bold text-slate-900">Opportunity Not Found</h2>
+        <h2 className="text-lg font-bold text-slate-900">
+          {loadFailure ? "Unable to Load Opportunity" : "Opportunity Not Found"}
+        </h2>
         <p className="text-xs text-slate-500">
-          The requested job posting may have expired or does not exist.
+          {loadFailure ??
+            "The requested job posting may have expired or does not exist."}
         </p>
         <Link
           href="/jobs"

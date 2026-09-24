@@ -1,10 +1,12 @@
 "use client";
 
 import type {
+  AiCoachSection,
   AICoachSectionRecommendation,
   JobOpportunity,
   MasterCareerProfile,
   ResumeProfile,
+  SectionCoachingResponse,
 } from "@repo/types";
 import {
   Bot,
@@ -21,9 +23,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-
-import { updateLatexSection } from "@/lib/latex-engine";
+import React, { useCallback, useEffect, useState } from "react";
 
 export interface AICoachViewProps {
   masterProfile?: MasterCareerProfile | null;
@@ -33,6 +33,125 @@ export interface AICoachViewProps {
   onUpdateProfile?: (profile: ResumeProfile) => Promise<void>;
   onNavigateToResumeStudio?: () => void;
   targetJob?: JobOpportunity | null;
+}
+
+/**
+ * A recommendation card. `source: "ai"` comes from the AI Coach API (validated
+ * server-side); `source: "evidence"` is derived deterministically from stored
+ * Master Career Profile data and only reorders existing records — it never
+ * writes new claims.
+ */
+type CoachRecommendation = AICoachSectionRecommendation & {
+  source: "ai" | "evidence";
+  /** Master record ids to prioritize when applied. */
+  selectedRecordIds?: string[];
+  /** Whether accepting writes recommendedContent into the resume's LaTeX section. */
+  appliesContent: boolean;
+};
+
+const AI_SECTIONS: AiCoachSection[] = ["summary", "skills", "experience", "projects"];
+
+const SECTION_TITLES: Record<AiCoachSection, string> = {
+  summary: "Tailor Summary for the Target Role",
+  skills: "Tailor Skills for the Target Role",
+  experience: "Tailor Experience for the Target Role",
+  projects: "Tailor Projects for the Target Role",
+  education: "Tailor Education for the Target Role",
+};
+
+/** Current resume content for a section, taken from real stored data only. */
+function currentSectionContent(
+  section: AiCoachSection,
+  master: MasterCareerProfile,
+  profile: ResumeProfile | null,
+): string | undefined {
+  switch (section) {
+    case "summary":
+      return profile?.summaryGuidance ?? master.identity.headline;
+    case "skills":
+      return master.skills.map((s) => s.name).join(", ") || undefined;
+    case "experience":
+      return (
+        master.experiences
+          .map((e) =>
+            [`${e.title} — ${e.company}`, ...(e.bullets ?? []).map((b) => `- ${b}`)].join("\n"),
+          )
+          .join("\n\n") || undefined
+      );
+    case "projects":
+      return master.projects.map((p) => p.name).join("\n") || undefined;
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * Deterministic, evidence-only recommendations (used when AI is unavailable):
+ * prioritize skills and a project the target job actually asks for. Nothing is
+ * suggested without a concrete overlap in stored data.
+ */
+function buildEvidenceRecommendations(
+  master: MasterCareerProfile,
+  targetJob: JobOpportunity | null,
+): CoachRecommendation[] {
+  if (!targetJob) return [];
+  const jobSkills = new Set(
+    [...targetJob.requiredSkills, ...targetJob.preferredSkills].map((s) =>
+      s.trim().toLowerCase(),
+    ),
+  );
+  const recs: CoachRecommendation[] = [];
+
+  const matchingSkills = master.skills.filter((s) =>
+    jobSkills.has(s.name.trim().toLowerCase()),
+  );
+  if (matchingSkills.length > 0) {
+    const ordered = [
+      ...matchingSkills,
+      ...master.skills.filter((s) => !matchingSkills.includes(s)),
+    ];
+    recs.push({
+      id: "evidence-skills",
+      source: "evidence",
+      section: "skills",
+      title: "Lead with skills this role asks for",
+      reasoning: `${targetJob.title} at ${targetJob.company} lists ${matchingSkills
+        .map((s) => s.name)
+        .join(", ")}, which are in your Master Career Profile. Reorders existing skills only.`,
+      currentContent: master.skills.map((s) => s.name).join(", "),
+      recommendedContent: ordered.map((s) => s.name).join(", "),
+      selectedRecordIds: matchingSkills.map((s) => s.id),
+      appliesContent: false,
+      status: "pending",
+    });
+  }
+
+  const rankedProjects = master.projects
+    .map((p) => ({
+      project: p,
+      overlap: (p.technologies ?? []).filter((t) =>
+        jobSkills.has(t.trim().toLowerCase()),
+      ),
+    }))
+    .filter((r) => r.overlap.length > 0)
+    .sort((a, b) => b.overlap.length - a.overlap.length);
+  const topProject = rankedProjects[0];
+  if (topProject) {
+    recs.push({
+      id: "evidence-projects",
+      source: "evidence",
+      section: "projects",
+      title: `Lead with project "${topProject.project.name}"`,
+      reasoning: `"${topProject.project.name}" uses ${topProject.overlap.join(", ")}, which ${targetJob.title} at ${targetJob.company} lists. Reorders existing projects only.`,
+      currentContent: master.projects.map((p) => p.name).join("\n"),
+      recommendedContent: `Prioritize: ${topProject.project.name}`,
+      selectedRecordIds: [topProject.project.id],
+      appliesContent: false,
+      status: "pending",
+    });
+  }
+
+  return recs;
 }
 
 export function AICoachView(props: AICoachViewProps) {
@@ -46,6 +165,8 @@ export function AICoachView(props: AICoachViewProps) {
   const [internalTargetJob, setInternalTargetJob] = useState<JobOpportunity | null>(null);
   const [loadingInitial, setLoadingInitial] = useState(props.masterProfile === undefined);
   const [aiAvailable, setAiAvailable] = useState<boolean | null>(null);
+  const [aiNotice, setAiNotice] = useState<string | null>(null);
+  const [loadingRecommendations, setLoadingRecommendations] = useState(false);
 
   // Determine whether to use props or internal state
   const isSelfManaged = props.masterProfile === undefined;
@@ -65,9 +186,8 @@ export function AICoachView(props: AICoachViewProps) {
         setInternalMaster(p);
       }
 
-      let profilesList: ResumeProfile[] = [];
       if (resumesRes.ok) {
-        profilesList = (await resumesRes.json()) as ResumeProfile[];
+        const profilesList = (await resumesRes.json()) as ResumeProfile[];
         setInternalProfiles(profilesList);
         const firstProfile = profilesList[0];
         if (firstProfile && !internalSelectedProfileId) {
@@ -81,25 +201,6 @@ export function AICoachView(props: AICoachViewProps) {
         if (jList.length > 0) {
           setInternalTargetJob(jList[0] ?? null);
         }
-      }
-
-      // Check AI Coach provider capability
-      try {
-        const testRes = await fetch("/api/ai-coach/analyze", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            targetRole: profilesList[0]?.roleFocus ?? "Software Engineer",
-          }),
-        });
-        if (testRes.ok) {
-          const testData = (await testRes.json()) as { available?: boolean };
-          setAiAvailable(testData.available !== false);
-        } else {
-          setAiAvailable(false);
-        }
-      } catch {
-        setAiAvailable(false);
       }
     } catch {
       // Graceful fallback
@@ -132,27 +233,6 @@ export function AICoachView(props: AICoachViewProps) {
       }
     });
 
-  const onUpdateProfile =
-    props.onUpdateProfile ??
-    (async (profile: ResumeProfile) => {
-      await fetch(`/api/resume-profiles/${profile.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          summaryGuidance: profile.summaryGuidance,
-          latexSource: profile.latexSource,
-          prioritySkillIds: profile.prioritySkillIds,
-          priorityProjectIds: profile.priorityProjectIds,
-        }),
-      });
-      // Refresh list
-      const res = await fetch("/api/resume-profiles", { cache: "no-store" });
-      if (res.ok) {
-        const list = (await res.json()) as ResumeProfile[];
-        setInternalProfiles(list);
-      }
-    });
-
   const activeTargetJob = props.targetJob !== undefined ? props.targetJob : internalTargetJob;
 
   const selectedProfile =
@@ -163,110 +243,127 @@ export function AICoachView(props: AICoachViewProps) {
   // Selected or sample target job description for contextual tailoring
   const jobRole = activeTargetJob?.title ?? selectedProfile?.roleFocus ?? "Target Role";
 
-  // Deterministically generate section-level recommendations based strictly on Master Profile evidence
-  const initialRecommendations: AICoachSectionRecommendation[] = useMemo(() => {
-    if (!masterProfile) return [];
+  const [recommendations, setRecommendations] = useState<CoachRecommendation[]>([]);
 
-    const recs: AICoachSectionRecommendation[] = [];
-
-    // 1. Executive Summary Recommendation
-    const existingSummary = selectedProfile?.summaryGuidance ?? "";
-    const topSkills = masterProfile.skills.slice(0, 4).map((s) => s.name);
-    const expCount = masterProfile.experiences.length;
-    const tailoredSummary = `${masterProfile.identity.headline ?? "Results-driven professional"} with extensive background across ${
-      expCount > 0 ? `${String(expCount)}+ major industry roles` : "core competencies"
-    }. Proven specialization in ${
-      topSkills.length > 0 ? topSkills.join(", ") : "system development and delivery"
-    }. Focused on driving technical excellence and impact for ${jobRole} initiatives.`;
-
-    recs.push({
-      id: "rec-summary-01",
-      section: "summary",
-      title: "Align Executive Summary with Target Role",
-      reasoning: `Tailor the profile executive summary to emphasize your demonstrated experience in ${topSkills.slice(0, 2).join(" & ")} relevant to ${jobRole}.`,
-      currentContent: existingSummary || "(No executive summary guidance currently configured)",
-      recommendedContent: tailoredSummary,
-      status: "pending",
-      confidenceScore: 0.94,
-      impact: "High",
-    });
-
-    // 2. Skills Prioritization Recommendation
-    if (masterProfile.skills.length > 0) {
-      const allSkills = masterProfile.skills.map((s) => s.name);
-      const prioritized = [...masterProfile.skills]
-        .sort((a, b) => (b.proficiency === "expert" ? 1 : 0) - (a.proficiency === "expert" ? 1 : 0))
-        .slice(0, 6)
-        .map((s) => s.name);
-
-      recs.push({
-        id: "rec-skills-02",
-        section: "skills",
-        title: "Prioritize Core Competencies & Verified Skills",
-        reasoning: `Highlight verified skills (${prioritized.slice(0, 3).join(", ")}) at the top of your technical skills section based on your master profile evidence. Never includes unverified skills.`,
-        currentContent: allSkills.join(", "),
-        recommendedContent: prioritized.join(", "),
-        status: "pending",
-        confidenceScore: 0.96,
-        impact: "High",
-      });
-    }
-
-    // 3. Projects Highlighting Recommendation
-    if (masterProfile.projects.length > 0) {
-      const topProj = masterProfile.projects[0];
-      if (topProj) {
-        recs.push({
-          id: "rec-projects-03",
-          section: "projects",
-          title: `Emphasize Project: "${topProj.name}"`,
-          reasoning: `Your project "${topProj.name}" demonstrates technologies (${topProj.technologies?.join(", ") ?? "core stack"}) that match key job criteria. Recommend elevating this to the primary project slot.`,
-          currentContent: `Current primary: ${masterProfile.projects[0]?.name ?? "None"}`,
-          recommendedContent: `Prioritize ${topProj.name} with bullets focused on: ${topProj.bullets?.[0] ?? "Delivered key architectural milestones."}`,
-          status: "pending",
-          confidenceScore: 0.88,
-          impact: "Medium",
-        });
-      }
-    }
-
-    // 4. Experience Bullet Recommendation
-    if (masterProfile.experiences.length > 0) {
-      const topExp = masterProfile.experiences[0];
-      if (topExp?.bullets && topExp.bullets.length > 0) {
-        const originalBullet = topExp.bullets[0] ?? "Led software delivery";
-        const enhancedBullet = `${originalBullet} — ensuring high availability and alignment with production requirements.`;
-
-        recs.push({
-          id: "rec-exp-04",
-          section: "experience",
-          title: `Clarify Impact Bullet at ${topExp.company}`,
-          reasoning: `Strengthen the phrasing of your primary bullet at ${topExp.company} using action-oriented impact language without fabricating metrics.`,
-          currentContent: originalBullet,
-          recommendedContent: enhancedBullet,
-          status: "pending",
-          confidenceScore: 0.91,
-          impact: "Medium",
-        });
-      }
-    }
-
-    return recs;
-  }, [masterProfile, selectedProfile, jobRole]);
-
-  const [recommendations, setRecommendations] = useState<
-    AICoachSectionRecommendation[]
-  >(initialRecommendations);
-
-  // Sync when recommendations change
+  // Request section recommendations from the AI Coach API. Each result is
+  // validated server-side; failures are surfaced, never replaced with
+  // generated text. Without AI, fall back to evidence-only reorderings.
+  const selectedProfileKey = selectedProfile?.id ?? null;
+  const targetJobKey = activeTargetJob?.id ?? null;
   useEffect(() => {
-    setRecommendations(initialRecommendations);
-  }, [initialRecommendations]);
+    if (!masterProfile) {
+      setRecommendations([]);
+      return;
+    }
+    // Ignore responses from a superseded request (profile/job changed).
+    const run = { cancelled: false };
+    setLoadingRecommendations(true);
+    setAiNotice(null);
+
+    void (async () => {
+      const results = await Promise.all(
+        AI_SECTIONS.map(async (section) => {
+          try {
+            const res = await fetch("/api/ai-coach/section", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                section,
+                jobId: targetJobKey ?? undefined,
+                targetRole: jobRole,
+                resumeProfileId: selectedProfileKey ?? undefined,
+              }),
+            });
+            const data = (await res.json().catch(() => ({}))) as SectionCoachingResponse & {
+              message?: string;
+            };
+            return res.ok
+              ? { section, data }
+              : {
+                  section,
+                  data: {
+                    available: false,
+                    failureReason: "provider_error" as const,
+                    message: data.message ?? "AI Coach request failed.",
+                  },
+                };
+          } catch {
+            return {
+              section,
+              data: {
+                available: false,
+                failureReason: "provider_error" as const,
+                message: "Network error while contacting AI Coach.",
+              },
+            };
+          }
+        }),
+      );
+      if (run.cancelled) return;
+
+      const notConfigured = results.every(
+        (r) => !r.data.available && r.data.failureReason === "not_configured",
+      );
+
+      if (notConfigured) {
+        setAiAvailable(false);
+        setRecommendations(buildEvidenceRecommendations(masterProfile, activeTargetJob));
+      } else {
+        setAiAvailable(true);
+        const recs: CoachRecommendation[] = [];
+        const failed: string[] = [];
+        for (const { section, data } of results) {
+          const rec = data.recommendation;
+          if (!data.available || !rec) {
+            failed.push(section);
+            continue;
+          }
+          const skillIds =
+            section === "skills"
+              ? masterProfile.skills
+                  .filter((s) =>
+                    rec.recommendedContent
+                      .split(/[,\n]/)
+                      .map((n) => n.replace(/^[-*•]\s*/, "").trim().toLowerCase())
+                      .includes(s.name.trim().toLowerCase()),
+                  )
+                  .map((s) => s.id)
+              : undefined;
+          recs.push({
+            id: `ai-${section}`,
+            source: "ai",
+            section,
+            title: SECTION_TITLES[section],
+            reasoning: rec.explanation,
+            currentContent: currentSectionContent(section, masterProfile, selectedProfile),
+            recommendedContent: rec.recommendedContent,
+            selectedRecordIds: skillIds,
+            appliesContent: true,
+            status: "pending",
+          });
+        }
+        setRecommendations(recs);
+        if (failed.length > 0) {
+          setAiNotice(
+            `AI Coach could not produce a usable recommendation for: ${failed.join(", ")}. Nothing was generated for ${failed.length > 1 ? "those sections" : "that section"}.`,
+          );
+        }
+      }
+      setLoadingRecommendations(false);
+    })();
+
+    return () => {
+      run.cancelled = true;
+    };
+    // Re-run only when the inputs to coaching change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [masterProfile, selectedProfileKey, targetJobKey]);
 
   const [applyingChanges, setApplyingChanges] = useState(false);
   const [applySuccessMessage, setApplySuccessMessage] = useState<string | null>(
     null,
   );
+  const [applyErrorMessage, setApplyErrorMessage] = useState<string | null>(null);
 
   const handleAction = (
     id: string,
@@ -277,51 +374,69 @@ export function AICoachView(props: AICoachViewProps) {
     );
   };
 
+  // Accepted recommendations are applied by the API (shared LaTeX contract),
+  // one section at a time. Only the Resume Profile changes; every failure is
+  // reported instead of claiming success.
   const handleApplyAccepted = async () => {
     if (!selectedProfile) return;
+    const accepted = recommendations.filter((r) => r.status === "accepted");
+    if (accepted.length === 0) return;
+
     setApplyingChanges(true);
     setApplySuccessMessage(null);
+    setApplyErrorMessage(null);
+
+    const failures: string[] = [];
+    let latestProfile: ResumeProfile | null = null;
 
     try {
-      const accepted = recommendations.filter((r) => r.status === "accepted");
-      if (accepted.length === 0) return;
-
-      const updatedProfile = { ...selectedProfile };
-      let updatedLatex = selectedProfile.latexSource ?? "";
-
       for (const rec of accepted) {
-        if (rec.section === "summary") {
-          updatedProfile.summaryGuidance = rec.recommendedContent;
-          if (updatedLatex) {
-            updatedLatex = updateLatexSection(
-              updatedLatex,
-              "Executive Summary",
-              `\\small{${rec.recommendedContent}}`,
-            );
+        try {
+          const res = await fetch("/api/ai-coach/apply-section", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              resumeProfileId: selectedProfile.id,
+              section: rec.section,
+              content: rec.appliesContent ? rec.recommendedContent : undefined,
+              selectedRecordIds: rec.selectedRecordIds,
+            }),
+          });
+          const data = (await res.json().catch(() => ({}))) as {
+            profile?: ResumeProfile;
+            message?: string;
+          };
+          if (!res.ok) {
+            failures.push(`${rec.section}: ${data.message ?? `HTTP ${String(res.status)}`}`);
+          } else if (data.profile) {
+            latestProfile = data.profile;
           }
-        } else if (rec.section === "skills" && masterProfile) {
-          // Reorder priority skills
-          const skillNames = rec.recommendedContent.split(",").map((s) => s.trim().toLowerCase());
-          const matchingIds = masterProfile.skills
-            .filter((s) => skillNames.includes(s.name.toLowerCase()))
-            .map((s) => s.id);
-          updatedProfile.prioritySkillIds = matchingIds;
-        } else if (rec.section === "projects" && masterProfile) {
-          if (masterProfile.projects[0]) {
-            updatedProfile.priorityProjectIds = [masterProfile.projects[0].id];
+        } catch {
+          failures.push(`${rec.section}: network error`);
+        }
+      }
+
+      const appliedCount = accepted.length - failures.length;
+      if (latestProfile) {
+        if (props.onUpdateProfile) {
+          await props.onUpdateProfile(latestProfile);
+        } else {
+          const res = await fetch("/api/resume-profiles", { cache: "no-store" });
+          if (res.ok) {
+            setInternalProfiles((await res.json()) as ResumeProfile[]);
           }
         }
       }
 
-      if (updatedLatex) {
-        updatedProfile.latexSource = updatedLatex;
+      if (appliedCount > 0) {
+        setApplySuccessMessage(
+          `Applied ${String(appliedCount)} of ${String(accepted.length)} accepted change${accepted.length > 1 ? "s" : ""} to "${selectedProfile.name}". Master Career Profile unchanged.`,
+        );
+        setTimeout(() => setApplySuccessMessage(null), 5000);
       }
-
-      await onUpdateProfile(updatedProfile);
-      setApplySuccessMessage(
-        `Successfully applied ${String(accepted.length)} accepted section changes to "${selectedProfile.name}". Underlying LaTeX preserved.`,
-      );
-      setTimeout(() => setApplySuccessMessage(null), 5000);
+      if (failures.length > 0) {
+        setApplyErrorMessage(`Not applied — ${failures.join("; ")}`);
+      }
     } finally {
       setApplyingChanges(false);
     }
@@ -348,7 +463,7 @@ export function AICoachView(props: AICoachViewProps) {
           <div className="flex items-center gap-2.5">
             <Key className="w-4 h-4 text-amber-600 shrink-0" />
             <span className="text-amber-800">
-              <strong>Deterministic Evidence Mode:</strong> Coaching operates using verified Master Profile algorithms. Configure BYOK API keys in Settings to unlock deep generative critique.
+              <strong>Deterministic Evidence Mode:</strong> No AI provider is configured, so no content is written for you. Suggestions below only reorder skills and projects the target job asks for. Configure BYOK API keys in Settings to enable AI section coaching.
             </span>
           </div>
           <Link
@@ -512,6 +627,31 @@ export function AICoachView(props: AICoachViewProps) {
             </div>
           )}
 
+          {applyErrorMessage && (
+            <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs shadow-2xs">
+              {applyErrorMessage}
+            </div>
+          )}
+
+          {aiNotice && (
+            <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs shadow-2xs">
+              {aiNotice}
+            </div>
+          )}
+
+          {loadingRecommendations ? (
+            <div className="flex items-center justify-center gap-2 p-8 rounded-xl border border-slate-200/80 bg-white text-xs text-slate-500 shadow-xs">
+              <Loader2 className="w-4 h-4 animate-spin text-[#1d68ed]" />
+              Preparing section recommendations…
+            </div>
+          ) : recommendations.length === 0 ? (
+            <div className="p-8 rounded-xl border border-slate-200/80 bg-white text-center text-xs text-slate-500 shadow-xs">
+              {aiAvailable === false
+                ? "No evidence-based suggestions for this target: none of your recorded skills or project technologies appear in the selected job."
+                : "No recommendations are available right now."}
+            </div>
+          ) : null}
+
           {/* Section Recommendations List */}
           <div className="grid grid-cols-1 gap-4">
             {recommendations.map((rec) => {
@@ -539,8 +679,13 @@ export function AICoachView(props: AICoachViewProps) {
                         {rec.title}
                       </h4>
                       <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 font-medium">
-                        {String(Math.round(rec.confidenceScore * 100))}% Match Confidence
+                        {rec.source === "ai" ? "AI suggestion" : "From your profile evidence"}
                       </span>
+                      {rec.confidenceScore !== undefined && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 font-medium">
+                          {String(Math.round(rec.confidenceScore * 100))}% Match Confidence
+                        </span>
+                      )}
                     </div>
 
                     {/* Independent Accept / Reject Controls */}

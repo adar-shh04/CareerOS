@@ -78,37 +78,24 @@ export function MarketInsightsView({ masterProfile: initialProfile }: MarketInsi
     );
   }, [masterProfile]);
 
-  // Derived or default market skills
+  // Skill demand comes only from real ingested listings (counts per listing in
+  // the analyzed sample). With no ingested data there is nothing to show — no
+  // placeholder benchmarks or growth figures are invented.
+  const sampleSize = marketData?.sampleSize ?? 0;
   const skillsList = useMemo(() => {
-    if (marketData?.topRequiredSkills && marketData.topRequiredSkills.length > 0) {
-      return marketData.topRequiredSkills.map((name, i) => {
-        const lower = name.toLowerCase().trim();
-        const hasSkill = userSkillsSet.has(lower);
-        return {
-          name,
-          demandGrowth: `+${String(38 - i * 3)}%`,
-          trend: "up" as const,
-          category: "Market Requirement",
-          hasSkill,
-        };
-      });
-    }
-
-    // Default reference benchmarks
-    const defaults = [
-      { name: "TypeScript", demandGrowth: "+34%", trend: "up" as const, category: "Software Engineering" },
-      { name: "Distributed Systems", demandGrowth: "+28%", trend: "up" as const, category: "Architecture" },
-      { name: "PostgreSQL", demandGrowth: "+21%", trend: "up" as const, category: "Data Infrastructure" },
-      { name: "React / Next.js", demandGrowth: "+19%", trend: "up" as const, category: "Frontend Platforms" },
-      { name: "Kubernetes & Cloud Native", demandGrowth: "+17%", trend: "up" as const, category: "Infrastructure" },
-      { name: "Python / AI Tooling", demandGrowth: "+42%", trend: "up" as const, category: "Artificial Intelligence" },
-      { name: "REST / GraphQL APIs", demandGrowth: "+12%", trend: "up" as const, category: "Backend Architecture" },
-    ];
-    return defaults.map((d) => ({
-      ...d,
-      hasSkill: userSkillsSet.has(d.name.toLowerCase().trim()),
+    const demand =
+      marketData?.skillDemand ??
+      (marketData?.topRequiredSkills ?? []).map((skill) => ({ skill, jobCount: undefined }));
+    return demand.map(({ skill, jobCount }) => ({
+      name: skill,
+      demand:
+        jobCount !== undefined && sampleSize > 0
+          ? `${String(jobCount)} of ${String(sampleSize)} listings`
+          : "—",
+      category: "Market Requirement",
+      hasSkill: userSkillsSet.has(skill.toLowerCase().trim()),
     }));
-  }, [marketData, userSkillsSet]);
+  }, [marketData, sampleSize, userSkillsSet]);
 
   const matchedSkillsCount = useMemo(() => {
     return skillsList.filter((s) => s.hasSkill).length;
@@ -177,14 +164,18 @@ export function MarketInsightsView({ masterProfile: initialProfile }: MarketInsi
                 <Key className="w-4 h-4 text-amber-600 shrink-0" />
                 <div className="text-xs text-amber-800">
                   <strong className="font-semibold">Heuristic Mode:</strong> {marketData.reason ?? "AI provider key not configured."}{" "}
-                  Displaying deterministic job-radar aggregations.
+                  {skillsList.length > 0
+                    ? "Displaying deterministic job-radar aggregations."
+                    : null}
                 </div>
               </div>
               <Link
-                href="/settings"
+                href={marketData.failureReason === "no_data" ? "/jobs" : "/settings"}
                 className="text-xs font-semibold text-amber-800 hover:text-amber-950 underline"
               >
-                Configure BYOK Keys →
+                {marketData.failureReason === "no_data"
+                  ? "Open Job Radar →"
+                  : "Configure BYOK Keys →"}
               </Link>
             </div>
           )}
@@ -206,8 +197,8 @@ export function MarketInsightsView({ masterProfile: initialProfile }: MarketInsi
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-200/80 text-[#1d68ed] text-xs font-semibold">
                 <Activity className="w-3.5 h-3.5" />
                 {marketData?.jobDataCount
-                  ? `${String(marketData.jobDataCount)} Ingested Jobs Analyzed`
-                  : "Live Pipeline Ingestion Active"}
+                  ? `${String(marketData.jobDataCount)} Ingested Jobs · ${String(sampleSize)} Most Recent Analyzed`
+                  : "No Ingested Jobs Yet"}
               </span>
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold">
                 <CheckCircle2 className="w-3.5 h-3.5" />
@@ -249,10 +240,10 @@ export function MarketInsightsView({ masterProfile: initialProfile }: MarketInsi
                 Top Remote Demand
               </div>
               <div className="text-base font-bold text-slate-900 mt-1">
-                {marketData?.topRemoteRoles?.[0] ?? "Full-Stack & Backend"}
+                {marketData?.topRemoteRoles?.[0] ?? "No remote listings yet"}
               </div>
               <div className="text-xs text-slate-500 mt-1">
-                Highest remote flexibility across active listings
+                First remote role in the analyzed listings
               </div>
             </div>
           </div>
@@ -282,11 +273,18 @@ export function MarketInsightsView({ masterProfile: initialProfile }: MarketInsi
                   <tr className="border-b border-slate-200/80 bg-slate-50 text-slate-500 text-[11px] uppercase tracking-wider">
                     <th className="py-3 px-4 font-semibold">Competency</th>
                     <th className="py-3 px-4 font-semibold">Category</th>
-                    <th className="py-3 px-4 font-semibold">Demand Velocity</th>
+                    <th className="py-3 px-4 font-semibold">Listing Demand</th>
                     <th className="py-3 px-4 font-semibold">Profile Match</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
+                  {skillsList.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="py-6 px-4 text-center text-slate-500">
+                        No ingested job data yet. Run ingestion in Job Radar to see real skill demand.
+                      </td>
+                    </tr>
+                  )}
                   {skillsList.map((s, idx) => (
                     <tr key={s.name || idx} className="hover:bg-slate-50/70 transition-colors">
                       <td className="py-3 px-4 font-semibold text-slate-900">
@@ -296,7 +294,7 @@ export function MarketInsightsView({ masterProfile: initialProfile }: MarketInsi
                         {s.category}
                       </td>
                       <td className="py-3 px-4">
-                        <span className="text-emerald-700 font-bold">{s.demandGrowth}</span>
+                        <span className="text-slate-700 font-semibold">{s.demand}</span>
                       </td>
                       <td className="py-3 px-4">
                         {s.hasSkill ? (

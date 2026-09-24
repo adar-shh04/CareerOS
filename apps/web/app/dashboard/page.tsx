@@ -36,6 +36,8 @@ export default async function DashboardPage() {
   let initialApplications: Awaited<ReturnType<typeof fetchApplications>> = [];
   let initialHandbook: Awaited<ReturnType<typeof fetchCareerHandbook>> | null = null;
 
+  let authenticationFailed = false;
+
   try {
     const [profileResult, jobsResult, appsResult, handbookResult] =
       await Promise.allSettled([
@@ -45,17 +47,14 @@ export default async function DashboardPage() {
         fetchCareerHandbook(session.token, session.workspace.id),
       ]);
 
-    // If an authentication failure occurred (401), force re-login
+    // An authentication failure (401) means the session is no longer valid.
     const results = [profileResult, jobsResult, appsResult, handbookResult];
-    for (const res of results) {
-      if (
+    authenticationFailed = results.some(
+      (res) =>
         res.status === "rejected" &&
         res.reason instanceof ApiError &&
-        res.reason.status === 401
-      ) {
-        redirect("/login");
-      }
-    }
+        res.reason.status === 401,
+    );
 
     if (profileResult.status === "fulfilled") {
       initialProfile = profileResult.value;
@@ -71,6 +70,12 @@ export default async function DashboardPage() {
     }
   } catch (err) {
     console.error("Dashboard initial data fetch error:", err);
+  }
+
+  // redirect() works by throwing; it must run outside the try/catch above or
+  // the catch swallows it and the dashboard renders for a signed-out user.
+  if (authenticationFailed) {
+    redirect("/login");
   }
 
   return (

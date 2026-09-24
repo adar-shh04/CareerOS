@@ -1,3 +1,4 @@
+import { isOnboardingComplete } from "@repo/types";
 import { headers } from "next/headers";
 
 import { getApiBaseUrl } from "./config";
@@ -136,17 +137,27 @@ export async function getServerSession(): Promise<ServerSession | null> {
         id: string;
         name: string;
         slug: string;
+        metadata?: unknown;
       })
     : null;
+
+  if (!orgResponse.ok) {
+    console.error(
+      "[server-session] get-full-organization failed:",
+      orgResponse.status,
+      orgResponse.statusText,
+    );
+  }
 
   return {
     token: cookie,
     user: payload.user,
-    workspace: org ?? {
-      id: workspaceId,
-      name: "Workspace",
-      slug: "",
-    },
-    needsOnboarding: !payload.user.name,
+    workspace: org
+      ? { id: org.id, name: org.name, slug: org.slug }
+      : { id: workspaceId, name: "Workspace", slug: "" },
+    // Completion is the persisted workspace onboarding state, never a proxy
+    // such as the user's name. If the organization could not be loaded, do not
+    // force the user back through onboarding on a transient error.
+    needsOnboarding: org ? !isOnboardingComplete(org.metadata) : false,
   };
 }

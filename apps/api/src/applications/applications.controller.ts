@@ -1,10 +1,12 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
   Get,
   HttpCode,
   HttpStatus,
+  NotFoundException,
   Param,
   Patch,
   Post,
@@ -14,6 +16,19 @@ import {
 import { WorkspaceMemberGuard } from '../common/guards/workspace-member.guard';
 import { ApplicationsService } from './applications.service';
 import type { ApplicationStatus } from './applications.types';
+
+/** undefined = unchanged, null = clear, otherwise a valid ISO date. */
+function parseAppliedAt(
+  value: string | null | undefined,
+): Date | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null || value === '') return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    throw new BadRequestException('appliedAt must be a valid ISO date.');
+  }
+  return date;
+}
 
 @Controller('workspaces/:workspaceId/applications')
 @UseGuards(WorkspaceMemberGuard)
@@ -48,7 +63,7 @@ export class ApplicationsController {
   ) {
     return this.applicationsService.create(workspaceId, {
       ...body,
-      appliedAt: body.appliedAt ? new Date(body.appliedAt) : undefined,
+      appliedAt: parseAppliedAt(body.appliedAt) ?? undefined,
     });
   }
 
@@ -66,7 +81,7 @@ export class ApplicationsController {
       applicationId,
     );
     if (!app) {
-      return { message: `Application ${applicationId} not found.` };
+      throw new NotFoundException(`Application ${applicationId} not found.`);
     }
     return app;
   }
@@ -98,14 +113,14 @@ export class ApplicationsController {
     body: {
       status?: ApplicationStatus;
       notes?: string;
-      appliedAt?: string;
+      appliedAt?: string | null;
       resumeProfileId?: string;
       resumeVersionId?: string;
     },
   ) {
     return this.applicationsService.update(workspaceId, applicationId, {
       ...body,
-      appliedAt: body.appliedAt ? new Date(body.appliedAt) : undefined,
+      appliedAt: parseAppliedAt(body.appliedAt),
     });
   }
 

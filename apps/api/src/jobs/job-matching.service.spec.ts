@@ -304,4 +304,65 @@ describe('JobMatchingService', () => {
     const r = service.match({ job: makeJob(), masterProfile: makeProfile() });
     expect(r.evidence.profileSkillCount).toBeGreaterThanOrEqual(5);
   });
+
+  // ── Skill identity (no substring false positives) ────────────────────────
+  describe('skill identity', () => {
+    const profileWith = (names: string[]) =>
+      makeProfile({
+        skills: names.map((name, i) => ({ id: `sk-${String(i)}`, name })),
+        technologies: [],
+        experiences: [],
+        projects: [],
+      });
+
+    it.each([
+      ['Java', 'JavaScript'],
+      ['JavaScript', 'Java'],
+      ['Go', 'MongoDB'],
+      ['MongoDB', 'Go'],
+      ['C', 'C++'],
+      ['C++', 'C#'],
+      ['SQL', 'MySQL'],
+      ['React', 'React Native'],
+      ['Script', 'TypeScript'],
+    ])(
+      'profile skill %p does NOT satisfy job skill %p',
+      (profileSkill, jobSkill) => {
+        const r = service.match({
+          job: makeJob({ requiredSkills: [jobSkill], preferredSkills: [] }),
+          masterProfile: profileWith([profileSkill]),
+        });
+        expect(r.matchedSkills).toEqual([]);
+        expect(r.missingSkills).toEqual([jobSkill.toLowerCase()]);
+      },
+    );
+
+    it.each([
+      ['TypeScript', 'typescript'],
+      ['  react  ', 'React'],
+      ['Node.js', 'NodeJS'],
+      ['nodejs', 'Node.js'],
+      ['React.js', 'React'],
+      ['Golang', 'Go'],
+      ['Postgres', 'PostgreSQL'],
+      ['k8s', 'Kubernetes'],
+      ['Tailwind', 'Tailwind CSS'],
+      ['Vector   Databases', 'vector databases'],
+    ])('profile skill %p satisfies job skill %p', (profileSkill, jobSkill) => {
+      const r = service.match({
+        job: makeJob({ requiredSkills: [jobSkill], preferredSkills: [] }),
+        masterProfile: profileWith([profileSkill]),
+      });
+      expect(r.matchedSkills).toEqual([jobSkill.toLowerCase()]);
+      expect(r.missingSkills).toEqual([]);
+    });
+
+    it('does not count a substring as a preferred-skill match', () => {
+      const r = service.match({
+        job: makeJob({ requiredSkills: [], preferredSkills: ['JavaScript'] }),
+        masterProfile: profileWith(['Java']),
+      });
+      expect(r.matchedPreferredSkills).toEqual([]);
+    });
+  });
 });

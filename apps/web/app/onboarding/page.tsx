@@ -17,7 +17,7 @@ import {
   UserCheck,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 
 import { useAuth } from "../../providers/auth-provider";
 
@@ -99,17 +99,7 @@ export default function OnboardingPage() {
 
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const hasEvaluatedInitialSession = useRef(false);
-
-  useEffect(() => {
-    if (loading || !session || hasEvaluatedInitialSession.current) {
-      return;
-    }
-    hasEvaluatedInitialSession.current = true;
-    if (!session.needsOnboarding) {
-      router.replace("/dashboard");
-    }
-  }, [loading, session, router]);
+  // Completed workspaces are redirected to the dashboard by ./layout.tsx.
 
   useEffect(() => {
     const userName = session?.user.name;

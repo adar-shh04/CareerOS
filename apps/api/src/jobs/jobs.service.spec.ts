@@ -1,6 +1,7 @@
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import type { CanonicalJob } from '@repo/types';
 
+import type { ApplicationsService } from '../applications/applications.service';
 import type { CareerProfileService } from '../career-profile/career-profile.service';
 import type { MasterCareerProfile } from '../career-profile/career-profile.types';
 import type { ResumeProfileService } from '../resume-profile/resume-profile.service';
@@ -35,6 +36,10 @@ describe('JobsService', () => {
   };
   let mockIngestionService: {
     ingest: jest.Mock;
+  };
+  let mockApplicationsService: {
+    hasAppliedToJob: jest.Mock;
+    markApplied: jest.Mock;
   };
   let matchingService: JobMatchingService;
   let jobAnalysisService: JobAnalysisService;
@@ -142,6 +147,11 @@ describe('JobsService', () => {
       ingest: jest.fn(),
     };
 
+    mockApplicationsService = {
+      hasAppliedToJob: jest.fn().mockResolvedValue(false),
+      markApplied: jest.fn(),
+    };
+
     service = new JobsService(
       mockRepository as unknown as PrismaJobsRepository,
       matchingService,
@@ -149,6 +159,7 @@ describe('JobsService', () => {
       mockCareerProfileService as unknown as CareerProfileService,
       mockResumeProfileService as unknown as ResumeProfileService,
       mockIngestionService as unknown as JobIngestionService,
+      mockApplicationsService as unknown as ApplicationsService,
     );
   });
 
@@ -388,23 +399,12 @@ describe('JobsService', () => {
 
     it('updates job notes and status', async () => {
       mockRepository.findJobById.mockResolvedValue(sampleJobA);
-      mockRepository.upsertWorkspaceJobState.mockResolvedValue({
-        id: 'state-1',
-        workspaceId,
-        jobId: sampleJobA.id,
-        status: 'interview',
-        isSaved: true,
-        isDismissed: false,
-        notes: 'Followed up with recruiter on LinkedIn',
-        createdAt: '2026-08-18T00:00:00.000Z',
-        updatedAt: '2026-08-18T00:00:00.000Z',
-      });
       mockRepository.findJobMatch.mockResolvedValue(null);
       mockRepository.findWorkspaceJobState.mockResolvedValue({
         id: 'state-1',
         workspaceId,
         jobId: sampleJobA.id,
-        status: 'interview',
+        status: 'saved',
         isSaved: true,
         isDismissed: false,
         notes: 'Followed up with recruiter on LinkedIn',
@@ -413,14 +413,108 @@ describe('JobsService', () => {
       });
 
       const updated = await service.updateJobState(workspaceId, sampleJobA.id, {
-        status: 'interview',
+        status: 'saved',
         notes: 'Followed up with recruiter on LinkedIn',
       });
 
+      expect(mockRepository.upsertWorkspaceJobState).toHaveBeenCalledWith(
+        workspaceId,
+        sampleJobA.id,
+        {
+          status: 'saved',
+          isSaved: undefined,
+          notes: 'Followed up with recruiter on LinkedIn',
+        },
+      );
       expect(updated.workspaceState?.notes).toBe(
         'Followed up with recruiter on LinkedIn',
       );
-      expect(updated.workspaceState?.status).toBe('interview');
+      expect(updated.workspaceState?.status).toBe('saved');
+    });
+
+    it('unsaving clears isSaved (previously ignored)', async () => {
+      mockRepository.findJobById.mockResolvedValue(sampleJobA);
+      mockRepository.findJobMatch.mockResolvedValue(null);
+      mockRepository.findWorkspaceJobState.mockResolvedValue(null);
+
+      await service.updateJobState(workspaceId, sampleJobA.id, {
+        isSaved: false,
+        status: 'discovered',
+      });
+
+      expect(mockRepository.upsertWorkspaceJobState).toHaveBeenCalledWith(
+        workspaceId,
+        sampleJobA.id,
+        { status: 'discovered', isSaved: false, notes: undefined },
+      );
+    });
+
+    it.each(['interview', 'offer', 'rejected'] as const)(
+      'rejects application-owned stage %p on job state',
+      async (status) => {
+        mockRepository.findJobById.mockResolvedValue(sampleJobA);
+        await expect(
+          service.updateJobState(workspaceId, sampleJobA.id, { status }),
+        ).rejects.toThrow(BadRequestException);
+        expect(mockRepository.upsertWorkspaceJobState).not.toHaveBeenCalled();
+      },
+    );
+
+    it('never downgrades an applied job when saving, dismissing, or setting status', async () => {
+      mockRepository.findJobById.mockResolvedValue(sampleJobA);
+      mockRepository.findJobMatch.mockResolvedValue(null);
+      mockRepository.findWorkspaceJobState.mockResolvedValue(null);
+      mockApplicationsService.hasAppliedToJob.mockResolvedValue(true);
+
+      await service.saveJob(workspaceId, sampleJobA.id);
+      await service.dismissJob(workspaceId, sampleJobA.id);
+      await service.updateJobState(workspaceId, sampleJobA.id, {
+        isSaved: false,
+        status: 'discovered',
+      });
+
+      const calls = mockRepository.upsertWorkspaceJobState.mock.calls as [
+        string,
+        string,
+        { status?: string },
+      ][];
+      const statuses = calls.map((call) => call[2].status);
+      expect(statuses).toEqual(['applied', 'applied', 'applied']);
+    });
+
+    it('status "applied" via job state creates/advances the Application', async () => {
+      mockRepository.findJobById.mockResolvedValue(sampleJobA);
+      mockRepository.findJobMatch.mockResolvedValue(null);
+      mockRepository.findWorkspaceJobState.mockResolvedValue(null);
+
+      await service.updateJobState(workspaceId, sampleJobA.id, {
+        status: 'applied',
+        appliedAt: '2026-09-01T00:00:00.000Z',
+      });
+
+      expect(mockApplicationsService.markApplied).toHaveBeenCalledWith(
+        workspaceId,
+        sampleJobA.id,
+        { appliedAt: new Date('2026-09-01T00:00:00.000Z') },
+      );
+      expect(mockRepository.upsertWorkspaceJobState).not.toHaveBeenCalled();
+    });
+
+    it('applyToJob delegates to the Application CRM with the resume profile', async () => {
+      mockRepository.findJobById.mockResolvedValue(sampleJobA);
+      mockRepository.findJobMatch.mockResolvedValue(null);
+      mockRepository.findWorkspaceJobState.mockResolvedValue(null);
+
+      await service.applyToJob(workspaceId, sampleJobA.id, {
+        resumeProfileId: 'rp-1',
+        notes: 'Referred by Sam',
+      });
+
+      expect(mockApplicationsService.markApplied).toHaveBeenCalledWith(
+        workspaceId,
+        sampleJobA.id,
+        { resumeProfileId: 'rp-1', notes: 'Referred by Sam' },
+      );
     });
 
     it('throws NotFoundException when interacting with nonexistent job', async () => {
@@ -509,6 +603,233 @@ describe('JobsService', () => {
       expect(result.version.selectedRecordIds.skillIds).toContain('sk-1'); // TypeScript skill selected
       expect(result.analysis).toBeDefined();
       expect(result.analysis.jobId).toBe('job-a');
+    });
+
+    it('rejects a supplied resume profile that does not exist in the workspace instead of substituting another', async () => {
+      mockRepository.findJobById.mockResolvedValue(sampleJobA);
+      mockCareerProfileService.findByWorkspace.mockResolvedValue(
+        sampleMasterProfile,
+      );
+      mockResumeProfileService.findById.mockResolvedValue(undefined);
+      mockResumeProfileService.listByWorkspace.mockResolvedValue([
+        { id: 'rp-other', name: 'Other' },
+      ]);
+
+      await expect(
+        service.createTargetedResumeVersion(
+          sampleJobA.id,
+          workspaceId,
+          'rp-missing',
+        ),
+      ).rejects.toThrow(NotFoundException);
+      expect(mockResumeProfileService.createVersion).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── P1: Job Detail contract ─────────────────────────────────────────────
+  describe('getJobDetail', () => {
+    const storedMatch = (overrides: Partial<StoredJobMatch> = {}) =>
+      ({
+        id: 'm-1',
+        jobId: sampleJobA.id,
+        workspaceId,
+        resumeProfileId: undefined,
+        overallScore: 0.8,
+        skillScore: 0.9,
+        roleScore: 0.7,
+        experienceScore: 0.6,
+        locationScore: 1,
+        seniorityScore: 0.75,
+        matchedSkills: ['typescript'],
+        missingSkills: [],
+        confidence: 0.9,
+        explanation: 'Generic match',
+        evidence: null,
+        profileVersion: 1,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        ...overrides,
+      }) as StoredJobMatch;
+
+    it('returns the enriched JobOpportunity (job + workspace match + state)', async () => {
+      mockRepository.findJobById.mockResolvedValue(sampleJobA);
+      mockCareerProfileService.findByWorkspace.mockResolvedValue(
+        sampleMasterProfile,
+      );
+      mockRepository.listJobMatchesForWorkspace.mockResolvedValue([
+        storedMatch(),
+      ]);
+      mockRepository.findJobMatch.mockResolvedValue(storedMatch());
+      mockRepository.findWorkspaceJobState.mockResolvedValue({
+        status: 'saved',
+        isSaved: true,
+        isDismissed: false,
+        notes: 'Call recruiter',
+      });
+
+      const detail = await service.getJobDetail(workspaceId, sampleJobA.id);
+
+      expect(detail.id).toBe(sampleJobA.id);
+      expect(detail.company).toBe('Stripe');
+      expect(detail.matchScore).toBe(80);
+      expect(detail.match?.explanation).toBe('Generic match');
+      expect(detail.workspaceState).toEqual(
+        expect.objectContaining({ isSaved: true, notes: 'Call recruiter' }),
+      );
+      // Match lookups are workspace-scoped.
+      expect(mockRepository.findJobMatch).toHaveBeenCalledWith(
+        sampleJobA.id,
+        workspaceId,
+        undefined,
+      );
+      expect(mockRepository.findWorkspaceJobState).toHaveBeenCalledWith(
+        workspaceId,
+        sampleJobA.id,
+      );
+      // Fresh match already stored → nothing recomputed.
+      expect(mockRepository.upsertJobMatch).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException for an unknown job', async () => {
+      mockRepository.findJobById.mockResolvedValue(null);
+      await expect(
+        service.getJobDetail(workspaceId, 'no-such-job'),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ── P2: Profile-specific matching ───────────────────────────────────────
+  describe('computeAndPersistMatch with resumeProfileId', () => {
+    const resumeProfileA = {
+      id: 'rp-a',
+      workspaceId,
+      name: 'SDE Resume',
+      roleFocus: 'TypeScript Engineer',
+      visibleSections: [],
+      sectionOrder: [],
+      highlightRules: [],
+      priorityProjectIds: [],
+      prioritySkillIds: [],
+      priorityExperienceIds: [],
+      priorityAchievementIds: [],
+      priorityCertificationIds: [],
+      styleSettings: {},
+      createdAt: '2026-08-18T00:00:00.000Z',
+      updatedAt: '2026-08-18T00:00:00.000Z',
+    };
+
+    beforeEach(() => {
+      mockRepository.findJobById.mockResolvedValue(sampleJobA);
+      mockCareerProfileService.findByWorkspace.mockResolvedValue(
+        sampleMasterProfile,
+      );
+      mockRepository.findWorkspaceJobState.mockResolvedValue(null);
+    });
+
+    it('persists and returns the match for exactly that resume profile', async () => {
+      mockResumeProfileService.findById.mockResolvedValue(resumeProfileA);
+      mockRepository.upsertJobMatch.mockResolvedValue({});
+      mockRepository.findJobMatch.mockImplementation(
+        (_jobId: string, _ws: string, rpId?: string) =>
+          Promise.resolve(
+            rpId === 'rp-a'
+              ? {
+                  id: 'm-a',
+                  jobId: sampleJobA.id,
+                  workspaceId,
+                  resumeProfileId: 'rp-a',
+                  overallScore: 0.91,
+                  skillScore: 1,
+                  roleScore: 0.8,
+                  experienceScore: 0.6,
+                  locationScore: 1,
+                  seniorityScore: 0.75,
+                  matchedSkills: ['typescript'],
+                  missingSkills: [],
+                  confidence: 1,
+                  explanation: 'Profile A match',
+                  evidence: null,
+                  profileVersion: 1,
+                  createdAt: new Date(),
+                  updatedAt: new Date(),
+                }
+              : {
+                  id: 'm-generic',
+                  jobId: sampleJobA.id,
+                  workspaceId,
+                  resumeProfileId: undefined,
+                  overallScore: 0.2,
+                  skillScore: 0.2,
+                  roleScore: 0.2,
+                  experienceScore: 0.2,
+                  locationScore: 0.2,
+                  seniorityScore: 0.2,
+                  matchedSkills: [],
+                  missingSkills: [],
+                  confidence: 1,
+                  explanation: 'Generic match',
+                  evidence: null,
+                  profileVersion: 1,
+                  createdAt: new Date(),
+                  updatedAt: new Date(),
+                },
+          ),
+      );
+
+      const result = await service.computeAndPersistMatch(
+        sampleJobA.id,
+        workspaceId,
+        'rp-a',
+      );
+
+      expect(mockRepository.upsertJobMatch).toHaveBeenCalledWith(
+        sampleJobA.id,
+        workspaceId,
+        expect.any(Object),
+        'rp-a',
+        sampleMasterProfile.version,
+      );
+      expect(mockRepository.findJobMatch).toHaveBeenCalledWith(
+        sampleJobA.id,
+        workspaceId,
+        'rp-a',
+      );
+      expect(result.match?.explanation).toBe('Profile A match');
+      expect(result.match?.resumeProfileId).toBe('rp-a');
+      expect(result.matchScore).toBe(91);
+    });
+
+    it('404s for a resume profile outside the workspace and persists nothing', async () => {
+      mockResumeProfileService.findById.mockResolvedValue(undefined);
+
+      await expect(
+        service.computeAndPersistMatch(
+          sampleJobA.id,
+          workspaceId,
+          'rp-foreign',
+        ),
+      ).rejects.toThrow(NotFoundException);
+      expect(mockRepository.upsertJobMatch).not.toHaveBeenCalled();
+    });
+
+    it('without resumeProfileId, returns the profile-agnostic match', async () => {
+      mockRepository.upsertJobMatch.mockResolvedValue({});
+      mockRepository.findJobMatch.mockResolvedValue(null);
+
+      await service.computeAndPersistMatch(sampleJobA.id, workspaceId);
+
+      expect(mockRepository.upsertJobMatch).toHaveBeenCalledWith(
+        sampleJobA.id,
+        workspaceId,
+        expect.any(Object),
+        undefined,
+        sampleMasterProfile.version,
+      );
+      expect(mockRepository.findJobMatch).toHaveBeenCalledWith(
+        sampleJobA.id,
+        workspaceId,
+        undefined,
+      );
     });
   });
 });

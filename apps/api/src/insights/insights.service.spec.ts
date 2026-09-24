@@ -53,6 +53,7 @@ describe('InsightsService', () => {
 
     it('returns honest capability-unavailable state when jobs exist but AI is not configured', async () => {
       mockPrisma.client.job.count.mockResolvedValue(42);
+      mockPrisma.client.job.findMany.mockResolvedValue([]);
       mockAiCapabilityService.resolveCapability.mockResolvedValue({
         available: false,
         reason: 'AI capability is not configured.',
@@ -93,6 +94,63 @@ describe('InsightsService', () => {
       expect(res.topRequiredSkills).toContain('TypeScript');
       expect(res.topRemoteRoles).toContain('Frontend Engineer');
       expect(res.insightsSummary).toContain('TypeScript');
+      expect(res.skillDemand).toEqual([
+        { skill: 'TypeScript', jobCount: 2 },
+        { skill: 'Node.js', jobCount: 1 },
+        { skill: 'React', jobCount: 1 },
+      ]);
+    });
+
+    it('AI failure → available:false with real aggregates only (no fabricated summary)', async () => {
+      mockPrisma.client.job.count.mockResolvedValue(1);
+      mockPrisma.client.job.findMany.mockResolvedValue([
+        {
+          title: 'Data Analyst',
+          company: 'Acme',
+          requiredSkills: ['SQL'],
+          isRemote: true,
+        },
+      ]);
+      mockAiCapabilityService.resolveCapability.mockResolvedValue({
+        available: true,
+      });
+      mockAiCapabilityService.generateCompletion.mockResolvedValue({
+        available: false,
+        failureReason: 'provider_error',
+        reason: 'AI provider call failed: HTTP 429',
+      });
+
+      const res = await service.getMarketIntelligence(workspaceId);
+
+      expect(res.available).toBe(false);
+      expect(res.failureReason).toBe('provider_error');
+      expect(res.reason).toContain('HTTP 429');
+      expect(res.insightsSummary).toBeUndefined();
+      expect(res.skillDemand).toEqual([{ skill: 'SQL', jobCount: 1 }]);
+      expect(res.sampleSize).toBe(1);
+    });
+
+    it('AI not configured still returns real aggregates, flagged not_configured', async () => {
+      mockPrisma.client.job.count.mockResolvedValue(1);
+      mockPrisma.client.job.findMany.mockResolvedValue([
+        {
+          title: 'Nurse',
+          company: 'Clinic',
+          requiredSkills: ['Patient Care', 'patient care'],
+          isRemote: false,
+        },
+      ]);
+      mockAiCapabilityService.resolveCapability.mockResolvedValue({
+        available: false,
+      });
+
+      const res = await service.getMarketIntelligence(workspaceId);
+
+      expect(res.available).toBe(false);
+      expect(res.failureReason).toBe('not_configured');
+      // Counted once per listing, not once per mention.
+      expect(res.skillDemand).toEqual([{ skill: 'Patient Care', jobCount: 1 }]);
+      expect(mockAiCapabilityService.generateCompletion).not.toHaveBeenCalled();
     });
   });
 

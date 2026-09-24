@@ -416,6 +416,8 @@ export interface JobOpportunity {
     explanation: string;
     evidence: JobMatchEvidence;
     profileVersion?: number;
+    /** Resume Profile this match was scored against; absent for the Master Career Profile match. */
+    resumeProfileId?: string;
   };
   /** Workspace-scoped interaction state. Absent when no state record exists. */
   workspaceState?: {
@@ -474,8 +476,9 @@ export interface AICoachSectionRecommendation {
   currentContent?: string;
   recommendedContent: string;
   status: "pending" | "accepted" | "rejected";
-  confidenceScore: number;
-  impact: "High" | "Medium" | "Low";
+  /** Only set when a real score exists; never a placeholder. */
+  confidenceScore?: number;
+  impact?: "High" | "Medium" | "Low";
 }
 
 export interface AIRecommendation {
@@ -528,11 +531,32 @@ export interface JobIngestionResult {
 
 /* ── Market Intelligence & Career Handbook Types ──────────────────────── */
 
+/**
+ * Why an AI-backed result is unavailable. Lets the UI tell "configure a
+ * provider" apart from "the provider failed" or "the reply was unusable".
+ */
+export type AiFailureReason =
+  | "not_configured"
+  | "provider_error"
+  | "invalid_response"
+  | "no_data";
+
+/** How many sampled ingested listings require a skill (real counts, not estimates). */
+export interface SkillDemand {
+  skill: string;
+  jobCount: number;
+}
+
 export interface MarketIntelligenceResponse {
+  /** True only when the AI synthesis succeeded. */
   available: boolean;
   reason?: string;
+  failureReason?: AiFailureReason;
   jobDataCount?: number;
+  /** Number of most recent ingested listings the aggregates below were computed from. */
+  sampleSize?: number;
   topRequiredSkills?: string[];
+  skillDemand?: SkillDemand[];
   topRemoteRoles?: string[];
   insightsSummary?: string;
 }
@@ -594,9 +618,18 @@ export interface SectionRecommendation {
   keywordsAdded?: string[];
 }
 
+/** Section coaching result: a validated AI recommendation, or an explicit failure. */
+export interface SectionCoachingResponse {
+  available: boolean;
+  message?: string;
+  failureReason?: AiFailureReason;
+  recommendation?: SectionRecommendation;
+}
+
 export interface AiCoachAnalysisResponse {
   available: boolean;
   message?: string;
+  failureReason?: AiFailureReason;
   targetRole?: string;
   company?: string;
   matchingOverview?: {
@@ -608,3 +641,5 @@ export interface AiCoachAnalysisResponse {
     Record<AiCoachSection, SectionRecommendation>
   >;
 }
+export * from "./latex.js";
+export * from "./onboarding.js";

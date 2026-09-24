@@ -1,6 +1,6 @@
 "use client";
 
-import type { AuthSession } from "@repo/types";
+import { type AuthSession, isOnboardingComplete } from "@repo/types";
 import { createContext, useContext, useMemo } from "react";
 
 import { authClient, signOut, useSession } from "../lib/auth-client";
@@ -35,7 +35,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         name: activeOrg?.name ?? "",
         slug: activeOrg?.slug ?? "",
       },
-      needsOnboarding: !data.user.name,
+      // Persisted workspace onboarding state (unknown until the org loads).
+      needsOnboarding: activeOrg
+        ? !isOnboardingComplete((activeOrg as { metadata?: unknown }).metadata)
+        : false,
     };
   }, [data, activeOrg]);
 

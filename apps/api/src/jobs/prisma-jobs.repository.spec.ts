@@ -202,4 +202,145 @@ describe('PrismaJobsRepository', () => {
       ).rejects.toThrow('Database connection lost');
     });
   });
+
+  // job_matches uniqueness uses PARTIAL unique indexes, which PostgreSQL cannot
+  // use as an ON CONFLICT arbiter — so Prisma `upsert` must never be used here.
+  describe('upsertJobMatch', () => {
+    const output = {
+      overallScore: 0.8,
+      dimensionScores: {
+        skill: 0.9,
+        role: 0.7,
+        experience: 0.6,
+        location: 1,
+        seniority: 0.75,
+      },
+      matchedSkills: ['typescript'],
+      missingSkills: [],
+      matchedPreferredSkills: [],
+      confidence: 1,
+      explanation: 'x',
+      evidence: {
+        matchedSkills: ['typescript'],
+        missingSkills: [],
+        matchedPreferredSkills: [],
+        profileSkillCount: 1,
+        requiredSkillCount: 1,
+        experienceYears: 2,
+      },
+    };
+    const row = (resumeProfileId: string | null) => ({
+      id: 'm-1',
+      jobId: 'job-123',
+      organizationId: 'ws-1',
+      resumeProfileId,
+      overallScore: 0.8,
+      skillScore: 0.9,
+      roleScore: 0.7,
+      experienceScore: 0.6,
+      locationScore: 1,
+      seniorityScore: 0.75,
+      matchedSkills: ['typescript'],
+      missingSkills: [],
+      confidence: 1,
+      explanation: 'x',
+      evidence: null,
+      profileVersion: 3,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    let jobMatch: {
+      upsert: jest.Mock;
+      findFirst: jest.Mock;
+      create: jest.Mock;
+      update: jest.Mock;
+    };
+
+    beforeEach(() => {
+      jobMatch = {
+        upsert: jest.fn(),
+        findFirst: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
+      };
+      mockPrismaService.client.jobMatch = jobMatch;
+    });
+
+    it('creates a profile-specific match keyed by resumeProfileId without upsert', async () => {
+      jobMatch.findFirst.mockResolvedValue(null);
+      jobMatch.create.mockResolvedValue(row('rp-1'));
+
+      const stored = await repository.upsertJobMatch(
+        'job-123',
+        'ws-1',
+        output,
+        'rp-1',
+        3,
+      );
+
+      expect(jobMatch.upsert).not.toHaveBeenCalled();
+      expect(jobMatch.findFirst).toHaveBeenCalledWith({
+        where: {
+          organizationId: 'ws-1',
+          jobId: 'job-123',
+          resumeProfileId: 'rp-1',
+        },
+      });
+      expect(jobMatch.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ resumeProfileId: 'rp-1' }) as unknown,
+      });
+      expect(stored.resumeProfileId).toBe('rp-1');
+    });
+
+    it('updates the existing profile-specific match in place', async () => {
+      jobMatch.findFirst.mockResolvedValue(row('rp-1'));
+      jobMatch.update.mockResolvedValue(row('rp-1'));
+
+      await repository.upsertJobMatch('job-123', 'ws-1', output, 'rp-1', 3);
+
+      expect(jobMatch.update).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 'm-1' } }),
+      );
+      expect(jobMatch.create).not.toHaveBeenCalled();
+    });
+
+    it('keeps the profile-agnostic match separate (resumeProfileId null)', async () => {
+      jobMatch.findFirst.mockResolvedValue(null);
+      jobMatch.create.mockResolvedValue(row(null));
+
+      await repository.upsertJobMatch('job-123', 'ws-1', output);
+
+      expect(jobMatch.findFirst).toHaveBeenCalledWith({
+        where: {
+          organizationId: 'ws-1',
+          jobId: 'job-123',
+          resumeProfileId: null,
+        },
+      });
+    });
+
+    it('resolves a concurrent insert (P2002) by updating the winning row', async () => {
+      jobMatch.findFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(row('rp-1'));
+      jobMatch.create.mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError('Unique constraint', {
+          code: 'P2002',
+          clientVersion: '7.9.0',
+        }),
+      );
+      jobMatch.update.mockResolvedValue(row('rp-1'));
+
+      const stored = await repository.upsertJobMatch(
+        'job-123',
+        'ws-1',
+        output,
+        'rp-1',
+        3,
+      );
+
+      expect(jobMatch.update).toHaveBeenCalledTimes(1);
+      expect(stored.resumeProfileId).toBe('rp-1');
+    });
+  });
 });

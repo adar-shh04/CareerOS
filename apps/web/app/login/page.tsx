@@ -34,7 +34,7 @@ function LoginForm() {
     setError(null);
 
     try {
-      const { data, error: signInError } = await signIn.email({
+      const { error: signInError } = await signIn.email({
         email,
         password,
       });
@@ -43,16 +43,10 @@ function LoginForm() {
         throw new Error(signInError.message ?? "Unable to sign in.");
       }
 
+      // Protected pages decide on the server whether onboarding is still
+      // required (persisted workspace state), so just continue to the target.
       const next = searchParams.get("next");
-      const needsOnboarding = !data.user.name;
-
-      if (needsOnboarding) {
-        router.push("/onboarding");
-      } else if (next) {
-        router.push(next);
-      } else {
-        router.push("/dashboard");
-      }
+      router.push(next?.startsWith("/") && !next.startsWith("//") ? next : "/dashboard");
       router.refresh();
     } catch (submitError) {
       setError(

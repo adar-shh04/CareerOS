@@ -4,7 +4,6 @@ import type {
   ApplySectionRecommendationRequest,
   AuthSession,
   ByokCredentialSummary,
-  CanonicalJob,
   CareerHandbookResponse,
   CreateResumeVersionInput,
   JobAnalysisResult,
@@ -18,7 +17,7 @@ import type {
   ResumeProfileInput,
   ResumeVersion,
   SectionCoachingRequest,
-  SectionRecommendation,
+  SectionCoachingResponse,
   WorkspaceJobStatus,
 } from "@repo/types";
 
@@ -364,11 +363,12 @@ export async function listJobs(
   return parseResponse<JobOpportunity[]>(response);
 }
 
+/** Job Detail: the job enriched with this workspace's match and state. */
 export async function getJob(
   sessionCookie: string,
   workspaceId: string,
   jobId: string,
-): Promise<CanonicalJob> {
+): Promise<JobOpportunity> {
   const response = await fetch(
     `${getWorkspacePath(workspaceId)}/jobs/${jobId}`,
     {
@@ -377,7 +377,7 @@ export async function getJob(
     },
   );
 
-  return parseResponse<CanonicalJob>(response);
+  return parseResponse<JobOpportunity>(response);
 }
 
 export async function ingestJobs(
@@ -841,7 +841,7 @@ export async function coachAiCoachSection(
   sessionCookie: string,
   workspaceId: string,
   body: SectionCoachingRequest,
-): Promise<{ recommendation: SectionRecommendation; available: boolean }> {
+): Promise<SectionCoachingResponse> {
   const response = await fetch(
     `${getWorkspacePath(workspaceId)}/ai-coach/section`,
     {
@@ -854,7 +854,7 @@ export async function coachAiCoachSection(
     },
   );
 
-  return parseResponse<{ recommendation: SectionRecommendation; available: boolean }>(response);
+  return parseResponse<SectionCoachingResponse>(response);
 }
 
 export async function applyAiCoachSection(

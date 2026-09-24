@@ -20,6 +20,9 @@ import type {
   StoredJobMatch,
 } from './jobs.types';
 
+const uuidPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /** Prisma-backed repository for canonical jobs, workspace job states, and job matches. */
 @Injectable()
 export class PrismaJobsRepository {
@@ -157,6 +160,9 @@ export class PrismaJobsRepository {
   }
 
   async findJobById(id: string): Promise<CanonicalJob | null> {
+    // Job ids are UUID columns; anything else cannot exist (and would make
+    // PostgreSQL raise instead of returning "not found").
+    if (!uuidPattern.test(id)) return null;
     const row = await this.prisma.client.job.findUnique({ where: { id } });
     return row ? this.mapJob(row) : null;
   }
@@ -191,6 +197,11 @@ export class PrismaJobsRepository {
    * Upsert a persisted job match.
    * When resumeProfileId is provided, matches are keyed by (organizationId, jobId, resumeProfileId).
    * When resumeProfileId is null/undefined, match is profile-agnostic (raw MasterCareerProfile).
+   *
+   * Uniqueness is enforced by two PARTIAL unique indexes (resume_profile_id IS
+   * NULL / IS NOT NULL). PostgreSQL cannot use a partial index as the arbiter
+   * of Prisma's `upsert` (ON CONFLICT), so both paths find → update/create and
+   * resolve a concurrent insert (P2002) by updating the winner's row.
    */
   async upsertJobMatch(
     jobId: string,
@@ -214,52 +225,42 @@ export class PrismaJobsRepository {
       profileVersion: profileVersion ?? null,
     };
 
-    if (resumeProfileId) {
-      const row = await this.prisma.client.jobMatch.upsert({
-        where: {
-          organizationId_jobId_resumeProfileId: {
-            organizationId: workspaceId,
-            jobId,
-            resumeProfileId,
-          },
-        },
-        update: data,
-        create: {
-          jobId,
-          organizationId: workspaceId,
-          resumeProfileId,
-          ...data,
-        },
+    const key = {
+      organizationId: workspaceId,
+      jobId,
+      resumeProfileId: resumeProfileId ?? null,
+    };
+
+    const updateExisting = async (): Promise<StoredJobMatch | null> => {
+      const existing = await this.prisma.client.jobMatch.findFirst({
+        where: key,
       });
-      return this.mapMatch(row);
-    }
-
-    const existing = await this.prisma.client.jobMatch.findFirst({
-      where: {
-        organizationId: workspaceId,
-        jobId,
-        resumeProfileId: null,
-      },
-    });
-
-    if (existing) {
+      if (!existing) return null;
       const row = await this.prisma.client.jobMatch.update({
         where: { id: existing.id },
         data,
       });
       return this.mapMatch(row);
+    };
+
+    const updated = await updateExisting();
+    if (updated) return updated;
+
+    try {
+      const row = await this.prisma.client.jobMatch.create({
+        data: { ...key, ...data },
+      });
+      return this.mapMatch(row);
+    } catch (error: unknown) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        const raced = await updateExisting();
+        if (raced) return raced;
+      }
+      throw error;
     }
-
-    const row = await this.prisma.client.jobMatch.create({
-      data: {
-        jobId,
-        organizationId: workspaceId,
-        resumeProfileId: null,
-        ...data,
-      },
-    });
-
-    return this.mapMatch(row);
   }
 
   /** Load an existing match for a job × workspace × profile combination. */

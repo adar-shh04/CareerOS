@@ -60,7 +60,14 @@ export interface CreateApplicationInput {
 export interface UpdateApplicationInput {
   status?: ApplicationStatus;
   notes?: string;
-  appliedAt?: Date;
+  /** null clears the recorded application date. */
+  appliedAt?: Date | null;
   resumeProfileId?: string;
   resumeVersionId?: string;
+}
+
+export interface MarkAppliedInput {
+  resumeProfileId?: string;
+  notes?: string;
+  appliedAt?: Date;
 }

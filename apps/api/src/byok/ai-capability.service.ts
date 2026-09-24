@@ -20,10 +20,14 @@ export interface AiCompletionOptions {
   maxTokens?: number;
 }
 
+/** Why an AI result is unavailable: no provider, or the provider call failed. */
+export type AiCompletionFailure = 'not_configured' | 'provider_error';
+
 export interface AiCompletionResult {
   available: boolean;
   text?: string;
   reason?: string;
+  failureReason?: AiCompletionFailure;
   provider?: string;
   source?: string;
 }
@@ -133,6 +137,7 @@ export class AiCapabilityService {
     if (!cap.available || !cap.apiKey) {
       return {
         available: false,
+        failureReason: 'not_configured',
         reason:
           cap.reason ??
           'AI provider not configured. Connect BYOK or enable a platform AI plan.',
@@ -188,6 +193,7 @@ export class AiCapabilityService {
       this.logger.error(`AI completion failed: ${msg}`);
       return {
         available: false,
+        failureReason: 'provider_error',
         reason: `AI provider call failed: ${msg}`,
       };
     }

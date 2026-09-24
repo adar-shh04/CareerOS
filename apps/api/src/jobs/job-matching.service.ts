@@ -4,6 +4,7 @@ import type { MasterCareerProfile } from '../career-profile/career-profile.types
 import type { ResumeProfile } from '../resume-profile/resume-profile.types';
 import type { CanonicalJob, MatchInput, MatchOutput } from './jobs.types';
 import { DEFAULT_WEIGHTS } from './jobs.types';
+import { canonicalSkillKey } from './skill-identity';
 
 /**
  * JobMatchingService — deterministic, explainable job-to-profile matching.
@@ -113,14 +114,16 @@ export class JobMatchingService {
     const prioritySkillIds = new Set<string>(
       resumeProfile?.prioritySkillIds ?? [],
     );
-    const prioritySkillNames = new Set<string>(
+    const prioritySkillKeys = new Set<string>(
       profile.skills
         .filter((s) => prioritySkillIds.has(s.id))
-        .map((s) => this.normalize(s.name)),
+        .map((s) => canonicalSkillKey(s.name)),
     );
 
-    const normalizedProfileSkills = new Set(
-      [...profileSkillNames].map((s) => this.normalize(s)),
+    // Skills are compared by canonical identity (see skill-identity.ts), never
+    // by substring, so "java" does not match "javascript".
+    const profileSkillKeys = new Set(
+      [...profileSkillNames].map((s) => canonicalSkillKey(s)),
     );
 
     const required = job.requiredSkills.map((s) => this.normalize(s));
@@ -130,24 +133,16 @@ export class JobMatchingService {
     const missing: string[] = [];
 
     for (const skill of required) {
-      if (normalizedProfileSkills.has(skill)) {
+      if (profileSkillKeys.has(canonicalSkillKey(skill))) {
         matched.push(skill);
       } else {
-        // Partial substring match (e.g. "react" matches "react.js")
-        const partial = [...normalizedProfileSkills].some(
-          (p) => p.includes(skill) || skill.includes(p),
-        );
-        if (partial) {
-          matched.push(skill);
-        } else {
-          missing.push(skill);
-        }
+        missing.push(skill);
       }
     }
 
     const matchedPreferred: string[] = [];
     for (const skill of preferred) {
-      if (normalizedProfileSkills.has(skill)) {
+      if (profileSkillKeys.has(canonicalSkillKey(skill))) {
         matchedPreferred.push(skill);
       }
     }
@@ -173,7 +168,9 @@ export class JobMatchingService {
     }
 
     // Priority skill boost: if a priority skill is matched, lift score slightly.
-    const priorityMatched = matched.filter((m) => prioritySkillNames.has(m));
+    const priorityMatched = matched.filter((m) =>
+      prioritySkillKeys.has(canonicalSkillKey(m)),
+    );
     if (priorityMatched.length > 0) {
       const boost = Math.min(
         0.05,

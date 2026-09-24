@@ -1,10 +1,10 @@
 import { randomUUID } from 'node:crypto';
 
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { generateLatexFromProfile } from '@repo/types';
 
 import { CareerProfileService } from '../career-profile/career-profile.service';
 import type { MasterCareerProfile } from '../career-profile/career-profile.types';
-import { generateCanonicalLatexTemplate } from './latex-template.util';
 import {
   RESUME_PROFILE_REPOSITORY,
   type ResumeProfileRepository,
@@ -22,6 +22,28 @@ import {
 } from './resume-profile.types';
 
 export class ResumeProfileValidationError extends Error {}
+
+function emptyMasterProfile(workspaceId: string): MasterCareerProfile {
+  const now = new Date().toISOString();
+  return {
+    id: '',
+    workspaceId,
+    version: 0,
+    createdAt: now,
+    updatedAt: now,
+    identity: { fullName: 'Your Name' },
+    education: [],
+    experiences: [],
+    projects: [],
+    achievements: [],
+    skills: [],
+    technologies: [],
+    publications: [],
+    hackathons: [],
+    certifications: [],
+    links: [],
+  };
+}
 
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -80,9 +102,11 @@ export class ResumeProfileService {
     }
 
     const timestamp = new Date().toISOString();
-    const defaultLatex = generateCanonicalLatexTemplate(
-      undefined,
-      masterProfile ?? undefined,
+    // Canonical CareerOS LaTeX (shared contract in @repo/types). Without a
+    // master profile yet, only the empty template with a name placeholder.
+    const defaultLatex = generateLatexFromProfile(
+      masterProfile ?? emptyMasterProfile(normalizedWorkspaceId),
+      normalizedInput,
     );
 
     const profile: ResumeProfile = {

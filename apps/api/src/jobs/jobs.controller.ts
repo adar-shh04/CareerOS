@@ -4,7 +4,6 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  NotFoundException,
   Param,
   Patch,
   Post,
@@ -19,7 +18,7 @@ import type {
 
 import { WorkspaceMemberGuard } from '../common/guards/workspace-member.guard';
 import { JobsService } from './jobs.service';
-import type { CanonicalJob, ListJobsQuery } from './jobs.types';
+import type { ListJobsQuery } from './jobs.types';
 
 @Controller('workspaces/:workspaceId/jobs')
 @UseGuards(WorkspaceMemberGuard)
@@ -52,16 +51,15 @@ export class JobsController {
 
   /**
    * GET /workspaces/:workspaceId/jobs/:jobId
-   * Retrieve a single canonical job by ID.
+   * Job Detail: one job enriched with this workspace's match and interaction
+   * state (the same JobOpportunity contract as the list). 404 if unknown.
    */
   @Get(':jobId')
   async getJob(
-    @Param('workspaceId') _workspaceId: string,
+    @Param('workspaceId') workspaceId: string,
     @Param('jobId') jobId: string,
-  ): Promise<CanonicalJob> {
-    const job = await this.jobsService.findJobById(jobId);
-    if (!job) throw new NotFoundException(`Job ${jobId} not found.`);
-    return job;
+  ): Promise<JobOpportunity> {
+    return this.jobsService.getJobDetail(workspaceId, jobId);
   }
 
   /**
@@ -155,7 +153,8 @@ export class JobsController {
 
   /**
    * PATCH /workspaces/:workspaceId/jobs/:jobId/state
-   * Update interaction state (status, notes, appliedAt) for a job in this workspace.
+   * Update interaction state (status, isSaved, notes) for a job in this workspace.
+   * Setting status "applied" (optionally with appliedAt) goes through the Application CRM.
    */
   @Patch(':jobId/state')
   async updateJobState(
@@ -164,6 +163,7 @@ export class JobsController {
     @Body()
     body?: {
       status?: WorkspaceJobStatus;
+      isSaved?: boolean;
       notes?: string;
       appliedAt?: string;
     },
@@ -174,6 +174,8 @@ export class JobsController {
   /**
    * POST /workspaces/:workspaceId/jobs/:jobId/apply
    * Mark a job as applied using a selected ResumeProfile (no ResumeVersion snapshot required).
+   * Creates or advances the workspace's Application for the job (recording
+   * resumeProfileId, which must belong to this workspace) and syncs job state.
    */
   @Post(':jobId/apply')
   @HttpCode(HttpStatus.OK)

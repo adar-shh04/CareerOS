@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 import type { AiCapabilityService } from '../byok/ai-capability.service';
 import type { CareerProfileService } from '../career-profile/career-profile.service';
@@ -117,6 +117,79 @@ describe('AiCoachService', () => {
       );
       expect(res.matchingOverview?.gaps).toContain('GraphQL familiarity');
     });
+
+    it('accepts valid JSON wrapped in a ```json fence', async () => {
+      mockAiCapabilityService.resolveCapability.mockResolvedValue({
+        available: true,
+      });
+      mockAiCapabilityService.generateCompletion.mockResolvedValue({
+        available: true,
+        text:
+          '```json\n' +
+          JSON.stringify({
+            strengths: ['Built scalable APIs at Acme Corp'],
+            gaps: [],
+            overallAdvice: 'Lead with the API work.',
+          }) +
+          '\n```',
+      });
+
+      const res = await service.analyzeRole(workspaceId, {});
+      expect(res.available).toBe(true);
+      expect(res.matchingOverview?.strengths).toEqual([
+        'Built scalable APIs at Acme Corp',
+      ]);
+    });
+
+    it.each([
+      [
+        'non-JSON prose',
+        'You are a great fit with relevant domain experience!',
+      ],
+      ['JSON missing fields', JSON.stringify({ strengths: ['x'] })],
+      [
+        'JSON with wrong types',
+        JSON.stringify({ strengths: 'x', gaps: [], overallAdvice: 'y' }),
+      ],
+      [
+        'empty advice',
+        JSON.stringify({ strengths: [], gaps: [], overallAdvice: '  ' }),
+      ],
+    ])(
+      'malformed AI output (%s) → explicit invalid_response, no fabricated evidence',
+      async (_label, text) => {
+        mockAiCapabilityService.resolveCapability.mockResolvedValue({
+          available: true,
+        });
+        mockAiCapabilityService.generateCompletion.mockResolvedValue({
+          available: true,
+          text,
+        });
+
+        const res = await service.analyzeRole(workspaceId, {});
+
+        expect(res.available).toBe(false);
+        expect(res.failureReason).toBe('invalid_response');
+        expect(res.matchingOverview).toBeUndefined();
+        expect(JSON.stringify(res)).not.toContain('Relevant domain experience');
+      },
+    );
+
+    it('provider failure → unavailable with provider_error', async () => {
+      mockAiCapabilityService.resolveCapability.mockResolvedValue({
+        available: true,
+      });
+      mockAiCapabilityService.generateCompletion.mockResolvedValue({
+        available: false,
+        failureReason: 'provider_error',
+        reason: 'AI provider call failed: HTTP 500',
+      });
+
+      const res = await service.analyzeRole(workspaceId, {});
+      expect(res.available).toBe(false);
+      expect(res.failureReason).toBe('provider_error');
+      expect(res.matchingOverview).toBeUndefined();
+    });
   });
 
   describe('coachSection', () => {
@@ -159,10 +232,85 @@ describe('AiCoachService', () => {
 
       expect(res.available).toBe(false);
       expect(res.message).toContain('AI provider not configured');
+      expect(res.failureReason).toBe('not_configured');
+    });
+
+    it('malformed AI output → invalid_response, raw text is not returned as a recommendation', async () => {
+      mockAiCapabilityService.resolveCapability.mockResolvedValue({
+        available: true,
+      });
+      mockAiCapabilityService.generateCompletion.mockResolvedValue({
+        available: true,
+        text: 'Led a team of 40 engineers and grew revenue 300%.',
+      });
+
+      const res = await service.coachSection(workspaceId, {
+        section: 'experience',
+      });
+
+      expect(res.available).toBe(false);
+      expect(res.failureReason).toBe('invalid_response');
+      expect(res.recommendation).toBeUndefined();
+    });
+
+    it('rejects an unsupported section before calling AI', async () => {
+      await expect(
+        service.coachSection(workspaceId, { section: 'hobbies' as never }),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockAiCapabilityService.generateCompletion).not.toHaveBeenCalled();
     });
   });
 
   describe('applySectionRecommendation', () => {
+    it('writes escaped content into the matching section of the stored LaTeX', async () => {
+      const latexSource = [
+        '\\documentclass{article}',
+        '\\begin{document}',
+        '\\header{Summary}',
+        'Old summary',
+        '\\header{Skills}',
+        'TypeScript',
+        '\\end{document}',
+      ].join('\n');
+      mockResumeProfileService.findById.mockResolvedValue({
+        id: 'rp-1',
+        name: 'SDE Profile',
+        latexSource,
+      });
+      mockResumeProfileService.update.mockImplementation(
+        (_ws: string, _id: string, input: object) =>
+          Promise.resolve({ name: 'SDE Profile', ...input }),
+      );
+
+      await service.applySectionRecommendation(workspaceId, {
+        resumeProfileId: 'rp-1',
+        section: 'summary',
+        content: 'Engineer shipping R&D tools at 100% uptime',
+      });
+
+      const saved = (
+        mockResumeProfileService.update.mock.calls[0] as [
+          string,
+          string,
+          { latexSource: string },
+        ]
+      )[2].latexSource;
+      expect(saved).toContain(
+        '\\header{Summary}\nEngineer shipping R\\&D tools at 100\\% uptime\n',
+      );
+      expect(saved).not.toContain('Old summary');
+      expect(saved).toContain('\\header{Skills}\nTypeScript');
+    });
+
+    it('rejects a request with nothing to apply', async () => {
+      await expect(
+        service.applySectionRecommendation(workspaceId, {
+          resumeProfileId: 'rp-1',
+          section: 'summary',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
     it('applies accepted changes to Resume Profile and leaves Master Career Profile unchanged', async () => {
       const mockProfile = {
         id: 'rp-1',

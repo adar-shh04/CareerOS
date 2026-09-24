@@ -1,14 +1,25 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import type {
   CanonicalJob,
   JobAnalysisResult,
   JobMatchingWeights,
   JobOpportunity,
+  WorkspaceJobStatus,
 } from '@repo/types';
 import { DEFAULT_MATCHING_WEIGHTS } from '@repo/types';
 
+import { ApplicationsService } from '../applications/applications.service';
 import { CareerProfileService } from '../career-profile/career-profile.service';
-import { ResumeProfileService } from '../resume-profile/resume-profile.service';
+import {
+  ResumeProfileService,
+  ResumeProfileValidationError,
+} from '../resume-profile/resume-profile.service';
+import type { ResumeProfile } from '../resume-profile/resume-profile.types';
 import { JobIngestionService } from './ingestion/job-ingestion.service';
 import { JobAnalysisService } from './job-analysis.service';
 import { JobMatchingService } from './job-matching.service';
@@ -18,6 +29,33 @@ import type {
   StoredJobMatch,
 } from './jobs.types';
 import { PrismaJobsRepository } from './prisma-jobs.repository';
+import { canonicalSkillKey } from './skill-identity';
+
+const WORKSPACE_JOB_STATUSES: readonly WorkspaceJobStatus[] = [
+  'discovered',
+  'saved',
+  'applied',
+  'interview',
+  'offer',
+  'rejected',
+  'dismissed',
+];
+
+/** Pipeline stages owned by the Application record, not settable via job state. */
+const APPLICATION_OWNED_STATUSES: readonly WorkspaceJobStatus[] = [
+  'interview',
+  'offer',
+  'rejected',
+];
+
+/** Workspace job state in the shape the enrichment mapper consumes. */
+interface JobStateView {
+  status: string;
+  isSaved: boolean;
+  isDismissed: boolean;
+  notes?: string | null;
+  appliedAt?: Date | string | null;
+}
 
 /**
  * JobsService — orchestrates DB-backed canonical jobs, workspace job states,
@@ -34,6 +72,7 @@ export class JobsService {
     private readonly careerProfileService: CareerProfileService,
     private readonly resumeProfileService: ResumeProfileService,
     private readonly ingestionService: JobIngestionService,
+    private readonly applicationsService: ApplicationsService,
   ) {}
 
   // ── Listing ────────────────────────────────────────────────────────────
@@ -67,82 +106,13 @@ export class JobsService {
       jobIds,
     );
 
-    const opportunities = jobs.map((job): JobOpportunity => {
-      const m = matchMap.get(job.id);
-      const s = stateMap.get(job.id);
-
-      const matchEvidence =
-        m?.evidence ??
-        (m
-          ? {
-              matchedSkills: m.matchedSkills,
-              missingSkills: m.missingSkills,
-              matchedPreferredSkills: [],
-              profileSkillCount: 0,
-              requiredSkillCount: job.requiredSkills.length,
-              experienceYears: 0,
-            }
-          : undefined);
-
-      return {
-        ...this.toOpportunity(job),
-        matchScore: m ? Math.round(m.overallScore * 100) : undefined,
-        whyFits: m?.explanation ?? undefined,
-        missingSkills: m?.missingSkills ?? undefined,
-        matchEvidence: m
-          ? {
-              skillScore: Math.round(m.skillScore * 100),
-              roleScore: Math.round(m.roleScore * 100),
-              experienceScore: Math.round(m.experienceScore * 100),
-              locationScore: Math.round(m.locationScore * 100),
-              seniorityScore: Math.round(m.seniorityScore * 100),
-              matchedSkills: m.matchedSkills,
-              missingSkills: m.missingSkills,
-              reasons: m.explanation ? [m.explanation] : [],
-              confidence: m.confidence,
-            }
-          : undefined,
-        match: m
-          ? {
-              overallScore: m.overallScore,
-              dimensionScores: {
-                skill: m.skillScore,
-                role: m.roleScore,
-                experience: m.experienceScore,
-                location: m.locationScore,
-                seniority: m.seniorityScore,
-              },
-              matchedSkills: m.matchedSkills,
-              missingSkills: m.missingSkills,
-              confidence: m.confidence,
-              explanation: m.explanation,
-              evidence: matchEvidence ?? {
-                matchedSkills: m.matchedSkills,
-                missingSkills: m.missingSkills,
-                matchedPreferredSkills: [],
-                profileSkillCount: 0,
-                requiredSkillCount: job.requiredSkills.length,
-                experienceYears: 0,
-              },
-              profileVersion: m.profileVersion ?? undefined,
-            }
-          : undefined,
-        workspaceState: s
-          ? {
-              status:
-                s.status as JobOpportunity['workspaceState'] extends infer T
-                  ? T extends { status: infer S }
-                    ? S
-                    : never
-                  : never,
-              isSaved: s.isSaved,
-              isDismissed: s.isDismissed,
-              notes: s.notes ?? undefined,
-              appliedAt: s.appliedAt?.toISOString() ?? undefined,
-            }
-          : undefined,
-      };
-    });
+    const opportunities = jobs.map((job) =>
+      this.toEnrichedOpportunity(
+        job,
+        matchMap.get(job.id),
+        stateMap.get(job.id),
+      ),
+    );
 
     // Sort by overall match score descending, then postedAt desc, createdAt desc, id asc
     return opportunities.sort((a, b) => {
@@ -156,6 +126,19 @@ export class JobsService {
       }
       return a.id.localeCompare(b.id);
     });
+  }
+
+  /**
+   * Job Detail: one canonical job enriched with this workspace's match and
+   * interaction state — the same JobOpportunity contract the list returns.
+   */
+  async getJobDetail(
+    workspaceId: string,
+    jobId: string,
+  ): Promise<JobOpportunity> {
+    const job = await this.requireJob(jobId);
+    await this.ensureJobMatches(workspaceId, [job], 1);
+    return this.getEnrichedOpportunity(workspaceId, jobId);
   }
 
   // ── Auto-Matching Orchestration ────────────────────────────────────────
@@ -228,7 +211,8 @@ export class JobsService {
   /**
    * Run the deterministic matching engine for one job × workspace, optionally
    * scoped to a specific ResumeProfile or with custom weight overrides.
-   * Persists the result and returns the enriched JobOpportunity.
+   * Persists the result and returns the enriched JobOpportunity carrying the
+   * match for exactly that (workspace, job, resumeProfile) combination.
    */
   async computeAndPersistMatch(
     jobId: string,
@@ -236,8 +220,7 @@ export class JobsService {
     resumeProfileId?: string,
     weights?: Partial<JobMatchingWeights>,
   ): Promise<JobOpportunity> {
-    const job = await this.repository.findJobById(jobId);
-    if (!job) throw new NotFoundException(`Job ${jobId} not found.`);
+    const job = await this.requireJob(jobId);
 
     const masterProfile =
       await this.careerProfileService.findByWorkspace(workspaceId);
@@ -247,16 +230,9 @@ export class JobsService {
       );
     }
 
-    let resumeProfile:
-      | Awaited<ReturnType<ResumeProfileService['findById']>>
-      | undefined;
-    if (resumeProfileId) {
-      const rp = await this.resumeProfileService.findById(
-        workspaceId,
-        resumeProfileId,
-      );
-      resumeProfile = rp ?? undefined;
-    }
+    const resumeProfile = resumeProfileId
+      ? await this.requireResumeProfile(workspaceId, resumeProfileId)
+      : undefined;
 
     const effectiveWeights: JobMatchingWeights = {
       ...DEFAULT_MATCHING_WEIGHTS,
@@ -266,7 +242,7 @@ export class JobsService {
     const output = this.matchingService.match({
       job,
       masterProfile,
-      resumeProfile: resumeProfile ?? undefined,
+      resumeProfile,
       weights: effectiveWeights,
     });
 
@@ -274,27 +250,35 @@ export class JobsService {
       jobId,
       workspaceId,
       output,
-      resumeProfileId,
+      resumeProfile?.id,
       masterProfile.version,
     );
 
     this.logger.log(
-      `Matched job ${job.title} @ ${job.company} for workspace ${workspaceId}: ` +
+      `Matched job ${job.title} @ ${job.company} for workspace ${workspaceId}` +
+        `${resumeProfile ? ` (resume profile ${resumeProfile.id})` : ''}: ` +
         `${String(Math.round(output.overallScore * 100))}/100`,
     );
 
-    return this.getEnrichedOpportunity(workspaceId, jobId);
+    return this.getEnrichedOpportunity(workspaceId, jobId, resumeProfile?.id);
   }
 
   // ── Workspace Job Interactions (Save, Dismiss, Restore, Notes) ─────────
+  //
+  // Whether the workspace has applied to a job is owned by its Application
+  // (see ApplicationsService). Job-state writes never move an applied job
+  // back to "saved"/"discovered"/"dismissed"; they only change the flags.
 
   async saveJob(workspaceId: string, jobId: string): Promise<JobOpportunity> {
-    const job = await this.repository.findJobById(jobId);
-    if (!job) throw new NotFoundException(`Job ${jobId} not found.`);
+    await this.requireJob(jobId);
+    const applied = await this.applicationsService.hasAppliedToJob(
+      workspaceId,
+      jobId,
+    );
 
     await this.repository.upsertWorkspaceJobState(workspaceId, jobId, {
       isSaved: true,
-      status: 'saved',
+      status: applied ? 'applied' : 'saved',
     });
 
     return this.getEnrichedOpportunity(workspaceId, jobId);
@@ -304,12 +288,15 @@ export class JobsService {
     workspaceId: string,
     jobId: string,
   ): Promise<JobOpportunity> {
-    const job = await this.repository.findJobById(jobId);
-    if (!job) throw new NotFoundException(`Job ${jobId} not found.`);
+    await this.requireJob(jobId);
+    const applied = await this.applicationsService.hasAppliedToJob(
+      workspaceId,
+      jobId,
+    );
 
     await this.repository.upsertWorkspaceJobState(workspaceId, jobId, {
       isDismissed: true,
-      status: 'dismissed',
+      status: applied ? 'applied' : 'dismissed',
     });
 
     return this.getEnrichedOpportunity(workspaceId, jobId);
@@ -319,32 +306,30 @@ export class JobsService {
     workspaceId: string,
     jobId: string,
   ): Promise<JobOpportunity> {
-    const job = await this.repository.findJobById(jobId);
-    if (!job) throw new NotFoundException(`Job ${jobId} not found.`);
+    await this.requireJob(jobId);
+    const [applied, state] = await Promise.all([
+      this.applicationsService.hasAppliedToJob(workspaceId, jobId),
+      this.repository.findWorkspaceJobState(workspaceId, jobId),
+    ]);
 
     await this.repository.upsertWorkspaceJobState(workspaceId, jobId, {
       isDismissed: false,
-      status: 'discovered',
+      status: applied ? 'applied' : state?.isSaved ? 'saved' : 'discovered',
     });
 
     return this.getEnrichedOpportunity(workspaceId, jobId);
   }
 
+  /**
+   * Mark a job as applied. Delegates to the Application CRM so an Application
+   * exists (recording the supplied resume profile) and job state agrees.
+   */
   async applyToJob(
     workspaceId: string,
     jobId: string,
-    options?: { resumeProfileId?: string; notes?: string },
+    options?: { resumeProfileId?: string; notes?: string; appliedAt?: Date },
   ): Promise<JobOpportunity> {
-    const job = await this.repository.findJobById(jobId);
-    if (!job) throw new NotFoundException(`Job ${jobId} not found.`);
-
-    const appliedAt = new Date();
-    await this.repository.upsertWorkspaceJobState(workspaceId, jobId, {
-      status: 'applied',
-      notes: options?.notes,
-      appliedAt,
-    });
-
+    await this.applicationsService.markApplied(workspaceId, jobId, options);
     return this.getEnrichedOpportunity(workspaceId, jobId);
   }
 
@@ -352,106 +337,89 @@ export class JobsService {
     workspaceId: string,
     jobId: string,
     data: {
-      status?: JobOpportunity['workspaceState'] extends infer T
-        ? T extends { status: infer S }
-          ? S
-          : never
-        : never;
+      status?: WorkspaceJobStatus;
+      isSaved?: boolean;
       notes?: string;
       appliedAt?: string;
     },
   ): Promise<JobOpportunity> {
-    const job = await this.repository.findJobById(jobId);
-    if (!job) throw new NotFoundException(`Job ${jobId} not found.`);
+    await this.requireJob(jobId);
 
-    await this.repository.upsertWorkspaceJobState(workspaceId, jobId, {
-      status: data.status,
-      notes: data.notes,
-      appliedAt: data.appliedAt ? new Date(data.appliedAt) : undefined,
-    });
+    if (
+      data.status !== undefined &&
+      !WORKSPACE_JOB_STATUSES.includes(data.status)
+    ) {
+      throw new BadRequestException(
+        `Invalid job status "${data.status}". Valid values: ${WORKSPACE_JOB_STATUSES.join(', ')}.`,
+      );
+    }
+    if (data.status && APPLICATION_OWNED_STATUSES.includes(data.status)) {
+      throw new BadRequestException(
+        `Status "${data.status}" is an application stage; update it through the application instead.`,
+      );
+    }
+    if (data.appliedAt !== undefined && data.status !== 'applied') {
+      throw new BadRequestException(
+        'appliedAt can only be set together with status "applied".',
+      );
+    }
+
+    if (data.status === 'applied') {
+      const appliedAt = data.appliedAt ? new Date(data.appliedAt) : undefined;
+      if (appliedAt && Number.isNaN(appliedAt.getTime())) {
+        throw new BadRequestException('appliedAt must be a valid ISO date.');
+      }
+      await this.applicationsService.markApplied(workspaceId, jobId, {
+        appliedAt,
+      });
+    }
+
+    let status: WorkspaceJobStatus | undefined;
+    if (data.status && data.status !== 'applied') {
+      const applied = await this.applicationsService.hasAppliedToJob(
+        workspaceId,
+        jobId,
+      );
+      status = applied ? 'applied' : data.status;
+    }
+
+    if (
+      status !== undefined ||
+      data.isSaved !== undefined ||
+      data.notes !== undefined
+    ) {
+      await this.repository.upsertWorkspaceJobState(workspaceId, jobId, {
+        status,
+        isSaved: data.isSaved,
+        notes: data.notes,
+      });
+    }
 
     return this.getEnrichedOpportunity(workspaceId, jobId);
   }
 
+  /**
+   * Enrich one job with workspace state and a stored match. When
+   * resumeProfileId is given, the match for that resume profile is returned;
+   * otherwise the profile-agnostic (Master Career Profile) match.
+   */
   async getEnrichedOpportunity(
     workspaceId: string,
     jobId: string,
+    resumeProfileId?: string,
   ): Promise<JobOpportunity> {
-    const job = await this.repository.findJobById(jobId);
-    if (!job) throw new NotFoundException(`Job ${jobId} not found.`);
+    const job = await this.requireJob(jobId);
 
-    const match = await this.repository.findJobMatch(jobId, workspaceId);
-    const state = await this.repository.findWorkspaceJobState(
-      workspaceId,
-      jobId,
+    const [match, state] = await Promise.all([
+      this.repository.findJobMatch(jobId, workspaceId, resumeProfileId),
+      this.repository.findWorkspaceJobState(workspaceId, jobId),
+    ]);
+
+    return this.toEnrichedOpportunity(
+      job,
+      match ?? undefined,
+      state ?? undefined,
     );
-
-    const matchEvidence =
-      match?.evidence ??
-      (match
-        ? {
-            matchedSkills: match.matchedSkills,
-            missingSkills: match.missingSkills,
-            matchedPreferredSkills: [],
-            profileSkillCount: 0,
-            requiredSkillCount: job.requiredSkills.length,
-            experienceYears: 0,
-          }
-        : undefined);
-
-    return {
-      ...this.toOpportunity(job),
-      matchScore: match ? Math.round(match.overallScore * 100) : undefined,
-      whyFits: match?.explanation ?? undefined,
-      missingSkills: match?.missingSkills ?? undefined,
-      matchEvidence: match
-        ? {
-            skillScore: Math.round(match.skillScore * 100),
-            roleScore: Math.round(match.roleScore * 100),
-            experienceScore: Math.round(match.experienceScore * 100),
-            locationScore: Math.round(match.locationScore * 100),
-            seniorityScore: Math.round(match.seniorityScore * 100),
-            matchedSkills: match.matchedSkills,
-            missingSkills: match.missingSkills,
-            reasons: match.explanation ? [match.explanation] : [],
-            confidence: match.confidence,
-          }
-        : undefined,
-      match: match
-        ? {
-            overallScore: match.overallScore,
-            dimensionScores: {
-              skill: match.skillScore,
-              role: match.roleScore,
-              experience: match.experienceScore,
-              location: match.locationScore,
-              seniority: match.seniorityScore,
-            },
-            matchedSkills: match.matchedSkills,
-            missingSkills: match.missingSkills,
-            confidence: match.confidence,
-            explanation: match.explanation,
-            evidence: matchEvidence ?? {
-              matchedSkills: match.matchedSkills,
-              missingSkills: match.missingSkills,
-              matchedPreferredSkills: [],
-              profileSkillCount: 0,
-              requiredSkillCount: job.requiredSkills.length,
-              experienceYears: 0,
-            },
-            profileVersion: match.profileVersion ?? undefined,
-          }
-        : undefined,
-      workspaceState: state
-        ? {
-            status: state.status,
-            isSaved: state.isSaved,
-            isDismissed: state.isDismissed,
-            notes: state.notes ?? undefined,
-            appliedAt: state.appliedAt ?? undefined,
-          }
-        : undefined,
-    };
   }
 
   // ── Admin / Ingestion ──────────────────────────────────────────────────
@@ -511,8 +479,7 @@ export class JobsService {
     jobId: string,
     workspaceId: string,
   ): Promise<JobAnalysisResult> {
-    const job = await this.repository.findJobById(jobId);
-    if (!job) throw new NotFoundException(`Job ${jobId} not found.`);
+    const job = await this.requireJob(jobId);
 
     const masterProfile =
       await this.careerProfileService.findByWorkspace(workspaceId);
@@ -527,8 +494,7 @@ export class JobsService {
   }
 
   async recommendResumeProfile(workspaceId: string, jobId: string) {
-    const job = await this.repository.findJobById(jobId);
-    if (!job) throw new NotFoundException(`Job ${jobId} not found.`);
+    const job = await this.requireJob(jobId);
 
     const masterProfile =
       await this.careerProfileService.findByWorkspace(workspaceId);
@@ -591,8 +557,7 @@ export class JobsService {
     workspaceId: string,
     resumeProfileId?: string,
   ) {
-    const job = await this.repository.findJobById(jobId);
-    if (!job) throw new NotFoundException(`Job ${jobId} not found.`);
+    const job = await this.requireJob(jobId);
 
     const masterProfile =
       await this.careerProfileService.findByWorkspace(workspaceId);
@@ -602,11 +567,10 @@ export class JobsService {
       );
     }
 
-    let targetProfile = resumeProfileId
-      ? await this.resumeProfileService.findById(workspaceId, resumeProfileId)
+    // A supplied resume profile is honored or rejected — never silently swapped.
+    const targetProfile = resumeProfileId
+      ? await this.requireResumeProfile(workspaceId, resumeProfileId)
       : await this.recommendResumeProfile(workspaceId, jobId);
-
-    targetProfile ??= await this.recommendResumeProfile(workspaceId, jobId);
 
     const matchOutput = this.matchingService.match({
       job,
@@ -620,18 +584,18 @@ export class JobsService {
       masterProfile,
     );
 
-    const matchedSkillNames = new Set(
-      matchOutput.matchedSkills.map((s) => s.toLowerCase()),
+    const matchedSkillKeys = new Set(
+      matchOutput.matchedSkills.map((s) => canonicalSkillKey(s)),
     );
 
     const prioritySkillIds = masterProfile.skills
-      .filter((s) => matchedSkillNames.has(s.name.toLowerCase()))
+      .filter((s) => matchedSkillKeys.has(canonicalSkillKey(s.name)))
       .map((s) => s.id);
 
     const priorityProjectIds = masterProfile.projects
       .filter((p) =>
         (p.technologies ?? []).some((tech) =>
-          matchedSkillNames.has(tech.toLowerCase()),
+          matchedSkillKeys.has(canonicalSkillKey(tech)),
         ),
       )
       .map((p) => p.id);
@@ -639,7 +603,7 @@ export class JobsService {
     const priorityExperienceIds = masterProfile.experiences
       .filter((e) =>
         (e.technologies ?? []).some((tech) =>
-          matchedSkillNames.has(tech.toLowerCase()),
+          matchedSkillKeys.has(canonicalSkillKey(tech)),
         ),
       )
       .map((e) => e.id);
@@ -678,6 +642,106 @@ export class JobsService {
   }
 
   // ── Internal helpers ───────────────────────────────────────────────────
+
+  private async requireJob(jobId: string): Promise<CanonicalJob> {
+    const job = await this.repository.findJobById(jobId);
+    if (!job) throw new NotFoundException(`Job ${jobId} not found.`);
+    return job;
+  }
+
+  /** Resolve a resume profile in this workspace, or 404. */
+  private async requireResumeProfile(
+    workspaceId: string,
+    resumeProfileId: string,
+  ): Promise<ResumeProfile> {
+    let profile: ResumeProfile | undefined;
+    try {
+      profile = await this.resumeProfileService.findById(
+        workspaceId,
+        resumeProfileId,
+      );
+    } catch (error) {
+      if (!(error instanceof ResumeProfileValidationError)) throw error;
+    }
+    if (!profile) {
+      throw new NotFoundException(
+        `Resume profile ${resumeProfileId} not found.`,
+      );
+    }
+    return profile;
+  }
+
+  /** The single JobOpportunity contract shared by the list and Job Detail. */
+  private toEnrichedOpportunity(
+    job: CanonicalJob,
+    match: StoredJobMatch | undefined,
+    state: JobStateView | undefined,
+  ): JobOpportunity {
+    const evidence = match
+      ? (match.evidence ?? {
+          matchedSkills: match.matchedSkills,
+          missingSkills: match.missingSkills,
+          matchedPreferredSkills: [],
+          profileSkillCount: 0,
+          requiredSkillCount: job.requiredSkills.length,
+          experienceYears: 0,
+        })
+      : undefined;
+
+    const appliedAt =
+      state?.appliedAt instanceof Date
+        ? state.appliedAt.toISOString()
+        : (state?.appliedAt ?? undefined);
+
+    return {
+      ...this.toOpportunity(job),
+      matchScore: match ? Math.round(match.overallScore * 100) : undefined,
+      whyFits: match?.explanation ?? undefined,
+      missingSkills: match?.missingSkills ?? undefined,
+      matchEvidence: match
+        ? {
+            skillScore: Math.round(match.skillScore * 100),
+            roleScore: Math.round(match.roleScore * 100),
+            experienceScore: Math.round(match.experienceScore * 100),
+            locationScore: Math.round(match.locationScore * 100),
+            seniorityScore: Math.round(match.seniorityScore * 100),
+            matchedSkills: match.matchedSkills,
+            missingSkills: match.missingSkills,
+            reasons: match.explanation ? [match.explanation] : [],
+            confidence: match.confidence,
+          }
+        : undefined,
+      match:
+        match && evidence
+          ? {
+              overallScore: match.overallScore,
+              dimensionScores: {
+                skill: match.skillScore,
+                role: match.roleScore,
+                experience: match.experienceScore,
+                location: match.locationScore,
+                seniority: match.seniorityScore,
+              },
+              matchedSkills: match.matchedSkills,
+              missingSkills: match.missingSkills,
+              confidence: match.confidence,
+              explanation: match.explanation,
+              evidence,
+              profileVersion: match.profileVersion ?? undefined,
+              resumeProfileId: match.resumeProfileId ?? undefined,
+            }
+          : undefined,
+      workspaceState: state
+        ? {
+            status: state.status as WorkspaceJobStatus,
+            isSaved: state.isSaved,
+            isDismissed: state.isDismissed,
+            notes: state.notes ?? undefined,
+            appliedAt,
+          }
+        : undefined,
+    };
+  }
 
   private toOpportunity(
     job: CanonicalJob,

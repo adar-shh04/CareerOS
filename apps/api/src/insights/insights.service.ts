@@ -2,10 +2,12 @@ import { Injectable, Logger } from '@nestjs/common';
 
 import { AiCapabilityService } from '../byok/ai-capability.service';
 import { PrismaService } from '../database/prisma.service';
+import { canonicalSkillKey } from '../jobs/skill-identity';
 import type {
   CareerHandbookResponse,
   HandbookCareerPath,
   MarketIntelligenceResponse,
+  SkillDemand,
 } from './insights.types';
 
 @Injectable()
@@ -32,27 +34,18 @@ export class InsightsService {
     if (jobDataCount === 0) {
       return {
         available: false,
+        failureReason: 'no_data',
         reason:
           'Market data has not been ingested yet. Ingest jobs via Job Radar first to generate market intelligence.',
         jobDataCount: 0,
       };
     }
 
-    // 2. Check AI capability
-    const cap = await this.aiCapabilityService.resolveCapability(workspaceId);
-    if (!cap.available) {
-      return {
-        available: false,
-        reason:
-          cap.reason ??
-          'AI capability is not configured. Connect BYOK or enable a platform AI plan to analyze market intelligence.',
-        jobDataCount,
-      };
-    }
-
-    // 3. Both market data & AI capability exist -> perform real analysis on ingested jobs
+    // 2. Deterministic aggregates computed only from real ingested listings.
+    //    These are returned whether or not AI synthesis is available.
     const sampleJobs = await this.prisma.client.job.findMany({
       take: 20,
+      orderBy: { createdAt: 'desc' },
       select: {
         title: true,
         company: true,
@@ -61,25 +54,50 @@ export class InsightsService {
       },
     });
 
-    const skillCounts: Record<string, number> = {};
+    const skillCounts = new Map<string, SkillDemand>();
     const remoteRoles: string[] = [];
 
     for (const job of sampleJobs) {
       if (job.isRemote && !remoteRoles.includes(job.title)) {
         remoteRoles.push(job.title);
       }
+      const seenInJob = new Set<string>();
       for (const skill of job.requiredSkills) {
-        const key = skill.trim();
-        if (key) {
-          skillCounts[key] = (skillCounts[key] ?? 0) + 1;
-        }
+        const name = skill.trim();
+        const key = canonicalSkillKey(name);
+        if (!name || seenInJob.has(key)) continue;
+        seenInJob.add(key);
+        const entry = skillCounts.get(key) ?? { skill: name, jobCount: 0 };
+        entry.jobCount += 1;
+        skillCounts.set(key, entry);
       }
     }
 
-    const topRequiredSkills = Object.entries(skillCounts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
-      .map(([skill]) => skill);
+    const skillDemand = [...skillCounts.values()]
+      .sort((a, b) => b.jobCount - a.jobCount || a.skill.localeCompare(b.skill))
+      .slice(0, 10);
+    const topRequiredSkills = skillDemand.map((d) => d.skill);
+
+    const aggregates = {
+      jobDataCount,
+      sampleSize: sampleJobs.length,
+      topRequiredSkills,
+      skillDemand,
+      topRemoteRoles: remoteRoles.slice(0, 5),
+    };
+
+    // 3. AI synthesis — only reported as available if it actually succeeded.
+    const cap = await this.aiCapabilityService.resolveCapability(workspaceId);
+    if (!cap.available) {
+      return {
+        available: false,
+        failureReason: 'not_configured',
+        reason:
+          cap.reason ??
+          'AI capability is not configured. Connect BYOK or enable a platform AI plan to analyze market intelligence.',
+        ...aggregates,
+      };
+    }
 
     const systemPrompt = `You are a labor market analyst for CareerOS.
 Synthesize market insights based ONLY on the provided ingested job data.
@@ -94,13 +112,21 @@ Sample Remote Positions: ${remoteRoles.join(', ')}`;
       { systemPrompt, userPrompt, temperature: 0.2 },
     );
 
+    if (!completion.available || !completion.text?.trim()) {
+      return {
+        available: false,
+        failureReason: completion.failureReason ?? 'provider_error',
+        reason:
+          completion.reason ??
+          'AI market synthesis failed. Showing aggregates from ingested jobs only.',
+        ...aggregates,
+      };
+    }
+
     return {
       available: true,
-      jobDataCount,
-      topRequiredSkills,
-      topRemoteRoles: remoteRoles.slice(0, 5),
-      insightsSummary:
-        completion.text ?? 'Market analysis synthesized from ingested jobs.',
+      ...aggregates,
+      insightsSummary: completion.text.trim(),
     };
   }
 

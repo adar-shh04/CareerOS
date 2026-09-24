@@ -1,16 +1,35 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  generateLatexFromProfile,
+  LATEX_SECTION_TITLES,
+  plainTextToLatex,
+  updateLatexSection,
+} from '@repo/types';
 
 import { AiCapabilityService } from '../byok/ai-capability.service';
 import { CareerProfileService } from '../career-profile/career-profile.service';
 import { PrismaJobsRepository } from '../jobs/prisma-jobs.repository';
-import { ResumeProfileService } from '../resume-profile/resume-profile.service';
+import {
+  ResumeProfileService,
+  ResumeProfileValidationError,
+} from '../resume-profile/resume-profile.service';
 import type {
   AiCoachAnalysisResponse,
   AiCoachSection,
   ApplySectionRecommendationRequest,
   SectionCoachingRequest,
-  SectionRecommendation,
+  SectionCoachingResponse,
 } from './ai-coach.types';
+import {
+  isNonEmptyString,
+  isStringArray,
+  parseAiJsonObject,
+} from './ai-json.util';
 
 @Injectable()
 export class AiCoachService {
@@ -57,6 +76,7 @@ export class AiCoachService {
     if (!cap.available) {
       return {
         available: false,
+        failureReason: 'not_configured',
         message:
           cap.reason ??
           'AI provider not configured. Connect BYOK or enable a CareerOS AI plan to use AI Coach.',
@@ -105,42 +125,44 @@ ${evidenceText}`;
     if (!completion.available || !completion.text) {
       return {
         available: false,
+        failureReason: completion.failureReason ?? 'provider_error',
         message: completion.reason ?? 'AI Coach completion failed.',
         targetRole: jobTitle,
         company: jobCompany,
       };
     }
 
-    try {
-      const parsed = JSON.parse(completion.text) as {
-        strengths?: string[];
-        gaps?: string[];
-        overallAdvice?: string;
-      };
+    // AI output is untrusted: accept it only if it matches the requested schema.
+    const parsed = parseAiJsonObject(completion.text);
+    if (
+      !parsed ||
+      !isStringArray(parsed.strengths) ||
+      !isStringArray(parsed.gaps) ||
+      !isNonEmptyString(parsed.overallAdvice)
+    ) {
+      this.logger.warn(
+        `AI Coach analysis for workspace ${workspaceId} returned an invalid response.`,
+      );
       return {
-        available: true,
+        available: false,
+        failureReason: 'invalid_response',
+        message:
+          'The AI provider returned a response that could not be validated, so no analysis is shown. Try again.',
         targetRole: jobTitle,
         company: jobCompany,
-        matchingOverview: {
-          strengths: parsed.strengths ?? [],
-          gaps: parsed.gaps ?? [],
-          overallAdvice:
-            parsed.overallAdvice ??
-            'Review evidence and target role requirements.',
-        },
-      };
-    } catch {
-      return {
-        available: true,
-        targetRole: jobTitle,
-        company: jobCompany,
-        matchingOverview: {
-          strengths: ['Relevant domain experience'],
-          gaps: ['Review specific job requirements'],
-          overallAdvice: completion.text,
-        },
       };
     }
+
+    return {
+      available: true,
+      targetRole: jobTitle,
+      company: jobCompany,
+      matchingOverview: {
+        strengths: parsed.strengths,
+        gaps: parsed.gaps,
+        overallAdvice: parsed.overallAdvice.trim(),
+      },
+    };
   }
 
   /**
@@ -151,11 +173,11 @@ ${evidenceText}`;
   async coachSection(
     workspaceId: string,
     req: SectionCoachingRequest,
-  ): Promise<{
-    available: boolean;
-    message?: string;
-    recommendation?: SectionRecommendation;
-  }> {
+  ): Promise<SectionCoachingResponse> {
+    if (!(req.section in LATEX_SECTION_TITLES)) {
+      throw new BadRequestException(`Unsupported section "${req.section}".`);
+    }
+
     const masterProfile =
       await this.careerProfileService.findByWorkspace(workspaceId);
     if (!masterProfile) {
@@ -166,6 +188,7 @@ ${evidenceText}`;
     if (!cap.available) {
       return {
         available: false,
+        failureReason: 'not_configured',
         message:
           cap.reason ??
           'AI provider not configured. Connect BYOK or enable a CareerOS AI plan to use AI Coach.',
@@ -211,38 +234,40 @@ ${JSON.stringify(sectionEvidence, null, 2)}`;
     if (!completion.available || !completion.text) {
       return {
         available: false,
+        failureReason: completion.failureReason ?? 'provider_error',
         message: completion.reason ?? 'Failed to generate section coaching.',
       };
     }
 
-    try {
-      const parsed = JSON.parse(completion.text) as {
-        recommendedContent?: string;
-        explanation?: string;
-        keywordsAdded?: string[];
-      };
-
+    // AI output is untrusted: accept it only if it matches the requested schema.
+    const parsed = parseAiJsonObject(completion.text);
+    if (
+      !parsed ||
+      !isNonEmptyString(parsed.recommendedContent) ||
+      !isNonEmptyString(parsed.explanation) ||
+      (parsed.keywordsAdded !== undefined &&
+        !isStringArray(parsed.keywordsAdded))
+    ) {
+      this.logger.warn(
+        `AI Coach section "${req.section}" for workspace ${workspaceId} returned an invalid response.`,
+      );
       return {
-        available: true,
-        recommendation: {
-          section: req.section,
-          recommendedContent: parsed.recommendedContent ?? '',
-          explanation:
-            parsed.explanation ??
-            'Section tailoring advice based on target role.',
-          keywordsAdded: parsed.keywordsAdded ?? [],
-        },
-      };
-    } catch {
-      return {
-        available: true,
-        recommendation: {
-          section: req.section,
-          recommendedContent: completion.text,
-          explanation: 'Tailored section recommendations.',
-        },
+        available: false,
+        failureReason: 'invalid_response',
+        message:
+          'The AI provider returned a response that could not be validated, so no recommendation is shown. Try again.',
       };
     }
+
+    return {
+      available: true,
+      recommendation: {
+        section: req.section,
+        recommendedContent: parsed.recommendedContent.trim(),
+        explanation: parsed.explanation.trim(),
+        keywordsAdded: parsed.keywordsAdded ?? [],
+      },
+    };
   }
 
   /**
@@ -253,18 +278,33 @@ ${JSON.stringify(sectionEvidence, null, 2)}`;
     workspaceId: string,
     req: ApplySectionRecommendationRequest,
   ) {
-    const profile = await this.resumeProfileService.findById(
-      workspaceId,
-      req.resumeProfileId,
-    );
+    if (!(req.section in LATEX_SECTION_TITLES)) {
+      throw new BadRequestException(`Unsupported section "${req.section}".`);
+    }
+    const content = req.content?.trim();
+    if (!content && !req.selectedRecordIds) {
+      throw new BadRequestException(
+        'Nothing to apply: provide content or selectedRecordIds.',
+      );
+    }
+
+    let profile: Awaited<ReturnType<ResumeProfileService['findById']>>;
+    try {
+      profile = await this.resumeProfileService.findById(
+        workspaceId,
+        req.resumeProfileId,
+      );
+    } catch (error) {
+      if (!(error instanceof ResumeProfileValidationError)) throw error;
+    }
     if (!profile) {
       throw new NotFoundException('Resume Profile not found.');
     }
 
     const updatePayload = { ...profile };
 
-    if (req.section === 'summary' && req.content) {
-      updatePayload.summaryGuidance = req.content;
+    if (req.section === 'summary' && content) {
+      updatePayload.summaryGuidance = content;
     } else if (req.section === 'skills' && req.selectedRecordIds) {
       updatePayload.prioritySkillIds = req.selectedRecordIds;
     } else if (req.section === 'projects' && req.selectedRecordIds) {
@@ -273,12 +313,23 @@ ${JSON.stringify(sectionEvidence, null, 2)}`;
       updatePayload.priorityExperienceIds = req.selectedRecordIds;
     }
 
-    // Apply content updates to LaTeX source if latexSource exists
-    if (profile.latexSource && req.content) {
-      updatePayload.latexSource = this.updateLatexSection(
-        profile.latexSource,
-        req.section,
-        req.content,
+    // Accepted content is written into the profile's own LaTeX section (the
+    // shared CareerOS LaTeX contract), escaped as plain text. A profile with no
+    // stored source first gets the canonical document for its master profile.
+    if (content) {
+      let baseLatex = profile.latexSource;
+      if (!baseLatex) {
+        const masterProfile =
+          await this.careerProfileService.findByWorkspace(workspaceId);
+        if (!masterProfile) {
+          throw new NotFoundException('Master Career Profile not found.');
+        }
+        baseLatex = generateLatexFromProfile(masterProfile, updatePayload);
+      }
+      updatePayload.latexSource = updateLatexSection(
+        baseLatex,
+        LATEX_SECTION_TITLES[req.section],
+        plainTextToLatex(content),
       );
     }
 
@@ -314,31 +365,5 @@ ${JSON.stringify(sectionEvidence, null, 2)}`;
       default:
         return masterProfile;
     }
-  }
-
-  private updateLatexSection(
-    latexSource: string,
-    section: AiCoachSection,
-    newContent: string,
-  ): string {
-    const sectionTitleMap: Record<AiCoachSection, string> = {
-      summary: 'Summary',
-      skills: 'Skills',
-      experience: 'Experience',
-      projects: 'Projects',
-      education: 'Education',
-    };
-    const title = sectionTitleMap[section];
-    if (!title) return latexSource;
-
-    const regex = new RegExp(
-      `(\\\\resumesection\\{${title}\\})[\\s\\S]*?(?=(\\\\resumesection|\\\\end\\{document\\}))`,
-      'i',
-    );
-    if (regex.test(latexSource)) {
-      return latexSource.replace(regex, `$1\n${newContent}\n\n`);
-    }
-
-    return latexSource;
   }
 }

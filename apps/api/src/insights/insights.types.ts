@@ -1,11 +1,5 @@
-export interface MarketIntelligenceResponse {
-  available: boolean;
-  reason?: string;
-  jobDataCount?: number;
-  topRequiredSkills?: string[];
-  topRemoteRoles?: string[];
-  insightsSummary?: string;
-}
+// Shared with the web client so the AI failure contract cannot drift.
+export type { MarketIntelligenceResponse, SkillDemand } from '@repo/types';
 
 export interface HandbookCareerPath {
   fieldId: string;

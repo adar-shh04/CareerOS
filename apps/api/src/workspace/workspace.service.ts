@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { generateLatexFromProfile } from '@repo/types';
 
 import { PrismaService } from '../database/prisma.service';
-import { generateCanonicalLatexTemplate } from '../resume-profile/latex-template.util';
 import { CompleteOnboardingDto } from './workspace.dto';
 
 function slugify(value: string): string {
@@ -138,7 +138,7 @@ export class WorkspaceService {
     });
 
     if (!existingResume) {
-      const defaultLatex = generateCanonicalLatexTemplate(undefined, {
+      const defaultLatex = generateLatexFromProfile({
         id: '',
         workspaceId: organizationId,
         version: 1,

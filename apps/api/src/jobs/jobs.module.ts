@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 
+import { ApplicationsModule } from '../applications/applications.module';
 import { CareerProfileModule } from '../career-profile/career-profile.module';
 import { PrismaService } from '../database/prisma.service';
 import { ResumeProfileModule } from '../resume-profile/resume-profile.module';
@@ -14,7 +15,7 @@ import { JobsService } from './jobs.service';
 import { PrismaJobsRepository } from './prisma-jobs.repository';
 
 @Module({
-  imports: [CareerProfileModule, ResumeProfileModule],
+  imports: [CareerProfileModule, ResumeProfileModule, ApplicationsModule],
   controllers: [JobsController],
   providers: [
     PrismaService,

@@ -1,8 +1,3 @@
-export const AUTH_COOKIE = {
-  accessToken: "better-auth.session_token",
-  refreshToken: "careeros_refresh_token",
-} as const;
-
 export function getApiBaseUrl(): string {
   return (
     process.env.CAREEROS_API_URL ??
