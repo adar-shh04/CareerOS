@@ -23,6 +23,87 @@ import {
 
 export class ResumeProfileValidationError extends Error {}
 
+/**
+ * Resume Profiles reference Master Career Profile records by id (live
+ * references). Editing the Master Profile can remove a referenced record; such
+ * references are treated as gone rather than making the Resume Profile
+ * unusable. Historical ResumeVersions are unaffected: they carry their own
+ * masterProfileSnapshot.
+ */
+const PRIORITY_FIELDS = [
+  'priorityProjectIds',
+  'prioritySkillIds',
+  'priorityExperienceIds',
+  'priorityAchievementIds',
+  'priorityCertificationIds',
+] as const;
+
+type PriorityField = (typeof PRIORITY_FIELDS)[number];
+type ReferenceFields = Pick<ResumeProfile, PriorityField | 'highlightRules'>;
+
+function masterIdsByField(
+  master: MasterCareerProfile,
+): Record<PriorityField, Set<string>> {
+  const ids = (records: { id: string }[]) => new Set(records.map((r) => r.id));
+  return {
+    priorityProjectIds: ids(master.projects),
+    prioritySkillIds: ids(master.skills),
+    priorityExperienceIds: ids(master.experiences),
+    priorityAchievementIds: ids(master.achievements),
+    priorityCertificationIds: ids(master.certifications),
+  };
+}
+
+function allMasterRecordIds(master: MasterCareerProfile): Set<string> {
+  return new Set(
+    Object.values(masterIdsByField(master)).flatMap((set) => [...set]),
+  );
+}
+
+/** Ids a stored profile references that no longer resolve in the master. */
+function staleReferenceIds(
+  profile: ReferenceFields,
+  master: MasterCareerProfile,
+): Set<string> {
+  const idsByField = masterIdsByField(master);
+  const all = allMasterRecordIds(master);
+  const stale = new Set<string>();
+  for (const field of PRIORITY_FIELDS) {
+    for (const id of profile[field]) {
+      if (!idsByField[field].has(id)) stale.add(id);
+    }
+  }
+  for (const rule of profile.highlightRules) {
+    if (!all.has(rule.recordId)) stale.add(rule.recordId);
+  }
+  return stale;
+}
+
+function withoutIds<T extends ReferenceFields>(
+  profile: T,
+  ids: Set<string>,
+): T {
+  if (ids.size === 0) return profile;
+  const next = { ...profile };
+  for (const field of PRIORITY_FIELDS) {
+    next[field] = profile[field].filter((id) => !ids.has(id));
+  }
+  next.highlightRules = profile.highlightRules.filter(
+    (rule) => !ids.has(rule.recordId),
+  );
+  return next;
+}
+
+/** A stored profile as seen against the current master: stale references removed. */
+export function pruneStaleReferences(
+  profile: ResumeProfile,
+  master: MasterCareerProfile | undefined,
+): ResumeProfile {
+  return master
+    ? withoutIds(profile, staleReferenceIds(profile, master))
+    : profile;
+}
+
 function emptyMasterProfile(workspaceId: string): MasterCareerProfile {
   const now = new Date().toISOString();
   return {
@@ -59,23 +140,33 @@ export class ResumeProfileService {
   ) {}
 
   async listByWorkspace(workspaceId: string): Promise<ResumeProfile[]> {
-    const profiles = await this.resumeProfileRepository.listByWorkspace(
-      this.normalizeWorkspaceId(workspaceId),
-    );
+    const normalizedWorkspaceId = this.normalizeWorkspaceId(workspaceId);
+    const [profiles, masterProfile] = await Promise.all([
+      this.resumeProfileRepository.listByWorkspace(normalizedWorkspaceId),
+      this.careerProfileService.findByWorkspace(normalizedWorkspaceId),
+    ]);
 
-    return profiles.map((profile) => structuredClone(profile));
+    return profiles.map((profile) =>
+      structuredClone(pruneStaleReferences(profile, masterProfile)),
+    );
   }
 
   async findById(
     workspaceId: string,
     profileId: string,
   ): Promise<ResumeProfile | undefined> {
-    const profile = await this.resumeProfileRepository.findById(
-      this.normalizeWorkspaceId(workspaceId),
-      this.normalizeProfileId(profileId),
-    );
+    const normalizedWorkspaceId = this.normalizeWorkspaceId(workspaceId);
+    const [profile, masterProfile] = await Promise.all([
+      this.resumeProfileRepository.findById(
+        normalizedWorkspaceId,
+        this.normalizeProfileId(profileId),
+      ),
+      this.careerProfileService.findByWorkspace(normalizedWorkspaceId),
+    ]);
 
-    return profile ? structuredClone(profile) : undefined;
+    return profile
+      ? structuredClone(pruneStaleReferences(profile, masterProfile))
+      : undefined;
   }
 
   async create(
@@ -137,10 +228,16 @@ export class ResumeProfileService {
       throw new NotFoundException('Resume profile not found.');
     }
 
-    const normalizedInput = this.normalizeInput(input);
     const masterProfile = await this.careerProfileService.findByWorkspace(
       normalizedWorkspaceId,
     );
+    // References that were already stored but whose Master Profile records
+    // have since been removed are dropped (clients may echo them back);
+    // anything else that does not resolve is still rejected below.
+    const staleIds = masterProfile
+      ? staleReferenceIds(existingProfile, masterProfile)
+      : new Set<string>();
+    const normalizedInput = withoutIds(this.normalizeInput(input), staleIds);
 
     if (masterProfile) {
       this.validatePriorityIdsAgainstMaster(
@@ -158,7 +255,7 @@ export class ResumeProfileService {
     const timestamp = new Date().toISOString();
 
     const profile: ResumeProfile = {
-      ...existingProfile,
+      ...withoutIds(existingProfile, staleIds),
       ...normalizedInput,
       id: existingProfile.id,
       workspaceId: existingProfile.workspaceId,
@@ -277,10 +374,7 @@ export class ResumeProfileService {
     workspaceId: string,
     profileId: string,
   ): Promise<ResumeProfile> {
-    const profile = await this.resumeProfileRepository.findById(
-      this.normalizeWorkspaceId(workspaceId),
-      this.normalizeProfileId(profileId),
-    );
+    const profile = await this.findById(workspaceId, profileId);
 
     if (!profile) {
       throw new NotFoundException('Resume profile not found.');
@@ -305,34 +399,21 @@ export class ResumeProfileService {
     resumeProfile: ResumeProfile,
     masterProfile: MasterCareerProfile,
   ): void {
-    const masterRecordIds = new Set([
-      ...masterProfile.projects.map((record) => record.id),
-      ...masterProfile.skills.map((record) => record.id),
-      ...masterProfile.experiences.map((record) => record.id),
-      ...masterProfile.achievements.map((record) => record.id),
-      ...masterProfile.certifications.map((record) => record.id),
-    ]);
-
-    const priorityGroups = [
-      ['priorityProjectIds', resumeProfile.priorityProjectIds],
-      ['prioritySkillIds', resumeProfile.prioritySkillIds],
-      ['priorityExperienceIds', resumeProfile.priorityExperienceIds],
-      ['priorityAchievementIds', resumeProfile.priorityAchievementIds],
-      ['priorityCertificationIds', resumeProfile.priorityCertificationIds],
-    ] as const;
-
-    for (const [fieldName, ids] of priorityGroups) {
-      for (const id of ids) {
-        if (!masterRecordIds.has(id)) {
+    // Each priority list may only reference records of its own type.
+    const idsByField = masterIdsByField(masterProfile);
+    for (const field of PRIORITY_FIELDS) {
+      for (const id of resumeProfile[field]) {
+        if (!idsByField[field].has(id)) {
           throw new ResumeProfileValidationError(
-            `${fieldName} contains an ID that is not in the master career profile.`,
+            `${field} contains an ID that is not in the master career profile.`,
           );
         }
       }
     }
 
+    const allMasterIds = allMasterRecordIds(masterProfile);
     for (const rule of resumeProfile.highlightRules) {
-      if (!masterRecordIds.has(rule.recordId)) {
+      if (!allMasterIds.has(rule.recordId)) {
         throw new ResumeProfileValidationError(
           'highlightRules contains an ID that is not in the master career profile.',
         );

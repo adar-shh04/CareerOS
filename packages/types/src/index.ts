@@ -271,8 +271,16 @@ export interface CanonicalJob {
   location: string;
   isRemote: boolean;
   remotePolicy?: "REMOTE" | "HYBRID" | "ONSITE";
+  /** Normalized seniority persisted at ingestion. Absent = not stated / unknown. */
   seniority?: string;
+  /** Normalized experience requirement persisted at ingestion. Absent = not stated. */
   experienceRequirements?: ExperienceRequirements;
+  /**
+   * True when the job went through the normalization pipeline, so an absent
+   * seniority/experienceRequirements means "not stated" rather than "legacy job
+   * never normalized".
+   */
+  isNormalized?: boolean;
   employmentType?: string;
   salaryMin?: number;
   salaryMax?: number;
@@ -289,13 +297,16 @@ export interface CanonicalJob {
 
 /** Workspace-specific interaction state for a canonical job.
  * Separated from the canonical record to preserve multi-tenancy boundaries. */
+/**
+ * Derived Job Radar status (never set directly):
+ * "applied" if the workspace's Application is in an applied stage, else
+ * "dismissed" / "saved" from the isDismissed / isSaved flags, else "discovered".
+ * Pipeline stages (interview, offer, …) live on the Application only.
+ */
 export type WorkspaceJobStatus =
   | "discovered"
   | "saved"
   | "applied"
-  | "interview"
-  | "offer"
-  | "rejected"
   | "dismissed";
 
 export interface WorkspaceJobState {
@@ -323,12 +334,23 @@ export interface JobMatchDimensionScores {
 
 /** Concrete evidence backing the deterministic match — used in explanations. */
 export interface JobMatchEvidence {
+  /** Required skills the profile has. */
   matchedSkills: string[];
+  /** Required skills the profile does not have. */
   missingSkills: string[];
+  /** Preferred skills the profile has. */
   matchedPreferredSkills: string[];
+  /** Preferred skills the profile does not have (absent on legacy matches). */
+  missingPreferredSkills?: string[];
   profileSkillCount: number;
   requiredSkillCount: number;
   experienceYears: number;
+  /** Job seniority used for scoring and where it came from. */
+  jobSeniority?: string;
+  jobSenioritySource?: "normalized" | "inferred_from_title" | "unknown";
+  /** Years of experience the job requires and where it came from. */
+  requiredYears?: number;
+  requiredYearsSource?: "normalized" | "unknown";
 }
 
 /** Persisted match result for a job × workspace × resume-profile combination.
@@ -418,6 +440,10 @@ export interface JobOpportunity {
     profileVersion?: number;
     /** Resume Profile this match was scored against; absent for the Master Career Profile match. */
     resumeProfileId?: string;
+    /** Matching algorithm version that produced this score. */
+    matcherVersion?: number;
+    /** When this score was computed (ISO). */
+    computedAt?: string;
   };
   /** Workspace-scoped interaction state. Absent when no state record exists. */
   workspaceState?: {
@@ -432,7 +458,9 @@ export interface JobOpportunity {
 export interface JobAnalysisResult {
   jobId: string;
   role: string;
+  /** Resolved job seniority, or "Not specified" when the posting gives none. */
   seniority: string;
+  senioritySource?: "normalized" | "inferred_from_title" | "unknown";
   experienceRequirements?: ExperienceRequirements;
   locationPolicy: {
     location: string;
@@ -442,15 +470,24 @@ export interface JobAnalysisResult {
   skills: {
     requiredSkills: string[];
     preferredSkills: string[];
+    /** Required skills the profile has. */
     matchedSkills: string[];
+    /** Required skills the profile does not have. */
     missingSkills: string[];
+    /** Preferred skills the profile has. */
+    matchedPreferredSkills?: string[];
     skillMatchPercentage: number;
   };
   gaps: {
     missingRequiredSkills: string[];
     missingPreferredSkills: string[];
     experienceGap?: string;
-    seniorityAlignment: "aligned" | "under_qualified" | "over_qualified";
+    /** "unknown" when the posting states no years-of-experience requirement. */
+    seniorityAlignment:
+      | "aligned"
+      | "under_qualified"
+      | "over_qualified"
+      | "unknown";
   };
   targetingRecommendations: {
     prioritySkillNames: string[];

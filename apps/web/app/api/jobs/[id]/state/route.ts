@@ -18,6 +18,8 @@ export async function PATCH(
     const { id } = await params;
     const body = (await request.json().catch(() => ({}))) as {
       status?: WorkspaceJobStatus;
+      isSaved?: boolean;
+      isDismissed?: boolean;
       notes?: string;
       appliedAt?: string;
     };

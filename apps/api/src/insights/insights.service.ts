@@ -45,7 +45,7 @@ export class InsightsService {
     //    These are returned whether or not AI synthesis is available.
     const sampleJobs = await this.prisma.client.job.findMany({
       take: 20,
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
       select: {
         title: true,
         company: true,

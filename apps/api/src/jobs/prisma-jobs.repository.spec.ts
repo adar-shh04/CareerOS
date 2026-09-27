@@ -1,5 +1,6 @@
 import type { PrismaService } from '../database/prisma.service';
 import { Prisma } from '../generated/prisma/client';
+import { MATCHER_VERSION } from './match-freshness';
 import { PrismaJobsRepository } from './prisma-jobs.repository';
 
 describe('PrismaJobsRepository', () => {
@@ -218,6 +219,7 @@ describe('PrismaJobsRepository', () => {
       matchedSkills: ['typescript'],
       missingSkills: [],
       matchedPreferredSkills: [],
+      missingPreferredSkills: [],
       confidence: 1,
       explanation: 'x',
       evidence: {
@@ -228,6 +230,13 @@ describe('PrismaJobsRepository', () => {
         requiredSkillCount: 1,
         experienceYears: 2,
       },
+    };
+    const source = {
+      matcherVersion: MATCHER_VERSION,
+      profileVersion: 3,
+      jobUpdatedAt: new Date('2026-09-01T00:00:00.000Z'),
+      resumeProfileUpdatedAt: null,
+      weightsKey: 'default',
     };
     const row = (resumeProfileId: string | null) => ({
       id: 'm-1',
@@ -274,8 +283,7 @@ describe('PrismaJobsRepository', () => {
         'job-123',
         'ws-1',
         output,
-        'rp-1',
-        3,
+        { ...source, resumeProfileId: 'rp-1' },
       );
 
       expect(jobMatch.upsert).not.toHaveBeenCalled();
@@ -287,7 +295,14 @@ describe('PrismaJobsRepository', () => {
         },
       });
       expect(jobMatch.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({ resumeProfileId: 'rp-1' }) as unknown,
+        data: expect.objectContaining({
+          resumeProfileId: 'rp-1',
+          // The inputs the score was computed from are persisted.
+          matcherVersion: MATCHER_VERSION,
+          profileVersion: 3,
+          jobUpdatedAt: source.jobUpdatedAt,
+          weightsKey: 'default',
+        }) as unknown,
       });
       expect(stored.resumeProfileId).toBe('rp-1');
     });
@@ -296,7 +311,10 @@ describe('PrismaJobsRepository', () => {
       jobMatch.findFirst.mockResolvedValue(row('rp-1'));
       jobMatch.update.mockResolvedValue(row('rp-1'));
 
-      await repository.upsertJobMatch('job-123', 'ws-1', output, 'rp-1', 3);
+      await repository.upsertJobMatch('job-123', 'ws-1', output, {
+        ...source,
+        resumeProfileId: 'rp-1',
+      });
 
       expect(jobMatch.update).toHaveBeenCalledWith(
         expect.objectContaining({ where: { id: 'm-1' } }),
@@ -308,7 +326,7 @@ describe('PrismaJobsRepository', () => {
       jobMatch.findFirst.mockResolvedValue(null);
       jobMatch.create.mockResolvedValue(row(null));
 
-      await repository.upsertJobMatch('job-123', 'ws-1', output);
+      await repository.upsertJobMatch('job-123', 'ws-1', output, source);
 
       expect(jobMatch.findFirst).toHaveBeenCalledWith({
         where: {
@@ -335,8 +353,7 @@ describe('PrismaJobsRepository', () => {
         'job-123',
         'ws-1',
         output,
-        'rp-1',
-        3,
+        { ...source, resumeProfileId: 'rp-1' },
       );
 
       expect(jobMatch.update).toHaveBeenCalledTimes(1);

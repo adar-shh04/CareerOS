@@ -32,7 +32,7 @@ export class PrismaResumeProfileRepository implements ResumeProfileRepository {
   async listByWorkspace(workspaceId: string): Promise<ResumeProfile[]> {
     const profiles = await this.prisma.client.resumeProfile.findMany({
       where: { organizationId: workspaceId },
-      orderBy: { createdAt: 'asc' },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     });
 
     return profiles.map((profile) => this.toProfileDomain(profile));
@@ -85,7 +85,7 @@ export class PrismaResumeProfileRepository implements ResumeProfileRepository {
   ): Promise<ResumeVersion[]> {
     const versions = await this.prisma.client.resumeVersion.findMany({
       where: { organizationId: workspaceId, resumeProfileId: profileId },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
     });
 
     return versions.map((version) => this.toVersionDomain(version));

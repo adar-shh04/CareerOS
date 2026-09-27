@@ -150,6 +150,7 @@ model ByokCredential {
   @@unique([organizationId, provider])
   @@map("byok_credentials")
 }
+
 model MasterCareerProfile {
   id             String               @id @default(uuid()) @db.Uuid
   organizationId String               @unique @map("organization_id") @db.Uuid
@@ -351,28 +352,30 @@ model ResumeProfile {
   organization             Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   versions                 ResumeVersion[]
   matches                  JobMatch[]
+  applications             Application[]
 
   @@index([organizationId])
   @@map("resume_profiles")
 }
 
 model ResumeVersion {
-  id                  String             @id @default(uuid()) @db.Uuid
-  organizationId      String             @map("organization_id") @db.Uuid
-  resumeProfileId     String             @map("resume_profile_id") @db.Uuid
-  targetCompany       String?            @map("target_company")
-  targetRole          String?            @map("target_role")
-  masterProfileSnapshot Json             @map("master_profile_snapshot")
-  selectedRecordIds   Json               @map("selected_record_ids")
-  templateVersion     String?            @map("template_version")
-  outputFormat        ResumeOutputFormat @default(HTML) @map("output_format")
-  jobAnalysisEvidence Json?              @map("job_analysis_evidence")
-  matchResult         Json?              @map("match_result")
-  confidence          Float?
-  explanation         String?
-  artifactMetadata    Json?              @map("artifact_metadata")
-  createdAt           DateTime           @default(now()) @map("created_at")
-  resumeProfile       ResumeProfile      @relation(fields: [resumeProfileId], references: [id], onDelete: Cascade)
+  id                    String             @id @default(uuid()) @db.Uuid
+  organizationId        String             @map("organization_id") @db.Uuid
+  resumeProfileId       String             @map("resume_profile_id") @db.Uuid
+  targetCompany         String?            @map("target_company")
+  targetRole            String?            @map("target_role")
+  masterProfileSnapshot Json               @map("master_profile_snapshot")
+  selectedRecordIds     Json               @map("selected_record_ids")
+  templateVersion       String?            @map("template_version")
+  outputFormat          ResumeOutputFormat @default(HTML) @map("output_format")
+  jobAnalysisEvidence   Json?              @map("job_analysis_evidence")
+  matchResult           Json?              @map("match_result")
+  confidence            Float?
+  explanation           String?
+  artifactMetadata      Json?              @map("artifact_metadata")
+  createdAt             DateTime           @default(now()) @map("created_at")
+  resumeProfile         ResumeProfile      @relation(fields: [resumeProfileId], references: [id], onDelete: Cascade)
+  applications          Application[]
 
   @@index([organizationId])
   @@index([resumeProfileId])
@@ -380,30 +383,30 @@ model ResumeVersion {
 }
 
 model Job {
-  id                 String               @id @default(uuid()) @db.Uuid
-  externalId         String?              @map("external_id")
+  id                 String              @id @default(uuid()) @db.Uuid
+  externalId         String?             @map("external_id")
   fingerprint        String?
-  source             String               @default("manual")
-  sourceUrl          String?              @map("source_url")
+  source             String              @default("manual")
+  sourceUrl          String?             @map("source_url")
   company            String
   title              String
   location           String
-  isRemote           Boolean              @default(false) @map("is_remote")
-  remotePolicy       String?              @map("remote_policy")
-  employmentType     String?              @map("employment_type")
-  salaryMin          Float?               @map("salary_min")
-  salaryMax          Float?               @map("salary_max")
-  salaryCurrency     String?              @map("salary_currency")
-  salaryRange        String?              @map("salary_range")
+  isRemote           Boolean             @default(false) @map("is_remote")
+  remotePolicy       String?             @map("remote_policy")
+  employmentType     String?             @map("employment_type")
+  salaryMin          Float?              @map("salary_min")
+  salaryMax          Float?              @map("salary_max")
+  salaryCurrency     String?             @map("salary_currency")
+  salaryRange        String?             @map("salary_range")
   description        String?
-  requiredSkills     String[]             @default([]) @map("required_skills")
-  preferredSkills    String[]             @default([]) @map("preferred_skills")
-  postedAt           DateTime?            @map("posted_at")
-  expiresAt          DateTime?            @map("expires_at")
-  rawMetadata        Json?                @map("raw_metadata")
-  normalizedMetadata Json?                @map("normalized_metadata")
-  createdAt          DateTime             @default(now()) @map("created_at")
-  updatedAt          DateTime             @updatedAt @map("updated_at")
+  requiredSkills     String[]            @default([]) @map("required_skills")
+  preferredSkills    String[]            @default([]) @map("preferred_skills")
+  postedAt           DateTime?           @map("posted_at")
+  expiresAt          DateTime?           @map("expires_at")
+  rawMetadata        Json?               @map("raw_metadata")
+  normalizedMetadata Json?               @map("normalized_metadata")
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
   workspaceStates    WorkspaceJobState[]
   matches            JobMatch[]
   applications       Application[]
@@ -436,27 +439,37 @@ model WorkspaceJobState {
 }
 
 model JobMatch {
-  id              String         @id @default(uuid()) @db.Uuid
-  jobId           String         @map("job_id") @db.Uuid
-  organizationId  String         @map("organization_id") @db.Uuid
-  resumeProfileId String?        @map("resume_profile_id") @db.Uuid
-  overallScore    Float          @map("overall_score")
-  skillScore      Float          @map("skill_score")
-  roleScore       Float          @map("role_score")
-  experienceScore Float          @map("experience_score")
-  locationScore   Float          @map("location_score")
-  seniorityScore  Float          @map("seniority_score")
-  matchedSkills   String[]       @default([]) @map("matched_skills")
-  missingSkills   String[]       @default([]) @map("missing_skills")
-  confidence      Float          @default(1.0)
-  explanation     String
-  evidence        Json?
-  profileVersion  Int?           @map("profile_version")
-  createdAt       DateTime       @default(now()) @map("created_at")
-  updatedAt       DateTime       @updatedAt @map("updated_at")
-  job             Job            @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  organization    Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  resumeProfile   ResumeProfile? @relation(fields: [resumeProfileId], references: [id], onDelete: SetNull)
+  id                     String         @id @default(uuid()) @db.Uuid
+  jobId                  String         @map("job_id") @db.Uuid
+  organizationId         String         @map("organization_id") @db.Uuid
+  resumeProfileId        String?        @map("resume_profile_id") @db.Uuid
+  overallScore           Float          @map("overall_score")
+  skillScore             Float          @map("skill_score")
+  roleScore              Float          @map("role_score")
+  experienceScore        Float          @map("experience_score")
+  locationScore          Float          @map("location_score")
+  seniorityScore         Float          @map("seniority_score")
+  matchedSkills          String[]       @default([]) @map("matched_skills")
+  missingSkills          String[]       @default([]) @map("missing_skills")
+  confidence             Float          @default(1.0)
+  explanation            String
+  evidence               Json?
+  profileVersion         Int?           @map("profile_version")
+  /// Inputs the score was computed from (freshness + traceability). A stored
+  /// match is current only when these equal the current inputs — see
+  /// jobs/match-freshness.ts. NULL (legacy rows) is always stale.
+  matcherVersion         Int?           @map("matcher_version")
+  jobUpdatedAt           DateTime?      @map("job_updated_at")
+  resumeProfileUpdatedAt DateTime?      @map("resume_profile_updated_at")
+  weightsKey             String?        @map("weights_key")
+  createdAt              DateTime       @default(now()) @map("created_at")
+  updatedAt              DateTime       @updatedAt @map("updated_at")
+  job                    Job            @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  organization           Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /// A profile-specific match is meaningless without its profile: deleting the
+  /// profile deletes its matches (SetNull would turn them into fake
+  /// Master-Profile matches and collide with the generic unique index).
+  resumeProfile          ResumeProfile? @relation(fields: [resumeProfileId], references: [id], onDelete: Cascade)
 
   @@unique([organizationId, jobId, resumeProfileId])
   @@index([organizationId])
@@ -465,23 +478,31 @@ model JobMatch {
 }
 
 model Application {
-  id              String                   @id @default(uuid()) @db.Uuid
-  organizationId  String                   @map("organization_id") @db.Uuid
-  jobId           String                   @map("job_id") @db.Uuid
-  status          String                   @default("saved") // saved, applied, screening, interview, offer, rejected, withdrawn
+  id              String                     @id @default(uuid()) @db.Uuid
+  organizationId  String                     @map("organization_id") @db.Uuid
+  jobId           String                     @map("job_id") @db.Uuid
+  status          String                     @default("saved") // saved, applied, screening, interview, offer, rejected, withdrawn
   notes           String?
-  appliedAt       DateTime?                @map("applied_at")
-  resumeProfileId String?                  @map("resume_profile_id") @db.Uuid
-  resumeVersionId String?                  @map("resume_version_id") @db.Uuid
-  createdAt       DateTime                 @default(now()) @map("created_at")
-  updatedAt       DateTime                 @updatedAt @map("updated_at")
-  organization    Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  job             Job                      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  appliedAt       DateTime?                  @map("applied_at")
+  resumeProfileId String?                    @map("resume_profile_id") @db.Uuid
+  resumeVersionId String?                    @map("resume_version_id") @db.Uuid
+  createdAt       DateTime                   @default(now()) @map("created_at")
+  updatedAt       DateTime                   @updatedAt @map("updated_at")
+  organization    Organization               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  job             Job                        @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  /// Deleting the resume profile/version keeps the application and clears the
+  /// reference. Same-workspace ownership of both references is enforced in the
+  /// database by trigger trg_applications_resume_refs_same_workspace (migration
+  /// 20260926115300_resume_reference_same_workspace).
+  resumeProfile   ResumeProfile?             @relation(fields: [resumeProfileId], references: [id], onDelete: SetNull)
+  resumeVersion   ResumeVersion?             @relation(fields: [resumeVersionId], references: [id], onDelete: SetNull)
   history         ApplicationStatusHistory[]
 
   @@unique([organizationId, jobId])
   @@index([organizationId])
   @@index([jobId])
+  @@index([resumeProfileId])
+  @@index([resumeVersionId])
   @@map("applications")
 }
 

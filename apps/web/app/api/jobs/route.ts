@@ -19,6 +19,8 @@ export async function GET(request: Request) {
       query: searchParams.get("query") ?? undefined,
       remoteOnly: searchParams.get("remoteOnly") === "true",
       skill: searchParams.get("skill") ?? undefined,
+      savedOnly: searchParams.get("savedOnly") === "true",
+      hideDismissed: searchParams.get("hideDismissed") === "true",
       limit: limitParam ? parseInt(limitParam, 10) : undefined,
       offset: offsetParam ? parseInt(offsetParam, 10) : undefined,
     };

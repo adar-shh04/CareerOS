@@ -4,6 +4,11 @@ import type { MasterCareerProfile } from '../career-profile/career-profile.types
 import type { ResumeProfile } from '../resume-profile/resume-profile.types';
 import type { CanonicalJob, MatchInput, MatchOutput } from './jobs.types';
 import { DEFAULT_WEIGHTS } from './jobs.types';
+import {
+  type ResolvedJobRequirements,
+  resolveJobRequirements,
+  SENIORITY_LEVELS,
+} from './seniority';
 import { canonicalSkillKey } from './skill-identity';
 
 /**
@@ -31,11 +36,12 @@ export class JobMatchingService {
       weights = DEFAULT_WEIGHTS,
     } = input;
 
+    const requirements = resolveJobRequirements(job);
     const skillResult = this.scoreSkills(job, masterProfile, resumeProfile);
     const roleScore = this.scoreRole(job, masterProfile, resumeProfile);
-    const experienceScore = this.scoreExperience(job, masterProfile);
+    const experienceScore = this.scoreExperience(requirements, masterProfile);
     const locationScore = this.scoreLocation(job, masterProfile);
-    const seniorityScore = this.scoreSeniority(job, masterProfile);
+    const seniorityScore = this.scoreSeniority(requirements, masterProfile);
 
     const dimensionScores = {
       skill: skillResult.score,
@@ -81,15 +87,26 @@ export class JobMatchingService {
       matchedSkills: skillResult.matched,
       missingSkills: skillResult.missing,
       matchedPreferredSkills: skillResult.matchedPreferred,
+      missingPreferredSkills: skillResult.missingPreferred,
       confidence,
       explanation,
       evidence: {
         matchedSkills: skillResult.matched,
         missingSkills: skillResult.missing,
         matchedPreferredSkills: skillResult.matchedPreferred,
+        missingPreferredSkills: skillResult.missingPreferred,
         profileSkillCount: skillResult.profileSkillCount,
-        requiredSkillCount: job.requiredSkills.length,
+        requiredSkillCount:
+          skillResult.matched.length + skillResult.missing.length,
         experienceYears: this.estimateExperienceYears(masterProfile),
+        ...(requirements.seniority
+          ? { jobSeniority: requirements.seniority }
+          : {}),
+        jobSenioritySource: requirements.senioritySource,
+        ...(requirements.requiredYears !== undefined
+          ? { requiredYears: requirements.requiredYears }
+          : {}),
+        requiredYearsSource: requirements.requiredYearsSource,
       },
     };
   }
@@ -105,6 +122,7 @@ export class JobMatchingService {
     matched: string[];
     missing: string[];
     matchedPreferred: string[];
+    missingPreferred: string[];
     profileSkillCount: number;
   } {
     // Collect all skill names from skills + technologies in the master profile.
@@ -126,8 +144,13 @@ export class JobMatchingService {
       [...profileSkillNames].map((s) => canonicalSkillKey(s)),
     );
 
-    const required = job.requiredSkills.map((s) => this.normalize(s));
-    const preferred = job.preferredSkills.map((s) => this.normalize(s));
+    // One entry per skill identity; a preferred skill that is also required is
+    // evaluated as required only.
+    const required = this.uniqueSkills(job.requiredSkills);
+    const requiredKeys = new Set(required.map((s) => canonicalSkillKey(s)));
+    const preferred = this.uniqueSkills(job.preferredSkills).filter(
+      (s) => !requiredKeys.has(canonicalSkillKey(s)),
+    );
 
     const matched: string[] = [];
     const missing: string[] = [];
@@ -141,9 +164,12 @@ export class JobMatchingService {
     }
 
     const matchedPreferred: string[] = [];
+    const missingPreferred: string[] = [];
     for (const skill of preferred) {
       if (profileSkillKeys.has(canonicalSkillKey(skill))) {
         matchedPreferred.push(skill);
+      } else {
+        missingPreferred.push(skill);
       }
     }
 
@@ -155,6 +181,7 @@ export class JobMatchingService {
         matched,
         missing,
         matchedPreferred,
+        missingPreferred,
         profileSkillCount: profileSkillNames.size,
       };
     }
@@ -184,6 +211,7 @@ export class JobMatchingService {
       matched,
       missing,
       matchedPreferred,
+      missingPreferred,
       profileSkillCount: profileSkillNames.size,
     };
   }
@@ -222,30 +250,15 @@ export class JobMatchingService {
     return Math.max(0.2, bestScore);
   }
 
+  /** Experience fit against the job's stated minimum years; neutral when unstated. */
   private scoreExperience(
-    job: CanonicalJob,
+    requirements: ResolvedJobRequirements,
     profile: MasterCareerProfile,
   ): number {
+    const requiredYears = requirements.requiredYears;
+    if (requiredYears === undefined) return 0.5; // Not stated — neutral.
+
     const years = this.estimateExperienceYears(profile);
-
-    // Attempt to read a seniority hint from the job title to calibrate.
-    const title = this.normalize(job.title);
-    let requiredYears = 2; // default assumption
-
-    if (
-      title.includes('staff') ||
-      title.includes('principal') ||
-      title.includes('distinguished')
-    ) {
-      requiredYears = 8;
-    } else if (title.includes('senior') || title.includes('lead')) {
-      requiredYears = 5;
-    } else if (title.includes('junior') || title.includes('entry')) {
-      requiredYears = 0;
-    } else if (title.includes('mid') || title.includes('engineer ii')) {
-      requiredYears = 3;
-    }
-
     if (requiredYears === 0) return years > 0 ? 1.0 : 0.8;
     const ratio = years / requiredYears;
     // Cap at 1; also give partial credit below threshold.
@@ -281,38 +294,14 @@ export class JobMatchingService {
     return 0.2; // Different locations, not remote.
   }
 
+  /** Seniority fit against the job's resolved level; neutral when unknown. */
   private scoreSeniority(
-    job: CanonicalJob,
+    requirements: ResolvedJobRequirements,
     profile: MasterCareerProfile,
   ): number {
+    if (!requirements.seniority) return 0.5; // Unknown — neutral.
+    const jobLevel = SENIORITY_LEVELS[requirements.seniority];
     const years = this.estimateExperienceYears(profile);
-    const title = this.normalize(job.title);
-
-    // Classify job seniority level.
-    let jobLevel: number; // 0=entry, 1=mid, 2=senior, 3=staff/lead, 4=principal
-    if (
-      title.includes('principal') ||
-      title.includes('distinguished') ||
-      title.includes('fellow')
-    ) {
-      jobLevel = 4;
-    } else if (
-      title.includes('staff') ||
-      title.includes('lead') ||
-      title.includes('manager')
-    ) {
-      jobLevel = 3;
-    } else if (title.includes('senior') || title.includes('sr.')) {
-      jobLevel = 2;
-    } else if (
-      title.includes('junior') ||
-      title.includes('jr.') ||
-      title.includes('entry')
-    ) {
-      jobLevel = 0;
-    } else {
-      jobLevel = 1;
-    }
 
     // Map years of experience to profile seniority level.
     let profileLevel: number;
@@ -452,6 +441,20 @@ export class JobMatchingService {
       (p.technologies ?? []).forEach((t) => names.add(t));
     });
     return names;
+  }
+
+  /** Trimmed, lowercased skills with one entry per canonical skill identity. */
+  private uniqueSkills(skills: string[]): string[] {
+    const seen = new Set<string>();
+    const result: string[] = [];
+    for (const skill of skills) {
+      const name = this.normalize(skill);
+      const key = canonicalSkillKey(name);
+      if (!name || seen.has(key)) continue;
+      seen.add(key);
+      result.push(name);
+    }
+    return result;
   }
 
   private normalize(str: string): string {

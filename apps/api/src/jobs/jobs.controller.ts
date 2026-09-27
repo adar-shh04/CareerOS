@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -10,15 +11,22 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import type {
-  JobMatchingWeights,
-  JobOpportunity,
-  WorkspaceJobStatus,
-} from '@repo/types';
+import type { JobMatchingWeights, JobOpportunity } from '@repo/types';
 
 import { WorkspaceMemberGuard } from '../common/guards/workspace-member.guard';
-import { JobsService } from './jobs.service';
+import { DEFAULT_PAGE_SIZE, JobsService, MAX_PAGE_SIZE } from './jobs.service';
 import type { ListJobsQuery } from './jobs.types';
+
+function parseNonNegativeInt(
+  name: string,
+  value: string | undefined,
+): number | undefined {
+  if (value === undefined || value === '') return undefined;
+  if (!/^\d+$/.test(value)) {
+    throw new BadRequestException(`${name} must be a non-negative integer.`);
+  }
+  return Number(value);
+}
 
 @Controller('workspaces/:workspaceId/jobs')
 @UseGuards(WorkspaceMemberGuard)
@@ -27,8 +35,10 @@ export class JobsController {
 
   /**
    * GET /workspaces/:workspaceId/jobs
-   * List canonical jobs with auto-computed match results (ranked by match score desc)
-   * and workspace interaction state merged in.
+   * Ranked Job Radar page: filters (query, remoteOnly, skill, savedOnly,
+   * hideDismissed) apply to the whole catalog, fit is computed for every
+   * candidate, the full set is ranked deterministically, then limit/offset
+   * select the page.
    */
   @Get()
   async listJobs(
@@ -36,6 +46,8 @@ export class JobsController {
     @Query('query') query?: string,
     @Query('remoteOnly') remoteOnly?: string,
     @Query('skill') skill?: string,
+    @Query('savedOnly') savedOnly?: string,
+    @Query('hideDismissed') hideDismissed?: string,
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
   ): Promise<JobOpportunity[]> {
@@ -43,9 +55,16 @@ export class JobsController {
       query: query?.trim() ? query.trim() : undefined,
       remoteOnly: remoteOnly === 'true',
       skill: skill?.trim() ? skill.trim() : undefined,
-      limit: limit ? parseInt(limit, 10) : 50,
-      offset: offset ? parseInt(offset, 10) : 0,
+      savedOnly: savedOnly === 'true',
+      hideDismissed: hideDismissed === 'true',
+      limit: parseNonNegativeInt('limit', limit) ?? DEFAULT_PAGE_SIZE,
+      offset: parseNonNegativeInt('offset', offset) ?? 0,
     };
+    if (listQuery.limit === 0 || (listQuery.limit ?? 0) > MAX_PAGE_SIZE) {
+      throw new BadRequestException(
+        `limit must be between 1 and ${String(MAX_PAGE_SIZE)}.`,
+      );
+    }
     return this.jobsService.listByWorkspace(workspaceId, listQuery);
   }
 
@@ -153,7 +172,8 @@ export class JobsController {
 
   /**
    * PATCH /workspaces/:workspaceId/jobs/:jobId/state
-   * Update interaction state (status, isSaved, notes) for a job in this workspace.
+   * Update Job Radar flags (isSaved, isDismissed) and notes. The stored status
+   * is derived; a legacy `status` is mapped onto the flags.
    * Setting status "applied" (optionally with appliedAt) goes through the Application CRM.
    */
   @Patch(':jobId/state')
@@ -162,8 +182,9 @@ export class JobsController {
     @Param('jobId') jobId: string,
     @Body()
     body?: {
-      status?: WorkspaceJobStatus;
+      status?: string;
       isSaved?: boolean;
+      isDismissed?: boolean;
       notes?: string;
       appliedAt?: string;
     },

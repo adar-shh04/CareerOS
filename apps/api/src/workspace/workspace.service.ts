@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { generateLatexFromProfile } from '@repo/types';
 
 import { PrismaService } from '../database/prisma.service';
+import { Prisma } from '../generated/prisma/client';
 import { CompleteOnboardingDto } from './workspace.dto';
 
 function slugify(value: string): string {
@@ -112,24 +113,37 @@ export class WorkspaceService {
       });
 
     if (!existingMaster) {
-      await this.prisma.client.masterCareerProfile.create({
-        data: {
-          organizationId,
-          fullName: dto.name,
-          headline: dto.targetRole
-            ? `${dto.targetRole}${dto.field ? ` · ${dto.field}` : ''}`
-            : undefined,
-          location: dto.locationPreference,
-          skills: dto.skills?.length
-            ? {
-                create: dto.skills.map((skillName) => ({
-                  name: skillName,
-                  proficiency: 'intermediate',
-                })),
-              }
-            : undefined,
-        },
-      });
+      await this.prisma.client.masterCareerProfile
+        .create({
+          data: {
+            organizationId,
+            fullName: dto.name,
+            headline: dto.targetRole
+              ? `${dto.targetRole}${dto.field ? ` · ${dto.field}` : ''}`
+              : undefined,
+            location: dto.locationPreference,
+            skills: dto.skills?.length
+              ? {
+                  create: dto.skills.map((skillName) => ({
+                    name: skillName,
+                    proficiency: 'intermediate',
+                  })),
+                }
+              : undefined,
+          },
+        })
+        .catch((error: unknown) => {
+          // A concurrent onboarding request already created it (unique per
+          // workspace) — the profile exists, which is all this step needs.
+          if (
+            !(
+              error instanceof Prisma.PrismaClientKnownRequestError &&
+              error.code === 'P2002'
+            )
+          ) {
+            throw error;
+          }
+        });
     }
 
     // Seed initial Resume Profile for this target role if not yet created

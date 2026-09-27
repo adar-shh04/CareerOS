@@ -67,7 +67,7 @@ export function JobDetailsDrawer({
         const res = await fetch(`/api/jobs/${job.id}/state`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ isSaved: false, status: "discovered" }),
+          body: JSON.stringify({ isSaved: false }),
         });
         if (res.ok) {
           const updated = (await res.json()) as JobOpportunity;

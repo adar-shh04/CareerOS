@@ -1,6 +1,7 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 import type { PrismaService } from '../database/prisma.service';
+import { Prisma } from '../generated/prisma/client';
 import { ApplicationsService } from './applications.service';
 
 describe('ApplicationsService', () => {
@@ -186,7 +187,12 @@ describe('ApplicationsService', () => {
       expect(client.workspaceJobState.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
           where: stateKey,
-          update: { status: 'applied', appliedAt: result.appliedAt },
+          update: {
+            status: 'applied',
+            appliedAt: result.appliedAt,
+            isSaved: false,
+            isDismissed: false,
+          },
         }),
       );
     });
@@ -200,7 +206,12 @@ describe('ApplicationsService', () => {
       expect(client.workspaceJobState.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
           where: stateKey,
-          update: { status: 'saved', isSaved: true, appliedAt: null },
+          update: {
+            status: 'saved',
+            isSaved: true,
+            isDismissed: false,
+            appliedAt: null,
+          },
         }),
       );
     });
@@ -238,7 +249,12 @@ describe('ApplicationsService', () => {
       /* eslint-enable @typescript-eslint/no-unsafe-assignment */
       expect(client.workspaceJobState.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
-          update: { status: 'applied', appliedAt: updatedApp.appliedAt },
+          update: {
+            status: 'applied',
+            appliedAt: updatedApp.appliedAt,
+            isSaved: false,
+            isDismissed: false,
+          },
         }),
       );
     });
@@ -289,6 +305,39 @@ describe('ApplicationsService', () => {
     });
   });
 
+  describe('concurrent creation (unique workspace + job)', () => {
+    const uniqueViolation = () =>
+      new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+        code: 'P2002',
+        clientVersion: '7.9.0',
+      });
+
+    it('create reports "already exists" instead of a server error when it loses the race', async () => {
+      client.application.findFirst.mockResolvedValue(null);
+      client.$transaction.mockRejectedValueOnce(uniqueViolation());
+      await expect(service.create(workspaceId, { jobId })).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('markApplied retries once and resolves to the application that won', async () => {
+      client.$transaction
+        .mockRejectedValueOnce(uniqueViolation())
+        .mockImplementationOnce((fn: (tx: typeof client) => Promise<unknown>) =>
+          fn(client),
+        );
+      client.application.findFirst.mockResolvedValue(mockApp);
+      client.application.update.mockImplementation(
+        ({ data }: { data: Partial<typeof mockApp> }) =>
+          Promise.resolve({ ...mockApp, ...data }),
+      );
+
+      const result = await service.markApplied(workspaceId, jobId);
+      expect(result.status).toBe('applied');
+      expect(client.$transaction).toHaveBeenCalledTimes(2);
+    });
+  });
+
   describe('markApplied', () => {
     it('creates an applied Application recording the resume profile when none exists', async () => {
       client.application.findFirst.mockResolvedValue(null);
@@ -308,7 +357,12 @@ describe('ApplicationsService', () => {
       expect(client.workspaceJobState.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
           where: stateKey,
-          update: { status: 'applied', appliedAt: result.appliedAt },
+          update: {
+            status: 'applied',
+            appliedAt: result.appliedAt,
+            isSaved: false,
+            isDismissed: false,
+          },
         }),
       );
     });
@@ -367,18 +421,95 @@ describe('ApplicationsService', () => {
     });
   });
 
-  describe('hasAppliedToJob', () => {
+  describe('getAppliedMirror', () => {
+    const at = new Date('2026-08-01T00:00:00.000Z');
     it.each([
-      ['saved', null, false],
-      ['applied', new Date(), true],
-      ['interview', null, true],
-      ['rejected', new Date(), true],
-      ['withdrawn', null, false],
-      ['withdrawn', new Date(), true],
+      ['saved', null, null],
+      ['saved', at, null], // moved back to saved: not applied
+      ['applied', at, { appliedAt: at }],
+      ['interview', null, { appliedAt: null }],
+      ['rejected', at, { appliedAt: at }],
+      ['withdrawn', null, null],
+      ['withdrawn', at, { appliedAt: at }],
     ])('status %p (appliedAt %p) → %p', async (status, appliedAt, expected) => {
       client.application.findFirst.mockResolvedValue({ status, appliedAt });
-      await expect(service.hasAppliedToJob(workspaceId, jobId)).resolves.toBe(
-        expected,
+      await expect(
+        service.getAppliedMirror(workspaceId, jobId),
+      ).resolves.toEqual(expected);
+    });
+
+    it('is null when there is no application', async () => {
+      client.application.findFirst.mockResolvedValue(null);
+      await expect(
+        service.getAppliedMirror(workspaceId, jobId),
+      ).resolves.toBeNull();
+    });
+  });
+
+  describe('job state invariant on application changes', () => {
+    it('moving an applied application back to "saved" clears the mirrored applied state', async () => {
+      client.application.findFirst.mockResolvedValue({
+        ...mockApp,
+        status: 'applied',
+        appliedAt: new Date(),
+      });
+      client.application.update.mockResolvedValue({
+        ...mockApp,
+        status: 'saved',
+        appliedAt: new Date(),
+      });
+      client.workspaceJobState.findUnique.mockResolvedValue({
+        status: 'applied',
+        isSaved: false,
+        isDismissed: true,
+      });
+
+      await service.update(workspaceId, appId, { status: 'saved' });
+
+      expect(client.workspaceJobState.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          update: {
+            status: 'dismissed',
+            isSaved: true,
+            isDismissed: true,
+            appliedAt: null,
+          },
+        }),
+      );
+    });
+
+    it('a never-applied withdrawal creates no job state', async () => {
+      client.application.findFirst.mockResolvedValue(mockApp);
+      client.application.update.mockResolvedValue({
+        ...mockApp,
+        status: 'withdrawn',
+      });
+      client.workspaceJobState.findUnique.mockResolvedValue(null);
+
+      await service.update(workspaceId, appId, { status: 'withdrawn' });
+      expect(client.workspaceJobState.upsert).not.toHaveBeenCalled();
+    });
+
+    it("switching resume profile drops the old profile's resume version", async () => {
+      const otherProfile = '00000000-0000-4000-8000-000000000009';
+      client.application.findFirst.mockResolvedValue({
+        ...mockApp,
+        resumeProfileId,
+        resumeVersionId: '00000000-0000-4000-8000-000000000005',
+      });
+      client.application.update.mockResolvedValue(mockApp);
+
+      await service.update(workspaceId, appId, {
+        resumeProfileId: otherProfile,
+      });
+
+      expect(client.application.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            resumeProfileId: otherProfile,
+            resumeVersionId: null,
+          }) as unknown,
+        }),
       );
     });
   });
@@ -390,13 +521,21 @@ describe('ApplicationsService', () => {
       client.workspaceJobState.findUnique.mockResolvedValue({
         status: 'applied',
         isSaved: true,
+        isDismissed: false,
       });
 
       await expect(service.delete(workspaceId, appId)).resolves.not.toThrow();
-      expect(client.workspaceJobState.update).toHaveBeenCalledWith({
-        where: stateKey,
-        data: { status: 'saved', appliedAt: null },
-      });
+      expect(client.workspaceJobState.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: stateKey,
+          update: {
+            status: 'saved',
+            isSaved: true,
+            isDismissed: false,
+            appliedAt: null,
+          },
+        }),
+      );
     });
 
     it('throws NotFoundException when application does not exist', async () => {

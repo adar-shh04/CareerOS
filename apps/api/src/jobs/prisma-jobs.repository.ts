@@ -15,10 +15,17 @@ import {
 } from '../generated/prisma/client';
 import type {
   CreateJobInput,
+  GenericMatchSourceRow,
+  JobRankingKey,
   ListJobsQuery,
   MatchOutput,
   StoredJobMatch,
 } from './jobs.types';
+import type { MatchSource } from './match-freshness';
+import {
+  buildNormalizedMetadata,
+  parseNormalizedMetadata,
+} from './normalized-metadata';
 
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -55,6 +62,15 @@ export class PrismaJobsRepository {
       preferredSkills: input.preferredSkills ?? [],
       postedAt: input.postedAt ?? null,
       expiresAt: input.expiresAt ?? null,
+      // Normalized data is written only by the normalization pipeline; other
+      // writers leave the stored value untouched.
+      ...(input.normalized
+        ? {
+            normalizedMetadata: buildNormalizedMetadata(
+              input,
+            ) as unknown as Prisma.InputJsonValue,
+          }
+        : {}),
     };
 
     // If neither externalId nor fingerprint is provided, create directly
@@ -125,37 +141,65 @@ export class PrismaJobsRepository {
     }
   }
 
-  /** List canonical jobs. Optionally filter by text query, remote, or a single skill. */
-  async listJobs(query: ListJobsQuery = {}): Promise<CanonicalJob[]> {
-    const { query: q, remoteOnly, skill, limit = 50, offset = 0 } = query;
+  /**
+   * All jobs matching the filters, as lightweight ranking keys. Every filter
+   * is applied in the database against the whole catalog (never against a
+   * loaded page). Filters are AND-ed; each multi-field filter is its own OR.
+   */
+  async listCandidateJobs(
+    workspaceId: string,
+    query: ListJobsQuery = {},
+  ): Promise<JobRankingKey[]> {
+    const { query: q, remoteOnly, skill, savedOnly, hideDismissed } = query;
+    const and: Prisma.JobWhereInput[] = [];
 
-    const rows = await this.prisma.client.job.findMany({
-      where: {
-        ...(remoteOnly ? { isRemote: true } : {}),
-        ...(skill
-          ? {
-              OR: [
-                { requiredSkills: { has: skill } },
-                { preferredSkills: { has: skill } },
-              ],
-            }
-          : {}),
-        ...(q
-          ? {
-              OR: [
-                { title: { contains: q, mode: 'insensitive' } },
-                { company: { contains: q, mode: 'insensitive' } },
-                { location: { contains: q, mode: 'insensitive' } },
-                { description: { contains: q, mode: 'insensitive' } },
-              ],
-            }
-          : {}),
-      },
-      orderBy: { postedAt: 'desc' },
-      take: limit,
-      skip: offset,
+    if (remoteOnly) and.push({ isRemote: true });
+    if (skill) {
+      and.push({
+        OR: [
+          { requiredSkills: { has: skill } },
+          { preferredSkills: { has: skill } },
+        ],
+      });
+    }
+    if (q) {
+      and.push({
+        OR: [
+          { title: { contains: q, mode: 'insensitive' } },
+          { company: { contains: q, mode: 'insensitive' } },
+          { location: { contains: q, mode: 'insensitive' } },
+          { description: { contains: q, mode: 'insensitive' } },
+        ],
+      });
+    }
+    // Workspace-scoped Job Radar state filters.
+    if (savedOnly) {
+      and.push({
+        workspaceStates: {
+          some: { organizationId: workspaceId, isSaved: true },
+        },
+      });
+    }
+    if (hideDismissed) {
+      and.push({
+        workspaceStates: {
+          none: { organizationId: workspaceId, isDismissed: true },
+        },
+      });
+    }
+
+    return this.prisma.client.job.findMany({
+      where: and.length > 0 ? { AND: and } : {},
+      select: { id: true, postedAt: true, createdAt: true, updatedAt: true },
     });
+  }
 
+  /** Full canonical jobs for the given ids (order not guaranteed). */
+  async findJobsByIds(ids: string[]): Promise<CanonicalJob[]> {
+    if (ids.length === 0) return [];
+    const rows = await this.prisma.client.job.findMany({
+      where: { id: { in: ids } },
+    });
     return rows.map((r) => this.mapJob(r));
   }
 
@@ -207,28 +251,14 @@ export class PrismaJobsRepository {
     jobId: string,
     workspaceId: string,
     output: MatchOutput,
-    resumeProfileId?: string,
-    profileVersion?: number,
+    source: MatchSource & { resumeProfileId?: string },
   ): Promise<StoredJobMatch> {
-    const data = {
-      overallScore: output.overallScore,
-      skillScore: output.dimensionScores.skill,
-      roleScore: output.dimensionScores.role,
-      experienceScore: output.dimensionScores.experience,
-      locationScore: output.dimensionScores.location,
-      seniorityScore: output.dimensionScores.seniority,
-      matchedSkills: output.matchedSkills,
-      missingSkills: output.missingSkills,
-      confidence: output.confidence,
-      explanation: output.explanation,
-      evidence: output.evidence as unknown as Prisma.InputJsonValue,
-      profileVersion: profileVersion ?? null,
-    };
+    const data = this.matchData(output, source);
 
     const key = {
       organizationId: workspaceId,
       jobId,
-      resumeProfileId: resumeProfileId ?? null,
+      resumeProfileId: source.resumeProfileId ?? null,
     };
 
     const updateExisting = async (): Promise<StoredJobMatch | null> => {
@@ -292,21 +322,94 @@ export class PrismaJobsRepository {
     return row ? this.mapMatch(row) : null;
   }
 
-  /** Load all stored matches for a workspace, optionally filtered by resumeProfileId. */
-  async listJobMatchesForWorkspace(
+  /**
+   * Score + source inputs of every Master-Profile (generic) match in the
+   * workspace — enough to rank and to decide freshness without loading
+   * evidence. Scoped to the workspace; no id list, so no parameter limits.
+   */
+  async listGenericMatchSources(
     workspaceId: string,
-    resumeProfileId?: string,
-  ): Promise<StoredJobMatch[]> {
+  ): Promise<GenericMatchSourceRow[]> {
+    return this.prisma.client.jobMatch.findMany({
+      where: { organizationId: workspaceId, resumeProfileId: null },
+      select: {
+        jobId: true,
+        overallScore: true,
+        matcherVersion: true,
+        profileVersion: true,
+        jobUpdatedAt: true,
+        resumeProfileUpdatedAt: true,
+        weightsKey: true,
+      },
+    });
+  }
+
+  /** Full generic matches for a set of jobs in one workspace. */
+  async findGenericMatchesForJobs(
+    workspaceId: string,
+    jobIds: string[],
+  ): Promise<Map<string, StoredJobMatch>> {
+    if (jobIds.length === 0) return new Map();
     const rows = await this.prisma.client.jobMatch.findMany({
       where: {
         organizationId: workspaceId,
-        ...(resumeProfileId !== undefined
-          ? { resumeProfileId }
-          : { resumeProfileId: null }),
+        resumeProfileId: null,
+        jobId: { in: jobIds },
       },
-      orderBy: { overallScore: 'desc' },
     });
-    return rows.map((r) => this.mapMatch(r));
+    return new Map(rows.map((r) => [r.jobId, this.mapMatch(r)]));
+  }
+
+  /**
+   * Replace the generic matches for a batch of jobs in one transaction.
+   * ON CONFLICT DO NOTHING (skipDuplicates) makes concurrent recomputation of
+   * the same jobs safe with the partial unique index; both writers compute
+   * identical results from identical inputs.
+   */
+  async replaceGenericMatches(
+    workspaceId: string,
+    entries: { jobId: string; output: MatchOutput; source: MatchSource }[],
+  ): Promise<void> {
+    if (entries.length === 0) return;
+    await this.prisma.client.$transaction([
+      this.prisma.client.jobMatch.deleteMany({
+        where: {
+          organizationId: workspaceId,
+          resumeProfileId: null,
+          jobId: { in: entries.map((e) => e.jobId) },
+        },
+      }),
+      this.prisma.client.jobMatch.createMany({
+        data: entries.map((e) => ({
+          jobId: e.jobId,
+          organizationId: workspaceId,
+          resumeProfileId: null,
+          ...this.matchData(e.output, e.source),
+        })),
+        skipDuplicates: true,
+      }),
+    ]);
+  }
+
+  private matchData(output: MatchOutput, source: MatchSource) {
+    return {
+      overallScore: output.overallScore,
+      skillScore: output.dimensionScores.skill,
+      roleScore: output.dimensionScores.role,
+      experienceScore: output.dimensionScores.experience,
+      locationScore: output.dimensionScores.location,
+      seniorityScore: output.dimensionScores.seniority,
+      matchedSkills: output.matchedSkills,
+      missingSkills: output.missingSkills,
+      confidence: output.confidence,
+      explanation: output.explanation,
+      evidence: output.evidence as unknown as Prisma.InputJsonValue,
+      profileVersion: source.profileVersion,
+      matcherVersion: source.matcherVersion,
+      jobUpdatedAt: source.jobUpdatedAt,
+      resumeProfileUpdatedAt: source.resumeProfileUpdatedAt,
+      weightsKey: source.weightsKey,
+    };
   }
 
   // ── Workspace Job State ────────────────────────────────────────────────
@@ -410,6 +513,7 @@ export class PrismaJobsRepository {
   // ── Mappers ────────────────────────────────────────────────────────────
 
   private mapJob(row: Job): CanonicalJob {
+    const normalized = parseNormalizedMetadata(row.normalizedMetadata);
     return {
       id: row.id,
       externalId: row.externalId ?? undefined,
@@ -432,6 +536,9 @@ export class PrismaJobsRepository {
       preferredSkills: row.preferredSkills,
       postedAt: row.postedAt?.toISOString() ?? undefined,
       expiresAt: row.expiresAt?.toISOString() ?? undefined,
+      seniority: normalized?.seniority ?? undefined,
+      experienceRequirements: normalized?.experienceRequirements ?? undefined,
+      isNormalized: normalized !== null,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     };
@@ -455,6 +562,10 @@ export class PrismaJobsRepository {
       explanation: row.explanation,
       evidence: row.evidence as JobMatchEvidence | null,
       profileVersion: row.profileVersion ?? undefined,
+      matcherVersion: row.matcherVersion,
+      jobUpdatedAt: row.jobUpdatedAt,
+      resumeProfileUpdatedAt: row.resumeProfileUpdatedAt,
+      weightsKey: row.weightsKey,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     };

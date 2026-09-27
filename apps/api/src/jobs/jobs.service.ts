@@ -9,7 +9,6 @@ import type {
   JobAnalysisResult,
   JobMatchingWeights,
   JobOpportunity,
-  WorkspaceJobStatus,
 } from '@repo/types';
 import { DEFAULT_MATCHING_WEIGHTS } from '@repo/types';
 
@@ -23,30 +22,32 @@ import type { ResumeProfile } from '../resume-profile/resume-profile.types';
 import { JobIngestionService } from './ingestion/job-ingestion.service';
 import { JobAnalysisService } from './job-analysis.service';
 import { JobMatchingService } from './job-matching.service';
+import { deriveJobStateStatus } from './job-state';
 import type {
   CreateJobInput,
   ListJobsQuery,
   StoredJobMatch,
 } from './jobs.types';
+import { currentMatchSource, isMatchFresh } from './match-freshness';
 import { PrismaJobsRepository } from './prisma-jobs.repository';
 import { canonicalSkillKey } from './skill-identity';
 
-const WORKSPACE_JOB_STATUSES: readonly WorkspaceJobStatus[] = [
+/** Statuses accepted by PATCH /state for backward compatibility (mapped to flags). */
+const LEGACY_STATE_STATUSES = [
   'discovered',
   'saved',
   'applied',
-  'interview',
-  'offer',
-  'rejected',
   'dismissed',
-];
+] as const;
 
 /** Pipeline stages owned by the Application record, not settable via job state. */
-const APPLICATION_OWNED_STATUSES: readonly WorkspaceJobStatus[] = [
-  'interview',
-  'offer',
-  'rejected',
-];
+const APPLICATION_OWNED_STATUSES = ['interview', 'offer', 'rejected'];
+
+/** Jobs matched per batch when refreshing stale matches (bounded memory). */
+const MATCH_BATCH_SIZE = 250;
+
+export const MAX_PAGE_SIZE = 100;
+export const DEFAULT_PAGE_SIZE = 50;
 
 /** Workspace job state in the shape the enrichment mapper consumes. */
 interface JobStateView {
@@ -55,6 +56,42 @@ interface JobStateView {
   isDismissed: boolean;
   notes?: string | null;
   appliedAt?: Date | string | null;
+}
+
+/**
+ * Job Radar ranking order (deterministic, independent of database order):
+ *   1. fit score, highest first (jobs without a score last)
+ *   2. postedAt, newest first; jobs with no posted date after dated ones
+ *   3. createdAt, newest first
+ *   4. id ascending
+ */
+export function compareRanked(
+  a: {
+    id: string;
+    score: number | null;
+    postedAt: Date | null;
+    createdAt: Date;
+  },
+  b: {
+    id: string;
+    score: number | null;
+    postedAt: Date | null;
+    createdAt: Date;
+  },
+): number {
+  const scoreA = a.score ?? -1;
+  const scoreB = b.score ?? -1;
+  if (scoreA !== scoreB) return scoreB - scoreA;
+  const postedA = a.postedAt?.getTime() ?? null;
+  const postedB = b.postedAt?.getTime() ?? null;
+  if (postedA !== postedB) {
+    if (postedA === null) return 1;
+    if (postedB === null) return -1;
+    return postedB - postedA;
+  }
+  const createdDiff = b.createdAt.getTime() - a.createdAt.getTime();
+  if (createdDiff !== 0) return createdDiff;
+  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
 
 /**
@@ -78,53 +115,55 @@ export class JobsService {
   // ── Listing ────────────────────────────────────────────────────────────
 
   /**
-   * List jobs for a workspace, automatically ensuring match results are computed
-   * and merging in stored match results and workspace interaction state.
+   * Job Radar list for a workspace.
    *
-   * Results are sorted by overall match score descending, with deterministic
-   * tie-breaking (postedAt desc, createdAt desc, id).
+   * 1. All jobs matching the filters are selected in the database (filters
+   *    never run over a loaded page).
+   * 2. Every candidate's Master-Profile match is brought up to date (see
+   *    match-freshness.ts) — so fit is known for the whole set.
+   * 3. The whole set is ranked (compareRanked), and only then paginated.
+   * 4. Full rows, matches and workspace state are loaded for that page only.
    */
   async listByWorkspace(
     workspaceId: string,
-    query?: ListJobsQuery,
+    query: ListJobsQuery = {},
   ): Promise<JobOpportunity[]> {
-    const jobs = await this.repository.listJobs(query);
-    if (jobs.length === 0) return [];
+    const limit = Math.min(
+      Math.max(query.limit ?? DEFAULT_PAGE_SIZE, 1),
+      MAX_PAGE_SIZE,
+    );
+    const offset = Math.max(query.offset ?? 0, 0);
 
-    const jobIds = jobs.map((j) => j.id);
-
-    // Automatically ensure jobs have fresh match results (bounded by query batch limit).
-    const matchMap = await this.ensureJobMatches(
+    const candidates = await this.repository.listCandidateJobs(
       workspaceId,
-      jobs,
-      query?.limit ?? 50,
+      query,
     );
+    if (candidates.length === 0) return [];
 
-    // Load workspace interaction states in one query.
-    const stateMap = await this.repository.findWorkspaceStatesForJobs(
+    const scores = await this.ensureFreshGenericMatches(
       workspaceId,
-      jobIds,
+      candidates,
     );
 
-    const opportunities = jobs.map((job) =>
-      this.toEnrichedOpportunity(
-        job,
-        matchMap.get(job.id),
-        stateMap.get(job.id),
-      ),
-    );
+    const pageIds = candidates
+      .map((c) => ({ ...c, score: scores.get(c.id) ?? null }))
+      .sort(compareRanked)
+      .slice(offset, offset + limit)
+      .map((c) => c.id);
+    if (pageIds.length === 0) return [];
 
-    // Sort by overall match score descending, then postedAt desc, createdAt desc, id asc
-    return opportunities.sort((a, b) => {
-      const scoreA = a.match?.overallScore ?? -1;
-      const scoreB = b.match?.overallScore ?? -1;
-      if (scoreA !== scoreB) {
-        return scoreB - scoreA;
-      }
-      if (a.postedAt && b.postedAt && a.postedAt !== b.postedAt) {
-        return new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime();
-      }
-      return a.id.localeCompare(b.id);
+    const [jobs, matches, states] = await Promise.all([
+      this.repository.findJobsByIds(pageIds),
+      this.repository.findGenericMatchesForJobs(workspaceId, pageIds),
+      this.repository.findWorkspaceStatesForJobs(workspaceId, pageIds),
+    ]);
+    const jobsById = new Map(jobs.map((j) => [j.id, j]));
+
+    return pageIds.flatMap((id) => {
+      const job = jobsById.get(id);
+      return job
+        ? [this.toEnrichedOpportunity(job, matches.get(id), states.get(id))]
+        : [];
     });
   }
 
@@ -137,73 +176,78 @@ export class JobsService {
     jobId: string,
   ): Promise<JobOpportunity> {
     const job = await this.requireJob(jobId);
-    await this.ensureJobMatches(workspaceId, [job], 1);
+    await this.ensureFreshGenericMatches(workspaceId, [
+      { id: job.id, updatedAt: new Date(job.updatedAt) },
+    ]);
     return this.getEnrichedOpportunity(workspaceId, jobId);
   }
 
-  // ── Auto-Matching Orchestration ────────────────────────────────────────
+  // ── Match freshness ────────────────────────────────────────────────────
 
   /**
-   * Ensure provided jobs have fresh match results for the given workspace.
-   * Unmatched or stale jobs (where profileVersion !== masterProfile.version) are
-   * matched against the workspace's MasterCareerProfile and persisted.
+   * Make every given job's Master-Profile (generic) match current for the
+   * workspace and return jobId → overall score.
    *
-   * Bounded explicitly by maxBatchSize to prevent unbounded synchronous execution.
+   * A stored match is reused only when all of its recorded inputs (matcher
+   * version, master profile version, job updatedAt, weights) equal the current
+   * ones; otherwise — including legacy rows without that information — it is
+   * recomputed. Without a master profile there is nothing to match against,
+   * so no scores are returned (stale scores are never shown).
    */
-  async ensureJobMatches(
+  async ensureFreshGenericMatches(
     workspaceId: string,
-    jobs: CanonicalJob[],
-    maxBatchSize = 50,
-  ): Promise<Map<string, StoredJobMatch>> {
+    jobs: { id: string; updatedAt: Date }[],
+  ): Promise<Map<string, number>> {
+    const scores = new Map<string, number>();
     const masterProfile =
       await this.careerProfileService.findByWorkspace(workspaceId);
-    if (!masterProfile) {
-      // User has not completed/created a profile yet; return existing stored matches or empty
-      const stored =
-        await this.repository.listJobMatchesForWorkspace(workspaceId);
-      return new Map(stored.map((m) => [m.jobId, m]));
-    }
+    if (!masterProfile || jobs.length === 0) return scores;
 
-    const storedMatches =
-      await this.repository.listJobMatchesForWorkspace(workspaceId);
-    const matchMap = new Map(storedMatches.map((m) => [m.jobId, m]));
+    const stored = new Map(
+      (await this.repository.listGenericMatchSources(workspaceId)).map((r) => [
+        r.jobId,
+        r,
+      ]),
+    );
 
-    // Find jobs that need matching: either missing match or stale profileVersion
-    const jobsNeedingMatch = jobs.filter((job) => {
-      const existing = matchMap.get(job.id);
-      if (!existing) return true;
-      if (
-        existing.profileVersion !== undefined &&
-        existing.profileVersion !== null &&
-        existing.profileVersion !== masterProfile.version
-      ) {
-        return true;
-      }
-      return false;
-    });
-
-    // Bound batch size explicitly
-    const batchToProcess = jobsNeedingMatch.slice(0, maxBatchSize);
-
-    for (const job of batchToProcess) {
-      const output = this.matchingService.match({
-        job,
-        masterProfile,
-        weights: DEFAULT_MATCHING_WEIGHTS,
+    const staleIds: string[] = [];
+    for (const job of jobs) {
+      const row = stored.get(job.id);
+      const current = currentMatchSource({
+        jobUpdatedAt: job.updatedAt,
+        profileVersion: masterProfile.version,
       });
-
-      const stored = await this.repository.upsertJobMatch(
-        job.id,
-        workspaceId,
-        output,
-        undefined,
-        masterProfile.version,
-      );
-
-      matchMap.set(job.id, stored);
+      if (row && isMatchFresh(row, current)) {
+        scores.set(job.id, row.overallScore);
+      } else {
+        staleIds.push(job.id);
+      }
     }
 
-    return matchMap;
+    for (let i = 0; i < staleIds.length; i += MATCH_BATCH_SIZE) {
+      const batch = await this.repository.findJobsByIds(
+        staleIds.slice(i, i + MATCH_BATCH_SIZE),
+      );
+      const entries = batch.map((job) => {
+        const output = this.matchingService.match({
+          job,
+          masterProfile,
+          weights: DEFAULT_MATCHING_WEIGHTS,
+        });
+        scores.set(job.id, output.overallScore);
+        return {
+          jobId: job.id,
+          output,
+          source: currentMatchSource({
+            jobUpdatedAt: job.updatedAt,
+            profileVersion: masterProfile.version,
+          }),
+        };
+      });
+      await this.repository.replaceGenericMatches(workspaceId, entries);
+    }
+
+    return scores;
   }
 
   // ── Matching (explicit re-computation with overrides) ──────────────────
@@ -211,8 +255,9 @@ export class JobsService {
   /**
    * Run the deterministic matching engine for one job × workspace, optionally
    * scoped to a specific ResumeProfile or with custom weight overrides.
-   * Persists the result and returns the enriched JobOpportunity carrying the
-   * match for exactly that (workspace, job, resumeProfile) combination.
+   * Persists the result with the exact inputs used (profile version, resume
+   * profile state, job state, weights) and returns the enriched JobOpportunity
+   * carrying the match for exactly that (workspace, job, resumeProfile).
    */
   async computeAndPersistMatch(
     jobId: string,
@@ -246,13 +291,15 @@ export class JobsService {
       weights: effectiveWeights,
     });
 
-    await this.repository.upsertJobMatch(
-      jobId,
-      workspaceId,
-      output,
-      resumeProfile?.id,
-      masterProfile.version,
-    );
+    await this.repository.upsertJobMatch(jobId, workspaceId, output, {
+      ...currentMatchSource({
+        jobUpdatedAt: job.updatedAt,
+        profileVersion: masterProfile.version,
+        resumeProfileUpdatedAt: resumeProfile?.updatedAt ?? null,
+        weights: effectiveWeights,
+      }),
+      resumeProfileId: resumeProfile?.id,
+    });
 
     this.logger.log(
       `Matched job ${job.title} @ ${job.company} for workspace ${workspaceId}` +
@@ -265,22 +312,13 @@ export class JobsService {
 
   // ── Workspace Job Interactions (Save, Dismiss, Restore, Notes) ─────────
   //
-  // Whether the workspace has applied to a job is owned by its Application
-  // (see ApplicationsService). Job-state writes never move an applied job
-  // back to "saved"/"discovered"/"dismissed"; they only change the flags.
+  // isSaved / isDismissed are the user's Job Radar flags. Whether the
+  // workspace applied is owned by its Application (ApplicationsService); the
+  // stored status is always derived (see job-state.ts), never set directly.
 
   async saveJob(workspaceId: string, jobId: string): Promise<JobOpportunity> {
     await this.requireJob(jobId);
-    const applied = await this.applicationsService.hasAppliedToJob(
-      workspaceId,
-      jobId,
-    );
-
-    await this.repository.upsertWorkspaceJobState(workspaceId, jobId, {
-      isSaved: true,
-      status: applied ? 'applied' : 'saved',
-    });
-
+    await this.writeJobFlags(workspaceId, jobId, { isSaved: true });
     return this.getEnrichedOpportunity(workspaceId, jobId);
   }
 
@@ -289,16 +327,7 @@ export class JobsService {
     jobId: string,
   ): Promise<JobOpportunity> {
     await this.requireJob(jobId);
-    const applied = await this.applicationsService.hasAppliedToJob(
-      workspaceId,
-      jobId,
-    );
-
-    await this.repository.upsertWorkspaceJobState(workspaceId, jobId, {
-      isDismissed: true,
-      status: applied ? 'applied' : 'dismissed',
-    });
-
+    await this.writeJobFlags(workspaceId, jobId, { isDismissed: true });
     return this.getEnrichedOpportunity(workspaceId, jobId);
   }
 
@@ -307,16 +336,7 @@ export class JobsService {
     jobId: string,
   ): Promise<JobOpportunity> {
     await this.requireJob(jobId);
-    const [applied, state] = await Promise.all([
-      this.applicationsService.hasAppliedToJob(workspaceId, jobId),
-      this.repository.findWorkspaceJobState(workspaceId, jobId),
-    ]);
-
-    await this.repository.upsertWorkspaceJobState(workspaceId, jobId, {
-      isDismissed: false,
-      status: applied ? 'applied' : state?.isSaved ? 'saved' : 'discovered',
-    });
-
+    await this.writeJobFlags(workspaceId, jobId, { isDismissed: false });
     return this.getEnrichedOpportunity(workspaceId, jobId);
   }
 
@@ -333,29 +353,36 @@ export class JobsService {
     return this.getEnrichedOpportunity(workspaceId, jobId);
   }
 
+  /**
+   * Update Job Radar flags and notes. `status` is accepted for backward
+   * compatibility and mapped onto the flags ("saved" → isSaved, "dismissed" →
+   * isDismissed, "discovered" → neither); explicit flags take precedence.
+   * "applied" goes through the Application CRM. Pipeline stages are rejected.
+   */
   async updateJobState(
     workspaceId: string,
     jobId: string,
     data: {
-      status?: WorkspaceJobStatus;
+      status?: string;
       isSaved?: boolean;
+      isDismissed?: boolean;
       notes?: string;
       appliedAt?: string;
     },
   ): Promise<JobOpportunity> {
     await this.requireJob(jobId);
 
-    if (
-      data.status !== undefined &&
-      !WORKSPACE_JOB_STATUSES.includes(data.status)
-    ) {
-      throw new BadRequestException(
-        `Invalid job status "${data.status}". Valid values: ${WORKSPACE_JOB_STATUSES.join(', ')}.`,
-      );
-    }
     if (data.status && APPLICATION_OWNED_STATUSES.includes(data.status)) {
       throw new BadRequestException(
         `Status "${data.status}" is an application stage; update it through the application instead.`,
+      );
+    }
+    if (
+      data.status !== undefined &&
+      !(LEGACY_STATE_STATUSES as readonly string[]).includes(data.status)
+    ) {
+      throw new BadRequestException(
+        `Invalid job status "${data.status}". Valid values: ${LEGACY_STATE_STATUSES.join(', ')}.`,
       );
     }
     if (data.appliedAt !== undefined && data.status !== 'applied') {
@@ -374,28 +401,55 @@ export class JobsService {
       });
     }
 
-    let status: WorkspaceJobStatus | undefined;
-    if (data.status && data.status !== 'applied') {
-      const applied = await this.applicationsService.hasAppliedToJob(
-        workspaceId,
-        jobId,
-      );
-      status = applied ? 'applied' : data.status;
-    }
+    const fromStatus: { isSaved?: boolean; isDismissed?: boolean } =
+      data.status === 'saved'
+        ? { isSaved: true }
+        : data.status === 'dismissed'
+          ? { isDismissed: true }
+          : data.status === 'discovered'
+            ? { isSaved: false, isDismissed: false }
+            : {};
 
+    const change = {
+      isSaved: data.isSaved ?? fromStatus.isSaved,
+      isDismissed: data.isDismissed ?? fromStatus.isDismissed,
+      notes: data.notes,
+    };
     if (
-      status !== undefined ||
-      data.isSaved !== undefined ||
-      data.notes !== undefined
+      change.isSaved !== undefined ||
+      change.isDismissed !== undefined ||
+      change.notes !== undefined
     ) {
-      await this.repository.upsertWorkspaceJobState(workspaceId, jobId, {
-        status,
-        isSaved: data.isSaved,
-        notes: data.notes,
-      });
+      await this.writeJobFlags(workspaceId, jobId, change);
     }
 
     return this.getEnrichedOpportunity(workspaceId, jobId);
+  }
+
+  /** Apply flag/notes changes and re-derive status from flags + Application. */
+  private async writeJobFlags(
+    workspaceId: string,
+    jobId: string,
+    change: { isSaved?: boolean; isDismissed?: boolean; notes?: string },
+  ): Promise<void> {
+    const [state, applied] = await Promise.all([
+      this.repository.findWorkspaceJobState(workspaceId, jobId),
+      this.applicationsService.getAppliedMirror(workspaceId, jobId),
+    ]);
+    const isSaved = change.isSaved ?? state?.isSaved ?? false;
+    const isDismissed = change.isDismissed ?? state?.isDismissed ?? false;
+
+    await this.repository.upsertWorkspaceJobState(workspaceId, jobId, {
+      isSaved,
+      isDismissed,
+      status: deriveJobStateStatus({
+        applied: applied !== null,
+        isSaved,
+        isDismissed,
+      }),
+      appliedAt: applied?.appliedAt ?? null,
+      ...(change.notes !== undefined ? { notes: change.notes } : {}),
+    });
   }
 
   /**
@@ -490,7 +544,7 @@ export class JobsService {
     }
 
     const matchOutput = this.matchingService.match({ job, masterProfile });
-    return this.jobAnalysisService.analyze(job, matchOutput, masterProfile);
+    return this.jobAnalysisService.analyze(job, matchOutput);
   }
 
   async recommendResumeProfile(workspaceId: string, jobId: string) {
@@ -578,11 +632,7 @@ export class JobsService {
       resumeProfile: targetProfile,
     });
 
-    const analysis = this.jobAnalysisService.analyze(
-      job,
-      matchOutput,
-      masterProfile,
-    );
+    const analysis = this.jobAnalysisService.analyze(job, matchOutput);
 
     const matchedSkillKeys = new Set(
       matchOutput.matchedSkills.map((s) => canonicalSkillKey(s)),
@@ -729,11 +779,17 @@ export class JobsService {
               evidence,
               profileVersion: match.profileVersion ?? undefined,
               resumeProfileId: match.resumeProfileId ?? undefined,
+              matcherVersion: match.matcherVersion ?? undefined,
+              computedAt: match.updatedAt.toISOString(),
             }
           : undefined,
       workspaceState: state
         ? {
-            status: state.status as WorkspaceJobStatus,
+            status: deriveJobStateStatus({
+              applied: state.status === 'applied',
+              isSaved: state.isSaved,
+              isDismissed: state.isDismissed,
+            }),
             isSaved: state.isSaved,
             isDismissed: state.isDismissed,
             notes: state.notes ?? undefined,

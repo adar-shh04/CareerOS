@@ -244,4 +244,115 @@ describe('ResumeProfileService', () => {
       emptyWorkspaceService.createVersion(workspaceA, createdProfile.id, {}),
     ).rejects.toBeInstanceOf(ResumeProfileValidationError);
   });
+  // ── Master Profile edits must not strand Resume Profiles (Pass 2) ────────
+  describe('when the Master Career Profile changes', () => {
+    const skill2 = 'aa6fb4a6-15dc-4884-811f-a642a6bd5ed8';
+    let master: MasterCareerProfile;
+    let editableService: ResumeProfileService;
+
+    beforeEach(() => {
+      master = structuredClone(masterProfile);
+      master.skills.push({ id: skill2, name: 'Go' });
+      editableService = new ResumeProfileService(repository, {
+        findByWorkspace: (ws: string) =>
+          Promise.resolve(
+            ws === workspaceA ? structuredClone(master) : undefined,
+          ),
+      } as CareerProfileService);
+    });
+
+    const removeFromMaster = () => {
+      master.projects = [];
+      master.skills = master.skills.filter((s) => s.id !== skillId);
+    };
+
+    it('reopening a profile after its referenced records were removed returns only live references', async () => {
+      const created = await editableService.create(workspaceA, {
+        ...profileInput,
+        prioritySkillIds: [skillId, skill2],
+      });
+      removeFromMaster();
+
+      const reopened = await editableService.findById(workspaceA, created.id);
+      expect(reopened?.priorityProjectIds).toEqual([]);
+      expect(reopened?.prioritySkillIds).toEqual([skill2]);
+      expect(reopened?.highlightRules).toEqual([]);
+      const listed = await editableService.listByWorkspace(workspaceA);
+      expect(listed[0]?.prioritySkillIds).toEqual([skill2]);
+    });
+
+    it('the profile stays editable even when the client echoes stale ids back', async () => {
+      const created = await editableService.create(workspaceA, profileInput);
+      removeFromMaster();
+
+      // An older client still holding the removed ids.
+      const updated = await editableService.update(workspaceA, created.id, {
+        ...profileInput,
+        name: 'Renamed',
+      });
+
+      expect(updated.name).toBe('Renamed');
+      expect(updated.priorityProjectIds).toEqual([]);
+      expect(updated.prioritySkillIds).toEqual([]);
+      expect(updated.highlightRules).toEqual([]);
+    });
+
+    it('still rejects a NEW id that never existed in the master profile', async () => {
+      const created = await editableService.create(workspaceA, profileInput);
+      removeFromMaster();
+
+      await expect(
+        editableService.update(workspaceA, created.id, {
+          ...profileInput,
+          prioritySkillIds: ['99999999-9999-4999-8999-999999999999'],
+        }),
+      ).rejects.toBeInstanceOf(ResumeProfileValidationError);
+    });
+
+    it('rejects an id of the wrong record type (skill id used as project)', async () => {
+      await expect(
+        editableService.create(workspaceA, {
+          name: 'Mixed',
+          priorityProjectIds: [skillId],
+        }),
+      ).rejects.toBeInstanceOf(ResumeProfileValidationError);
+    });
+
+    it('a new version can still be generated, and old versions keep their snapshot', async () => {
+      const created = await editableService.create(workspaceA, profileInput);
+      const before = await editableService.createVersion(
+        workspaceA,
+        created.id,
+        {},
+      );
+      removeFromMaster();
+
+      const after = await editableService.createVersion(
+        workspaceA,
+        created.id,
+        {},
+      );
+      expect(after.selectedRecordIds.projectIds).toEqual([]);
+
+      const historical = await editableService.findVersionById(
+        workspaceA,
+        created.id,
+        before.id,
+      );
+      expect(historical?.selectedRecordIds.projectIds).toEqual([projectId]);
+      expect(
+        historical?.masterProfileSnapshot.projects.map((p) => p.id),
+      ).toEqual([projectId]);
+    });
+
+    it("reordering master records does not change a profile's references", async () => {
+      const created = await editableService.create(workspaceA, {
+        ...profileInput,
+        prioritySkillIds: [skillId, skill2],
+      });
+      master.skills.reverse();
+      const reopened = await editableService.findById(workspaceA, created.id);
+      expect(reopened?.prioritySkillIds).toEqual([skillId, skill2]);
+    });
+  });
 });

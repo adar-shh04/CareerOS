@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import type { CreateJobInput } from '../jobs.types';
+import { classifySeniorityFromTitle } from '../seniority';
 import { KNOWN_TECH_DICTIONARY } from '../skill-identity';
 import type { RawIngestedJob } from './job-source-adapter.interface';
 
@@ -26,7 +27,9 @@ export class JobNormalizationService {
     const { salaryMin, salaryMax, salaryCurrency, salaryRange } =
       this.parseSalary(raw.salaryText, description);
 
-    const seniority = this.extractSeniority(title, description);
+    // Title-only, whole-word classification; undefined when the title has no
+    // seniority signal (never defaulted).
+    const seniority = classifySeniorityFromTitle(title);
     const experienceRequirements =
       this.extractExperienceRequirements(description);
 
@@ -41,6 +44,7 @@ export class JobNormalizationService {
       location,
       isRemote,
       remotePolicy,
+      normalized: true,
       seniority,
       experienceRequirements,
       salaryMin,
@@ -51,54 +55,7 @@ export class JobNormalizationService {
       requiredSkills,
       preferredSkills,
       postedAt,
-      normalizedMetadata: {
-        seniority,
-        experienceRequirements,
-      },
     };
-  }
-
-  private extractSeniority(title: string, description: string): string {
-    const combined = `${title} ${description}`.toLowerCase();
-    if (
-      combined.includes('principal') ||
-      combined.includes('distinguished') ||
-      combined.includes('fellow')
-    ) {
-      return 'Principal';
-    }
-    if (
-      combined.includes('staff') ||
-      combined.includes('architect') ||
-      combined.includes('lead')
-    ) {
-      return 'Staff / Lead';
-    }
-    if (
-      combined.includes('senior') ||
-      combined.includes('sr.') ||
-      combined.includes('sr ')
-    ) {
-      return 'Senior';
-    }
-    if (
-      combined.includes('junior') ||
-      combined.includes('jr.') ||
-      combined.includes('jr ') ||
-      combined.includes('entry') ||
-      combined.includes('associate')
-    ) {
-      return 'Junior / Entry';
-    }
-    if (
-      combined.includes('manager') ||
-      combined.includes('head') ||
-      combined.includes('director') ||
-      combined.includes('vp')
-    ) {
-      return 'Management';
-    }
-    return 'Mid';
   }
 
   private extractExperienceRequirements(

@@ -37,6 +37,7 @@ export interface MatchOutput {
   matchedSkills: string[];
   missingSkills: string[];
   matchedPreferredSkills: string[];
+  missingPreferredSkills: string[];
   confidence: number;
   explanation: string;
   evidence: JobMatchEvidence;
@@ -65,7 +66,12 @@ export interface CreateJobInput {
   preferredSkills?: string[];
   postedAt?: Date;
   expiresAt?: Date;
-  normalizedMetadata?: Record<string, unknown>;
+  /**
+   * True when the input came from the normalization pipeline. Its seniority and
+   * experienceRequirements (possibly undefined = "not stated") are then persisted
+   * as authoritative normalized data.
+   */
+  normalized?: boolean;
 }
 
 /** Query filters for listing canonical jobs. */
@@ -73,6 +79,10 @@ export interface ListJobsQuery {
   query?: string;
   remoteOnly?: boolean;
   skill?: string;
+  /** Only jobs this workspace saved. */
+  savedOnly?: boolean;
+  /** Exclude jobs this workspace dismissed. */
+  hideDismissed?: boolean;
   limit?: number;
   offset?: number;
 }
@@ -95,6 +105,30 @@ export interface StoredJobMatch {
   explanation: string;
   evidence: JobMatchEvidence | null;
   profileVersion?: number | null;
+  /** Source inputs (see match-freshness.ts); null on legacy rows. */
+  matcherVersion?: number | null;
+  jobUpdatedAt?: Date | null;
+  resumeProfileUpdatedAt?: Date | null;
+  weightsKey?: string | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+/** Minimal job fields needed to rank a job. */
+export interface JobRankingKey {
+  id: string;
+  postedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/** Generic match score plus the inputs it was computed from. */
+export interface GenericMatchSourceRow {
+  jobId: string;
+  overallScore: number;
+  matcherVersion: number | null;
+  profileVersion: number | null;
+  jobUpdatedAt: Date | null;
+  resumeProfileUpdatedAt: Date | null;
+  weightsKey: string | null;
 }

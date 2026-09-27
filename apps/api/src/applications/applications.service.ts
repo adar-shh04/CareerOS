@@ -5,7 +5,8 @@ import {
 } from '@nestjs/common';
 
 import { PrismaService } from '../database/prisma.service';
-import type { Application, Job, Prisma } from '../generated/prisma/client';
+import { type Application, type Job, Prisma } from '../generated/prisma/client';
+import { deriveJobStateStatus } from '../jobs/job-state';
 import type {
   ApplicationJobSummary,
   ApplicationRecord,
@@ -22,6 +23,10 @@ type ApplicationWithJob = Application & {
 };
 
 type Tx = Prisma.TransactionClient;
+
+const isUniqueViolation = (error: unknown) =>
+  error instanceof Prisma.PrismaClientKnownRequestError &&
+  error.code === 'P2002';
 
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -55,7 +60,7 @@ export class ApplicationsService {
     const rows = await this.prisma.client.application.findMany({
       where: { organizationId: workspaceId },
       include: { job: true },
-      orderBy: { updatedAt: 'desc' },
+      orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }],
     });
     return rows.map((r: ApplicationWithJob) => this.map(r));
   }
@@ -72,13 +77,21 @@ export class ApplicationsService {
     return row ? this.map(row) : null;
   }
 
-  /** True when the workspace has applied to the job (per the Application). */
-  async hasAppliedToJob(workspaceId: string, jobId: string): Promise<boolean> {
+  /**
+   * The Application facts Job Radar state must mirror: null when the workspace
+   * has not applied to the job, otherwise the applied-stage appliedAt.
+   */
+  async getAppliedMirror(
+    workspaceId: string,
+    jobId: string,
+  ): Promise<{ appliedAt: Date | null } | null> {
     const row = await this.prisma.client.application.findFirst({
       where: { organizationId: workspaceId, jobId },
       select: { status: true, appliedAt: true },
     });
-    return row ? this.isAppliedStage(row.status, row.appliedAt) : false;
+    return row && this.isAppliedStage(row.status, row.appliedAt)
+      ? { appliedAt: row.appliedAt }
+      : null;
   }
 
   async getStatusHistory(
@@ -91,7 +104,7 @@ export class ApplicationsService {
 
     const rows = await this.prisma.client.applicationStatusHistory.findMany({
       where: { applicationId },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
     });
 
     return rows.map((r) => ({
@@ -124,32 +137,42 @@ export class ApplicationsService {
       );
     }
 
-    const row = await this.prisma.client.$transaction(async (tx) => {
-      const created = await tx.application.create({
-        data: {
-          organizationId: workspaceId,
-          jobId: input.jobId,
-          status,
-          notes: input.notes ?? null,
-          appliedAt:
-            input.appliedAt ?? (status === 'applied' ? new Date() : null),
-          resumeProfileId: input.resumeProfileId ?? null,
-          resumeVersionId: input.resumeVersionId ?? null,
-        },
-        include: { job: true },
-      });
+    const row = await this.prisma.client
+      .$transaction(async (tx) => {
+        const created = await tx.application.create({
+          data: {
+            organizationId: workspaceId,
+            jobId: input.jobId,
+            status,
+            notes: input.notes ?? null,
+            appliedAt:
+              input.appliedAt ?? (status === 'applied' ? new Date() : null),
+            resumeProfileId: input.resumeProfileId ?? null,
+            resumeVersionId: input.resumeVersionId ?? null,
+          },
+          include: { job: true },
+        });
 
-      await tx.applicationStatusHistory.create({
-        data: {
-          applicationId: created.id,
-          status,
-          notes: `Application created with status "${status}".`,
-        },
-      });
+        await tx.applicationStatusHistory.create({
+          data: {
+            applicationId: created.id,
+            status,
+            notes: `Application created with status "${status}".`,
+          },
+        });
 
-      await this.syncWorkspaceJobState(tx, workspaceId, created);
-      return created;
-    });
+        await this.syncWorkspaceJobState(tx, workspaceId, created);
+        return created;
+      })
+      .catch((error: unknown) => {
+        // A concurrent request created it between the check and the insert.
+        if (isUniqueViolation(error)) {
+          throw new BadRequestException(
+            `An application for job ${input.jobId} already exists in this workspace.`,
+          );
+        }
+        throw error;
+      });
 
     return this.map(row);
   }
@@ -184,6 +207,14 @@ export class ApplicationsService {
           ? new Date()
           : undefined;
 
+    // A resume version belongs to exactly one profile: switching profile
+    // without naming a new version drops the old profile's version.
+    const profileChanged =
+      input.resumeProfileId !== undefined &&
+      input.resumeProfileId !== existing.resumeProfileId;
+    const resumeVersionId =
+      input.resumeVersionId ?? (profileChanged ? null : undefined);
+
     const row = await this.prisma.client.$transaction(async (tx) => {
       const updated = await tx.application.update({
         where: { id: applicationId },
@@ -194,9 +225,7 @@ export class ApplicationsService {
           ...(input.resumeProfileId !== undefined
             ? { resumeProfileId: input.resumeProfileId }
             : {}),
-          ...(input.resumeVersionId !== undefined
-            ? { resumeVersionId: input.resumeVersionId }
-            : {}),
+          ...(resumeVersionId !== undefined ? { resumeVersionId } : {}),
         },
         include: { job: true },
       });
@@ -233,67 +262,79 @@ export class ApplicationsService {
       resumeProfileId: input.resumeProfileId,
     });
 
-    const row = await this.prisma.client.$transaction(async (tx) => {
-      const existing = await tx.application.findFirst({
-        where: { organizationId: workspaceId, jobId },
-      });
+    // A concurrent request may insert the application between our read and
+    // insert (unique organization_id + job_id); one retry then finds it.
+    const run = () =>
+      this.prisma.client.$transaction(async (tx) => {
+        const existing = await tx.application.findFirst({
+          where: { organizationId: workspaceId, jobId },
+        });
 
-      if (!existing) {
-        const created = await tx.application.create({
+        if (!existing) {
+          const created = await tx.application.create({
+            data: {
+              organizationId: workspaceId,
+              jobId,
+              status: 'applied',
+              notes: input.notes ?? null,
+              appliedAt: input.appliedAt ?? new Date(),
+              resumeProfileId: input.resumeProfileId ?? null,
+            },
+            include: { job: true },
+          });
+          await tx.applicationStatusHistory.create({
+            data: {
+              applicationId: created.id,
+              status: 'applied',
+              notes: input.notes ?? 'Marked as applied.',
+            },
+          });
+          await this.syncWorkspaceJobState(tx, workspaceId, created);
+          return created;
+        }
+
+        const advancing = !this.isAppliedStage(
+          existing.status,
+          existing.appliedAt,
+        );
+        const updated = await tx.application.update({
+          where: { id: existing.id },
           data: {
-            organizationId: workspaceId,
-            jobId,
-            status: 'applied',
-            notes: input.notes ?? null,
-            appliedAt: input.appliedAt ?? new Date(),
-            resumeProfileId: input.resumeProfileId ?? null,
+            ...(advancing ? { status: 'applied' } : {}),
+            ...(input.appliedAt
+              ? { appliedAt: input.appliedAt }
+              : existing.appliedAt
+                ? {}
+                : { appliedAt: new Date() }),
+            ...(input.resumeProfileId &&
+            input.resumeProfileId !== existing.resumeProfileId
+              ? {
+                  resumeProfileId: input.resumeProfileId,
+                  resumeVersionId: null,
+                }
+              : {}),
+            ...(input.notes !== undefined ? { notes: input.notes } : {}),
           },
           include: { job: true },
         });
-        await tx.applicationStatusHistory.create({
-          data: {
-            applicationId: created.id,
-            status: 'applied',
-            notes: input.notes ?? 'Marked as applied.',
-          },
-        });
-        await this.syncWorkspaceJobState(tx, workspaceId, created);
-        return created;
-      }
 
-      const advancing = !this.isAppliedStage(
-        existing.status,
-        existing.appliedAt,
-      );
-      const updated = await tx.application.update({
-        where: { id: existing.id },
-        data: {
-          ...(advancing ? { status: 'applied' } : {}),
-          ...(input.appliedAt
-            ? { appliedAt: input.appliedAt }
-            : existing.appliedAt
-              ? {}
-              : { appliedAt: new Date() }),
-          ...(input.resumeProfileId
-            ? { resumeProfileId: input.resumeProfileId }
-            : {}),
-          ...(input.notes !== undefined ? { notes: input.notes } : {}),
-        },
-        include: { job: true },
+        if (advancing) {
+          await tx.applicationStatusHistory.create({
+            data: {
+              applicationId: existing.id,
+              status: 'applied',
+              notes: input.notes ?? 'Marked as applied.',
+            },
+          });
+        }
+
+        await this.syncWorkspaceJobState(tx, workspaceId, updated);
+        return updated;
       });
 
-      if (advancing) {
-        await tx.applicationStatusHistory.create({
-          data: {
-            applicationId: existing.id,
-            status: 'applied',
-            notes: input.notes ?? 'Marked as applied.',
-          },
-        });
-      }
-
-      await this.syncWorkspaceJobState(tx, workspaceId, updated);
-      return updated;
+    const row = await run().catch((error: unknown) => {
+      if (isUniqueViolation(error)) return run();
+      throw error;
     });
 
     return this.map(row);
@@ -324,7 +365,13 @@ export class ApplicationsService {
     );
   }
 
-  /** Mirror an Application (or its deletion, status=null) onto WorkspaceJobState. */
+  /**
+   * Mirror an Application (or its deletion, status=null) onto WorkspaceJobState
+   * using the single Job Radar invariant (jobs/job-state.ts):
+   *   status    = derived from (applied-stage Application, isDismissed, isSaved)
+   *   appliedAt = the applied-stage Application's appliedAt, else null
+   * Tracking an Application at "saved" also bookmarks the job (isSaved).
+   */
   private async syncWorkspaceJobState(
     tx: Tx,
     workspaceId: string,
@@ -333,49 +380,27 @@ export class ApplicationsService {
     const where = {
       organizationId_jobId: { organizationId: workspaceId, jobId: app.jobId },
     };
+    const state = await tx.workspaceJobState.findUnique({ where });
 
-    if (app.status === null) {
-      const state = await tx.workspaceJobState.findUnique({ where });
-      if (state?.status === 'applied') {
-        await tx.workspaceJobState.update({
-          where,
-          data: {
-            status: state.isSaved ? 'saved' : 'discovered',
-            appliedAt: null,
-          },
-        });
-      }
-      return;
-    }
+    const applied =
+      app.status !== null && this.isAppliedStage(app.status, app.appliedAt);
+    const isSaved = app.status === 'saved' ? true : (state?.isSaved ?? false);
+    const isDismissed = state?.isDismissed ?? false;
+    const data = {
+      isSaved,
+      isDismissed,
+      status: deriveJobStateStatus({ applied, isSaved, isDismissed }),
+      appliedAt: applied ? app.appliedAt : null,
+    };
 
-    if (this.isAppliedStage(app.status, app.appliedAt)) {
-      await tx.workspaceJobState.upsert({
-        where,
-        update: { status: 'applied', appliedAt: app.appliedAt },
-        create: {
-          organizationId: workspaceId,
-          jobId: app.jobId,
-          status: 'applied',
-          appliedAt: app.appliedAt,
-        },
-      });
-      return;
-    }
+    // No row and nothing to record (e.g. a never-applied withdrawal).
+    if (!state && !applied && !isSaved) return;
 
-    if (app.status === 'saved') {
-      await tx.workspaceJobState.upsert({
-        where,
-        update: { status: 'saved', isSaved: true, appliedAt: app.appliedAt },
-        create: {
-          organizationId: workspaceId,
-          jobId: app.jobId,
-          status: 'saved',
-          isSaved: true,
-          appliedAt: app.appliedAt,
-        },
-      });
-    }
-    // "withdrawn" before ever applying leaves the job state unchanged.
+    await tx.workspaceJobState.upsert({
+      where,
+      update: data,
+      create: { organizationId: workspaceId, jobId: app.jobId, ...data },
+    });
   }
 
   private async assertJobExists(jobId: string): Promise<void> {

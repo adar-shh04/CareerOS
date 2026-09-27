@@ -335,6 +335,10 @@ export interface ListJobsParams {
   query?: string;
   remoteOnly?: boolean;
   skill?: string;
+  /** Only jobs this workspace saved (applied server-side to the whole catalog). */
+  savedOnly?: boolean;
+  /** Exclude jobs this workspace dismissed (server-side). */
+  hideDismissed?: boolean;
   limit?: number;
   offset?: number;
 }
@@ -348,6 +352,8 @@ export async function listJobs(
   if (params.query) qs.set("query", params.query);
   if (params.remoteOnly) qs.set("remoteOnly", "true");
   if (params.skill) qs.set("skill", params.skill);
+  if (params.savedOnly) qs.set("savedOnly", "true");
+  if (params.hideDismissed) qs.set("hideDismissed", "true");
   if (params.limit != null) qs.set("limit", String(params.limit));
   if (params.offset != null) qs.set("offset", String(params.offset));
   const search = qs.toString() ? `?${qs.toString()}` : "";
@@ -545,6 +551,8 @@ export async function updateJobState(
   jobId: string,
   input: {
     status?: WorkspaceJobStatus;
+    isSaved?: boolean;
+    isDismissed?: boolean;
     notes?: string;
     appliedAt?: string;
   },

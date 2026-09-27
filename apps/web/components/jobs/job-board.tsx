@@ -11,6 +11,9 @@ import { JobFilters } from "./job-filters";
 import { JobList } from "./job-list";
 import { JobSearch } from "./job-search";
 
+/** Jobs requested per page; results are ranked server-side before paging. */
+const PAGE_SIZE = 50;
+
 interface JobBoardProps {
   onNavigateToResume?: (version: ResumeVersion, profile: ResumeProfile) => void;
   initialSavedOnly?: boolean;
@@ -25,7 +28,11 @@ export function JobBoard({
   const [jobs, setJobs] = useState<JobOpportunity[]>([]);
   const [applications, setApplications] = useState<TrackedApplication[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  // The query last submitted (typing alone does not refetch).
+  const [appliedQuery, setAppliedQuery] = useState("");
   const [remoteOnly, setRemoteOnly] = useState(false);
   const [savedOnly, setSavedOnly] = useState(initialSavedOnly);
   const [showDismissed, setShowDismissed] = useState(false);
@@ -51,15 +58,33 @@ export function JobBoard({
     return new Map(applications.map((app) => [app.jobId, app]));
   }, [applications]);
 
-  const fetchJobs = useCallback(async (query?: string) => {
+  // Filters are applied by the API to the whole job catalog, and results come
+  // back already ranked; pages are appended with "Load more".
+  const listUrl = useCallback(
+    (offset: number) => {
+      const params = new URLSearchParams({
+        limit: String(PAGE_SIZE),
+        offset: String(offset),
+      });
+      if (appliedQuery) params.set("query", appliedQuery);
+      if (remoteOnly) params.set("remoteOnly", "true");
+      if (selectedSkill) params.set("skill", selectedSkill);
+      if (savedOnly) params.set("savedOnly", "true");
+      if (!showDismissed) params.set("hideDismissed", "true");
+      return `/api/jobs?${params.toString()}`;
+    },
+    [appliedQuery, remoteOnly, selectedSkill, savedOnly, showDismissed],
+  );
+
+  const fetchJobs = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const params = query ? `?query=${encodeURIComponent(query)}` : "";
-      const response = await fetch(`/api/jobs${params}`, { cache: "no-store" });
+      const response = await fetch(listUrl(0), { cache: "no-store" });
       if (response.ok) {
         const data = (await response.json()) as JobOpportunity[];
         setJobs(data);
+        setHasMore(data.length === PAGE_SIZE);
       } else {
         const body = (await response.json().catch(() => ({}))) as {
           message?: string;
@@ -73,6 +98,7 @@ export function JobBoard({
               : "Failed to load job opportunities."),
         });
         setJobs([]);
+        setHasMore(false);
       }
     } catch {
       setError({
@@ -80,15 +106,45 @@ export function JobBoard({
         message: "Network error — please check your connection and retry.",
       });
       setJobs([]);
+      setHasMore(false);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [listUrl]);
 
+  const loadMore = async () => {
+    setLoadingMore(true);
+    try {
+      const response = await fetch(listUrl(jobs.length), { cache: "no-store" });
+      if (response.ok) {
+        const data = (await response.json()) as JobOpportunity[];
+        setJobs((prev) => {
+          const seen = new Set(prev.map((j) => j.id));
+          return [...prev, ...data.filter((j) => !seen.has(j.id))];
+        });
+        setHasMore(data.length === PAGE_SIZE);
+      }
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  const runSearch = (query: string) => {
+    if (query === appliedQuery) {
+      void fetchJobs();
+    } else {
+      setAppliedQuery(query);
+    }
+  };
+
+  // Reload from the first page whenever a filter changes.
   useEffect(() => {
     void fetchJobs();
+  }, [fetchJobs]);
+
+  useEffect(() => {
     void fetchApplications();
-  }, [fetchJobs, fetchApplications]);
+  }, [fetchApplications]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -108,20 +164,20 @@ export function JobBoard({
   const availableSkills = useMemo(() => {
     const skillSet = new Set<string>();
     jobs.forEach((j) => j.requiredSkills.forEach((s) => skillSet.add(s)));
+    if (selectedSkill) skillSet.add(selectedSkill);
     return Array.from(skillSet);
-  }, [jobs]);
+  }, [jobs, selectedSkill]);
 
+  // The server already filtered the whole catalog. This only keeps loaded rows
+  // consistent with the active filters after the user changes a job in place
+  // (e.g. a job dismissed a moment ago disappears without a reload).
   const filteredJobs = useMemo(() => {
     return jobs.filter((job) => {
-      // By default hide dismissed jobs unless user enabled showDismissed
       if (!showDismissed && job.workspaceState?.isDismissed) return false;
       if (savedOnly && !job.workspaceState?.isSaved) return false;
-      if (remoteOnly && !job.isRemote) return false;
-      if (selectedSkill && !job.requiredSkills.includes(selectedSkill))
-        return false;
       return true;
     });
-  }, [jobs, remoteOnly, savedOnly, showDismissed, selectedSkill]);
+  }, [jobs, savedOnly, showDismissed]);
 
   const [ingesting, setIngesting] = useState(false);
   const [ingestError, setIngestError] = useState<string | null>(null);
@@ -136,7 +192,7 @@ export function JobBoard({
         body: JSON.stringify({ query: searchQuery || "Software Engineer", limit: 20 }),
       });
       if (response.ok) {
-        await fetchJobs(searchQuery);
+        runSearch(searchQuery);
       } else {
         const body = (await response.json().catch(() => ({}))) as {
           message?: string;
@@ -151,6 +207,20 @@ export function JobBoard({
       setIngesting(false);
     }
   };
+
+  const loadMoreButton =
+    hasMore && !loading && !error ? (
+      <button
+        type="button"
+        onClick={() => {
+          void loadMore();
+        }}
+        disabled={loadingMore}
+        className="self-center mt-2 px-4 py-2 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 text-xs font-medium shadow-2xs transition-colors disabled:opacity-50 cursor-pointer"
+      >
+        {loadingMore ? "Loading…" : "Load more"}
+      </button>
+    ) : null;
 
   return (
     <div ref={containerRef} className="flex flex-col gap-6 max-w-7xl mx-auto p-4 sm:p-6 w-full">
@@ -186,7 +256,7 @@ export function JobBoard({
           <button
             type="button"
             onClick={() => {
-              void fetchJobs(searchQuery);
+              runSearch(searchQuery);
             }}
             className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 text-xs font-medium shadow-2xs transition-colors cursor-pointer"
           >
@@ -216,7 +286,7 @@ export function JobBoard({
           value={searchQuery}
           onChange={setSearchQuery}
           onSearch={() => {
-            void fetchJobs(searchQuery);
+            runSearch(searchQuery);
           }}
         />
         <JobFilters
@@ -250,12 +320,13 @@ export function JobBoard({
                 setSearchQuery("");
                 setSelectedSkill("");
                 setRemoteOnly(false);
-                void fetchJobs("");
+                runSearch("");
               }}
               onRetry={() => {
-                void fetchJobs(searchQuery);
+                runSearch(searchQuery);
               }}
             />
+            {loadMoreButton}
           </div>
 
           {/* Right Column: In-flow Job Details Panel */}
@@ -313,12 +384,13 @@ export function JobBoard({
               setSearchQuery("");
               setSelectedSkill("");
               setRemoteOnly(false);
-              void fetchJobs("");
+              runSearch("");
             }}
             onRetry={() => {
-              void fetchJobs(searchQuery);
+              runSearch(searchQuery);
             }}
           />
+          {loadMoreButton}
 
           {/* Details Drawer (Overlay) */}
           <JobDetailsDrawer

@@ -1,835 +1,762 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import type { CanonicalJob } from '@repo/types';
+import type { CanonicalJob, WorkspaceJobState } from '@repo/types';
 
 import type { ApplicationsService } from '../applications/applications.service';
 import type { CareerProfileService } from '../career-profile/career-profile.service';
 import type { MasterCareerProfile } from '../career-profile/career-profile.types';
 import type { ResumeProfileService } from '../resume-profile/resume-profile.service';
+import type { ResumeProfile } from '../resume-profile/resume-profile.types';
 import type { JobIngestionService } from './ingestion/job-ingestion.service';
 import { JobAnalysisService } from './job-analysis.service';
 import { JobMatchingService } from './job-matching.service';
 import { JobsService } from './jobs.service';
-import type { StoredJobMatch } from './jobs.types';
+import type {
+  GenericMatchSourceRow,
+  JobRankingKey,
+  ListJobsQuery,
+  MatchOutput,
+  StoredJobMatch,
+} from './jobs.types';
+import { MATCHER_VERSION, type MatchSource } from './match-freshness';
 import type { PrismaJobsRepository } from './prisma-jobs.repository';
 
+/**
+ * In-memory stand-in for PrismaJobsRepository with the same contract, so the
+ * service's real listing / ranking / freshness / state logic runs end to end.
+ * (The Prisma query translation of the filters is covered by
+ * job-radar.db.spec.ts against PostgreSQL.)
+ */
+class FakeJobsRepository {
+  jobs = new Map<string, CanonicalJob>();
+  matches: StoredJobMatch[] = [];
+  states = new Map<string, WorkspaceJobState>();
+  replaceCalls: string[][] = [];
+
+  addJob(job: CanonicalJob) {
+    this.jobs.set(job.id, job);
+  }
+
+  listCandidateJobs(
+    ws: string,
+    q: ListJobsQuery = {},
+  ): Promise<JobRankingKey[]> {
+    const rows = [...this.jobs.values()].filter((j) => {
+      const state = this.states.get(`${ws}:${j.id}`);
+      if (q.remoteOnly && !j.isRemote) return false;
+      if (
+        q.skill &&
+        ![...j.requiredSkills, ...j.preferredSkills].includes(q.skill)
+      )
+        return false;
+      if (
+        q.query &&
+        !`${j.title} ${j.company}`.toLowerCase().includes(q.query.toLowerCase())
+      )
+        return false;
+      if (q.savedOnly && !state?.isSaved) return false;
+      if (q.hideDismissed && state?.isDismissed) return false;
+      return true;
+    });
+    return Promise.resolve(
+      rows.map((j) => ({
+        id: j.id,
+        postedAt: j.postedAt ? new Date(j.postedAt) : null,
+        createdAt: new Date(j.createdAt),
+        updatedAt: new Date(j.updatedAt),
+      })),
+    );
+  }
+
+  findJobsByIds(ids: string[]) {
+    return Promise.resolve(ids.flatMap((id) => this.jobs.get(id) ?? []));
+  }
+
+  findJobById(id: string) {
+    return Promise.resolve(this.jobs.get(id) ?? null);
+  }
+
+  listGenericMatchSources(ws: string): Promise<GenericMatchSourceRow[]> {
+    return Promise.resolve(
+      this.matches
+        .filter((m) => m.workspaceId === ws && !m.resumeProfileId)
+        .map((m) => ({
+          jobId: m.jobId,
+          overallScore: m.overallScore,
+          matcherVersion: m.matcherVersion ?? null,
+          profileVersion: m.profileVersion ?? null,
+          jobUpdatedAt: m.jobUpdatedAt ?? null,
+          resumeProfileUpdatedAt: m.resumeProfileUpdatedAt ?? null,
+          weightsKey: m.weightsKey ?? null,
+        })),
+    );
+  }
+
+  findGenericMatchesForJobs(ws: string, ids: string[]) {
+    return Promise.resolve(
+      new Map(
+        this.matches
+          .filter(
+            (m) =>
+              m.workspaceId === ws &&
+              !m.resumeProfileId &&
+              ids.includes(m.jobId),
+          )
+          .map((m) => [m.jobId, m]),
+      ),
+    );
+  }
+
+  private toStored(
+    ws: string,
+    jobId: string,
+    output: MatchOutput,
+    source: MatchSource & { resumeProfileId?: string },
+  ): StoredJobMatch {
+    return {
+      id: `m-${ws}-${jobId}-${source.resumeProfileId ?? 'generic'}`,
+      jobId,
+      workspaceId: ws,
+      resumeProfileId: source.resumeProfileId,
+      overallScore: output.overallScore,
+      skillScore: output.dimensionScores.skill,
+      roleScore: output.dimensionScores.role,
+      experienceScore: output.dimensionScores.experience,
+      locationScore: output.dimensionScores.location,
+      seniorityScore: output.dimensionScores.seniority,
+      matchedSkills: output.matchedSkills,
+      missingSkills: output.missingSkills,
+      confidence: output.confidence,
+      explanation: output.explanation,
+      evidence: output.evidence,
+      profileVersion: source.profileVersion,
+      matcherVersion: source.matcherVersion,
+      jobUpdatedAt: source.jobUpdatedAt,
+      resumeProfileUpdatedAt: source.resumeProfileUpdatedAt,
+      weightsKey: source.weightsKey,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+  }
+
+  replaceGenericMatches(
+    ws: string,
+    entries: { jobId: string; output: MatchOutput; source: MatchSource }[],
+  ) {
+    this.replaceCalls.push(entries.map((e) => e.jobId));
+    const ids = new Set(entries.map((e) => e.jobId));
+    this.matches = this.matches.filter(
+      (m) => !(m.workspaceId === ws && !m.resumeProfileId && ids.has(m.jobId)),
+    );
+    for (const e of entries)
+      this.matches.push(this.toStored(ws, e.jobId, e.output, e.source));
+    return Promise.resolve();
+  }
+
+  upsertJobMatch(
+    jobId: string,
+    ws: string,
+    output: MatchOutput,
+    source: MatchSource & { resumeProfileId?: string },
+  ) {
+    const rp = source.resumeProfileId;
+    this.matches = this.matches.filter(
+      (m) =>
+        !(
+          m.workspaceId === ws &&
+          m.jobId === jobId &&
+          m.resumeProfileId === rp
+        ),
+    );
+    const stored = this.toStored(ws, jobId, output, source);
+    this.matches.push(stored);
+    return Promise.resolve(stored);
+  }
+
+  findJobMatch(jobId: string, ws: string, rp?: string) {
+    return Promise.resolve(
+      this.matches.find(
+        (m) =>
+          m.workspaceId === ws && m.jobId === jobId && m.resumeProfileId === rp,
+      ) ?? null,
+    );
+  }
+
+  findWorkspaceJobState(ws: string, jobId: string) {
+    return Promise.resolve(this.states.get(`${ws}:${jobId}`) ?? null);
+  }
+
+  findWorkspaceStatesForJobs(ws: string, ids: string[]) {
+    return Promise.resolve(
+      new Map(
+        ids.flatMap((id) => {
+          const s = this.states.get(`${ws}:${id}`);
+          return s ? [[id, s] as const] : [];
+        }),
+      ),
+    );
+  }
+
+  upsertWorkspaceJobState(
+    ws: string,
+    jobId: string,
+    data: Omit<Partial<WorkspaceJobState>, 'appliedAt'> & {
+      appliedAt?: Date | null;
+    },
+  ) {
+    const key = `${ws}:${jobId}`;
+    const prev = this.states.get(key);
+    const next: WorkspaceJobState = {
+      id: prev?.id ?? `s-${key}`,
+      workspaceId: ws,
+      jobId,
+      status: data.status ?? prev?.status ?? 'discovered',
+      isSaved: data.isSaved ?? prev?.isSaved ?? false,
+      isDismissed: data.isDismissed ?? prev?.isDismissed ?? false,
+      notes: data.notes ?? prev?.notes,
+      appliedAt:
+        data.appliedAt === undefined
+          ? prev?.appliedAt
+          : (data.appliedAt?.toISOString() ?? undefined),
+      createdAt: prev?.createdAt ?? '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+    this.states.set(key, next);
+    return Promise.resolve(next);
+  }
+}
+
+const WS = 'ws-1';
+const OTHER_WS = 'ws-2';
+
+const master = (version = 1): MasterCareerProfile => ({
+  id: 'prof-1',
+  workspaceId: WS,
+  version,
+  createdAt: '2026-08-18T00:00:00.000Z',
+  updatedAt: '2026-08-18T00:00:00.000Z',
+  identity: { fullName: 'Jane Developer', location: 'Remote' },
+  skills: [
+    { id: 'sk-1', name: 'TypeScript' },
+    { id: 'sk-2', name: 'React' },
+    { id: 'sk-3', name: 'Node.js' },
+  ],
+  technologies: [],
+  experiences: [
+    {
+      id: 'exp-1',
+      company: 'Acme',
+      title: 'Software Engineer',
+      startDate: '2021-01',
+      endDate: '2024-01',
+      technologies: ['TypeScript'],
+    },
+  ],
+  projects: [
+    { id: 'proj-1', name: 'SaaS', technologies: ['TypeScript', 'Node.js'] },
+  ],
+  education: [],
+  achievements: [],
+  publications: [],
+  hackathons: [],
+  certifications: [],
+  links: [],
+});
+
+let seq = 0;
+const job = (overrides: Partial<CanonicalJob> = {}): CanonicalJob => {
+  seq += 1;
+  const n = String(seq).padStart(4, '0');
+  return {
+    id: `00000000-0000-4000-8000-00000000${n}`,
+    source: 'manual',
+    company: `Co ${n}`,
+    title: 'Software Engineer',
+    location: 'Remote',
+    isRemote: true,
+    requiredSkills: ['COBOL', 'Fortran'],
+    preferredSkills: [],
+    isNormalized: true,
+    postedAt: '2026-08-01T00:00:00.000Z',
+    createdAt: '2026-08-01T00:00:00.000Z',
+    updatedAt: '2026-08-01T00:00:00.000Z',
+    ...overrides,
+  };
+};
+
+const resumeProfile = (
+  overrides: Partial<ResumeProfile> = {},
+): ResumeProfile => ({
+  id: 'rp-a',
+  workspaceId: WS,
+  name: 'SDE Resume',
+  roleFocus: 'TypeScript Engineer',
+  visibleSections: [],
+  sectionOrder: [],
+  highlightRules: [],
+  priorityProjectIds: [],
+  prioritySkillIds: [],
+  priorityExperienceIds: [],
+  priorityAchievementIds: [],
+  priorityCertificationIds: [],
+  styleSettings: {},
+  createdAt: '2026-08-18T00:00:00.000Z',
+  updatedAt: '2026-08-18T00:00:00.000Z',
+  ...overrides,
+});
+
 describe('JobsService', () => {
+  let repo: FakeJobsRepository;
   let service: JobsService;
-  let mockRepository: {
-    listJobs: jest.Mock;
-    findJobById: jest.Mock;
-    upsertCanonicalJob: jest.Mock;
-    upsertJobMatch: jest.Mock;
-    findJobMatch: jest.Mock;
-    listJobMatchesForWorkspace: jest.Mock;
-    upsertWorkspaceJobState: jest.Mock;
-    findWorkspaceJobState: jest.Mock;
-    findWorkspaceStatesForJobs: jest.Mock;
-  };
-  let mockCareerProfileService: {
-    findByWorkspace: jest.Mock;
-  };
-  let mockResumeProfileService: {
+  let masterProfile: MasterCareerProfile | undefined;
+  let careerProfileService: { findByWorkspace: jest.Mock };
+  let resumeProfileService: {
     findById: jest.Mock;
     listByWorkspace: jest.Mock;
     create: jest.Mock;
     createVersion: jest.Mock;
   };
-  let mockIngestionService: {
-    ingest: jest.Mock;
-  };
-  let mockApplicationsService: {
-    hasAppliedToJob: jest.Mock;
+  let applicationsService: {
+    getAppliedMirror: jest.Mock;
     markApplied: jest.Mock;
-  };
-  let matchingService: JobMatchingService;
-  let jobAnalysisService: JobAnalysisService;
-
-  const workspaceId = 'ws-test-123';
-
-  const sampleMasterProfile: MasterCareerProfile = {
-    id: 'prof-1',
-    workspaceId,
-    version: 1,
-    createdAt: '2026-08-18T00:00:00.000Z',
-    updatedAt: '2026-08-18T00:00:00.000Z',
-    identity: {
-      fullName: 'Jane Developer',
-      location: 'San Francisco, CA',
-    },
-    skills: [
-      { id: 'sk-1', name: 'TypeScript' },
-      { id: 'sk-2', name: 'Node.js' },
-      { id: 'sk-3', name: 'React' },
-    ],
-    technologies: [
-      { id: 'tech-1', name: 'TypeScript' },
-      { id: 'tech-2', name: 'PostgreSQL' },
-    ],
-    experiences: [
-      {
-        id: 'exp-1',
-        company: 'Acme Corp',
-        title: 'Full Stack Engineer',
-        startDate: '2022-01-01',
-        endDate: '2024-01-01',
-        technologies: ['TypeScript', 'React'],
-      },
-    ],
-    projects: [
-      {
-        id: 'proj-1',
-        name: 'Open Source SaaS',
-        technologies: ['TypeScript', 'Node.js'],
-      },
-    ],
-    education: [],
-    achievements: [],
-    publications: [],
-    hackathons: [],
-    certifications: [],
-    links: [],
-  };
-
-  const sampleJobA: CanonicalJob = {
-    id: 'job-a',
-    company: 'Stripe',
-    title: 'Senior TypeScript Engineer',
-    location: 'San Francisco, CA',
-    isRemote: true,
-    requiredSkills: ['TypeScript', 'Node.js', 'React'],
-    preferredSkills: ['PostgreSQL'],
-    source: 'manual',
-    createdAt: '2026-08-18T00:00:00.000Z',
-    updatedAt: '2026-08-18T00:00:00.000Z',
-  };
-
-  const sampleJobB: CanonicalJob = {
-    id: 'job-b',
-    company: 'OldCo',
-    title: 'C++ Systems Programmer',
-    location: 'Munich, Germany',
-    isRemote: false,
-    requiredSkills: ['C++', 'Assembly', 'Rust'],
-    preferredSkills: ['Linux Kernel'],
-    source: 'manual',
-    createdAt: '2026-08-18T00:00:00.000Z',
-    updatedAt: '2026-08-18T00:00:00.000Z',
   };
 
   beforeEach(() => {
-    matchingService = new JobMatchingService();
-    jobAnalysisService = new JobAnalysisService();
-
-    mockRepository = {
-      listJobs: jest.fn(),
-      findJobById: jest.fn(),
-      upsertCanonicalJob: jest.fn(),
-      upsertJobMatch: jest.fn(),
-      findJobMatch: jest.fn(),
-      listJobMatchesForWorkspace: jest.fn(),
-      upsertWorkspaceJobState: jest.fn(),
-      findWorkspaceJobState: jest.fn(),
-      findWorkspaceStatesForJobs: jest.fn(),
+    seq = 0;
+    repo = new FakeJobsRepository();
+    masterProfile = master();
+    careerProfileService = {
+      findByWorkspace: jest.fn(() => Promise.resolve(masterProfile)),
     };
-
-    mockCareerProfileService = {
-      findByWorkspace: jest.fn(),
-    };
-
-    mockResumeProfileService = {
+    resumeProfileService = {
       findById: jest.fn(),
-      listByWorkspace: jest.fn(),
+      listByWorkspace: jest.fn().mockResolvedValue([]),
       create: jest.fn(),
       createVersion: jest.fn(),
     };
-
-    mockIngestionService = {
-      ingest: jest.fn(),
-    };
-
-    mockApplicationsService = {
-      hasAppliedToJob: jest.fn().mockResolvedValue(false),
+    applicationsService = {
+      getAppliedMirror: jest.fn().mockResolvedValue(null),
       markApplied: jest.fn(),
     };
-
     service = new JobsService(
-      mockRepository as unknown as PrismaJobsRepository,
-      matchingService,
-      jobAnalysisService,
-      mockCareerProfileService as unknown as CareerProfileService,
-      mockResumeProfileService as unknown as ResumeProfileService,
-      mockIngestionService as unknown as JobIngestionService,
-      mockApplicationsService as unknown as ApplicationsService,
+      repo as unknown as PrismaJobsRepository,
+      new JobMatchingService(),
+      new JobAnalysisService(),
+      careerProfileService as unknown as CareerProfileService,
+      resumeProfileService as unknown as ResumeProfileService,
+      {} as JobIngestionService,
+      applicationsService as unknown as ApplicationsService,
     );
   });
 
-  describe('ensureJobMatches and listByWorkspace', () => {
-    it('automatically matches unmatched jobs and sorts results by overall score descending', async () => {
-      mockRepository.listJobs.mockResolvedValue([sampleJobB, sampleJobA]);
-      mockCareerProfileService.findByWorkspace.mockResolvedValue(
-        sampleMasterProfile,
-      );
-      mockRepository.listJobMatchesForWorkspace.mockResolvedValue([]);
-      mockRepository.findWorkspaceStatesForJobs.mockResolvedValue(new Map());
-
-      mockRepository.upsertJobMatch.mockImplementation(
-        async (
-          jobId: string,
-          wsId: string,
-          output: {
-            overallScore: number;
-            dimensionScores: {
-              skill: number;
-              role: number;
-              experience: number;
-              location: number;
-              seniority: number;
-            };
-            matchedSkills: string[];
-            missingSkills: string[];
-            confidence: number;
-            explanation: string;
-            evidence: null;
-          },
-          _profileId?: string,
-          profileVersion?: number,
-        ) => {
-          return Promise.resolve({
-            id: `match-${jobId}`,
-            jobId,
-            workspaceId: wsId,
-            overallScore: output.overallScore,
-            skillScore: output.dimensionScores.skill,
-            roleScore: output.dimensionScores.role,
-            experienceScore: output.dimensionScores.experience,
-            locationScore: output.dimensionScores.location,
-            seniorityScore: output.dimensionScores.seniority,
-            matchedSkills: output.matchedSkills,
-            missingSkills: output.missingSkills,
-            confidence: output.confidence,
-            explanation: output.explanation,
-            evidence: output.evidence,
-            profileVersion,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          });
-        },
-      );
-
-      const result = await service.listByWorkspace(workspaceId);
-
-      expect(result.length).toBe(2);
-      // Job A (High TypeScript match) should be ranked higher than Job B (C++)
-      expect(result[0].id).toBe('job-a');
-      expect(result[1].id).toBe('job-b');
-      expect(result[0].matchScore).toBeGreaterThan(result[1].matchScore ?? 0);
-      expect(mockRepository.upsertJobMatch).toHaveBeenCalledTimes(2);
-    });
-
-    it('respects maxBatchSize bound in ensureJobMatches', async () => {
-      const manyJobs: CanonicalJob[] = Array.from({ length: 10 }, (_, i) => ({
-        ...sampleJobA,
-        id: `job-${String(i)}`,
-      }));
-
-      mockCareerProfileService.findByWorkspace.mockResolvedValue(
-        sampleMasterProfile,
-      );
-      mockRepository.listJobMatchesForWorkspace.mockResolvedValue([]);
-      mockRepository.upsertJobMatch.mockImplementation((jobId: string) =>
-        Promise.resolve({
-          id: `m-${jobId}`,
-          jobId,
-          workspaceId,
-          overallScore: 0.9,
-          skillScore: 1,
-          roleScore: 1,
-          experienceScore: 1,
-          locationScore: 1,
-          seniorityScore: 1,
-          matchedSkills: ['TypeScript'],
-          missingSkills: [],
-          confidence: 1,
-          explanation: 'Fit',
-          evidence: null,
-          profileVersion: 1,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }),
-      );
-
-      // Bound to 3 matches max
-      const matchMap = await service.ensureJobMatches(workspaceId, manyJobs, 3);
-
-      expect(mockRepository.upsertJobMatch).toHaveBeenCalledTimes(3);
-      expect(matchMap.size).toBe(3);
-    });
-
-    it('recalculates matches when stored match profileVersion is stale', async () => {
-      const staleMasterProfile: MasterCareerProfile = {
-        ...sampleMasterProfile,
-        version: 2, // User updated their profile to version 2
-      };
-
-      mockCareerProfileService.findByWorkspace.mockResolvedValue(
-        staleMasterProfile,
-      );
-
-      const existingStaleMatch: StoredJobMatch = {
-        id: 'match-stale-a',
-        jobId: 'job-a',
-        workspaceId,
-        overallScore: 0.5,
-        skillScore: 0.5,
-        roleScore: 0.5,
-        experienceScore: 0.5,
-        locationScore: 0.5,
-        seniorityScore: 0.5,
-        matchedSkills: [],
-        missingSkills: [],
-        confidence: 1,
-        explanation: 'Old match',
-        evidence: null,
-        profileVersion: 1, // Computed against version 1 -> Stale!
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      mockRepository.listJobMatchesForWorkspace.mockResolvedValue([
-        existingStaleMatch,
-      ]);
-      mockRepository.upsertJobMatch.mockResolvedValue({
-        ...existingStaleMatch,
-        profileVersion: 2,
-        overallScore: 0.95,
+  // ── Area 6: ranking, pagination, filtering ───────────────────────────────
+  describe('Job Radar ranking and pagination', () => {
+    it('a strong match that is oldest by date outranks 55 newer non-matches (ranked before paging)', async () => {
+      for (let i = 0; i < 55; i++) {
+        repo.addJob(
+          job({
+            postedAt: `2026-09-${String(10 + (i % 18)).padStart(2, '0')}T00:00:00.000Z`,
+          }),
+        );
+      }
+      const strong = job({
+        title: 'TypeScript Engineer',
+        requiredSkills: ['TypeScript', 'React'],
+        postedAt: '2025-01-01T00:00:00.000Z',
       });
+      repo.addJob(strong);
 
-      const matchMap = await service.ensureJobMatches(workspaceId, [
-        sampleJobA,
-      ]);
+      const page1 = await service.listByWorkspace(WS, { limit: 50, offset: 0 });
 
-      // Should have recomputed and upserted with version 2
-      expect(mockRepository.upsertJobMatch).toHaveBeenCalledWith(
-        'job-a',
-        workspaceId,
-        expect.any(Object),
-        undefined,
-        2,
-      );
-      expect(matchMap.get('job-a')?.profileVersion).toBe(2);
+      expect(page1).toHaveLength(50);
+      expect(page1[0]?.id).toBe(strong.id);
+      // Fit was computed for the whole candidate set, not just one page.
+      expect(repo.matches.filter((m) => m.workspaceId === WS)).toHaveLength(56);
+    });
+
+    it('pages partition the single global ranking (no gaps, no duplicates)', async () => {
+      for (let i = 0; i < 23; i++) {
+        repo.addJob(
+          job({
+            requiredSkills: i % 3 === 0 ? ['TypeScript'] : ['COBOL'],
+            postedAt:
+              i % 4 === 0
+                ? undefined
+                : `2026-08-${String(1 + i).padStart(2, '0')}T00:00:00.000Z`,
+          }),
+        );
+      }
+      const all = await service.listByWorkspace(WS, { limit: 100 });
+      const paged = [
+        ...(await service.listByWorkspace(WS, { limit: 10, offset: 0 })),
+        ...(await service.listByWorkspace(WS, { limit: 10, offset: 10 })),
+        ...(await service.listByWorkspace(WS, { limit: 10, offset: 20 })),
+      ];
+      expect(paged.map((j) => j.id)).toEqual(all.map((j) => j.id));
+      expect(new Set(paged.map((j) => j.id)).size).toBe(23);
+    });
+
+    it('ties are broken by postedAt desc, NULL postedAt last, then createdAt desc, then id', async () => {
+      const a = job({ postedAt: '2026-08-02T00:00:00.000Z' });
+      const nullOld = job({
+        postedAt: undefined,
+        createdAt: '2026-01-01T00:00:00.000Z',
+      });
+      const b = job({ postedAt: '2026-08-05T00:00:00.000Z' });
+      const nullNew = job({
+        postedAt: undefined,
+        createdAt: '2026-06-01T00:00:00.000Z',
+      });
+      const sameA = job({ postedAt: '2026-08-02T00:00:00.000Z' }); // same score + date as a → id decides
+      // Insert in scrambled order; output must not depend on it.
+      for (const j of [nullOld, sameA, b, nullNew, a]) repo.addJob(j);
+
+      const first = (await service.listByWorkspace(WS)).map((j) => j.id);
+      repo.jobs = new Map([...repo.jobs.entries()].reverse());
+      const second = (await service.listByWorkspace(WS)).map((j) => j.id);
+
+      expect(first).toEqual([b.id, a.id, sameA.id, nullNew.id, nullOld.id]);
+      expect(second).toEqual(first);
+    });
+
+    it('filters are applied to the whole catalog: a saved job ranked beyond page 1 is returned', async () => {
+      for (let i = 0; i < 70; i++)
+        repo.addJob(
+          job({ requiredSkills: i < 60 ? ['TypeScript'] : ['COBOL'] }),
+        );
+      const lowRanked = [...repo.jobs.values()][65];
+      await service.saveJob(WS, lowRanked.id);
+
+      const saved = await service.listByWorkspace(WS, { savedOnly: true });
+      expect(saved.map((j) => j.id)).toEqual([lowRanked.id]);
+
+      await service.dismissJob(WS, [...repo.jobs.values()][0].id);
+      const visible = await service.listByWorkspace(WS, {
+        hideDismissed: true,
+        limit: 100,
+      });
+      expect(visible).toHaveLength(69);
+    });
+
+    it('without a master profile no scores are shown and nothing is persisted', async () => {
+      masterProfile = undefined;
+      repo.addJob(job());
+      const list = await service.listByWorkspace(WS);
+      expect(list[0]?.match).toBeUndefined();
+      expect(repo.matches).toHaveLength(0);
     });
   });
 
-  describe('Workspace Job State Actions', () => {
-    it('saves a job successfully', async () => {
-      mockRepository.findJobById.mockResolvedValue(sampleJobA);
-      mockRepository.upsertWorkspaceJobState.mockResolvedValue({
-        id: 'state-1',
-        workspaceId,
-        jobId: sampleJobA.id,
-        status: 'saved',
-        isSaved: true,
-        isDismissed: false,
-        createdAt: '2026-08-18T00:00:00.000Z',
-        updatedAt: '2026-08-18T00:00:00.000Z',
-      });
-      mockRepository.findJobMatch.mockResolvedValue(null);
-      mockRepository.findWorkspaceJobState.mockResolvedValue({
-        id: 'state-1',
-        workspaceId,
-        jobId: sampleJobA.id,
-        status: 'saved',
-        isSaved: true,
-        isDismissed: false,
-        createdAt: '2026-08-18T00:00:00.000Z',
-        updatedAt: '2026-08-18T00:00:00.000Z',
-      });
-
-      const opp = await service.saveJob(workspaceId, sampleJobA.id);
-
-      expect(mockRepository.upsertWorkspaceJobState).toHaveBeenCalledWith(
-        workspaceId,
-        sampleJobA.id,
-        { isSaved: true, status: 'saved' },
-      );
-      expect(opp.workspaceState?.isSaved).toBe(true);
+  // ── Area 3: JobMatch freshness ───────────────────────────────────────────
+  describe('match freshness', () => {
+    it('computes and records the exact inputs for a new workspace', async () => {
+      const j = job();
+      repo.addJob(j);
+      await service.listByWorkspace(WS);
+      const stored = repo.matches[0];
+      expect(stored.matcherVersion).toBe(MATCHER_VERSION);
+      expect(stored.profileVersion).toBe(1);
+      expect(stored.jobUpdatedAt?.toISOString()).toBe(j.updatedAt);
+      expect(stored.weightsKey).toBe('default');
     });
 
-    it('dismisses and restores a job successfully', async () => {
-      mockRepository.findJobById.mockResolvedValue(sampleJobA);
-      mockRepository.upsertWorkspaceJobState.mockResolvedValue({
-        id: 'state-1',
-        workspaceId,
-        jobId: sampleJobA.id,
-        status: 'dismissed',
-        isSaved: false,
-        isDismissed: true,
-        createdAt: '2026-08-18T00:00:00.000Z',
-        updatedAt: '2026-08-18T00:00:00.000Z',
-      });
-      mockRepository.findJobMatch.mockResolvedValue(null);
-      mockRepository.findWorkspaceJobState.mockResolvedValue({
-        id: 'state-1',
-        workspaceId,
-        jobId: sampleJobA.id,
-        status: 'dismissed',
-        isSaved: false,
-        isDismissed: true,
-        createdAt: '2026-08-18T00:00:00.000Z',
-        updatedAt: '2026-08-18T00:00:00.000Z',
+    it('reuses fresh matches and recomputes when the master profile version changes', async () => {
+      repo.addJob(job());
+      await service.listByWorkspace(WS);
+      await service.listByWorkspace(WS);
+      expect(repo.replaceCalls).toHaveLength(1);
+
+      masterProfile = master(2);
+      await service.listByWorkspace(WS);
+      expect(repo.replaceCalls).toHaveLength(2);
+      expect(repo.matches[0]?.profileVersion).toBe(2);
+    });
+
+    it('recomputes only the job whose data changed (re-ingestion)', async () => {
+      const a = job();
+      const b = job();
+      repo.addJob(a);
+      repo.addJob(b);
+      await service.listByWorkspace(WS);
+      repo.addJob({
+        ...b,
+        requiredSkills: ['TypeScript'],
+        updatedAt: '2026-09-01T00:00:00.000Z',
       });
 
-      const dismissed = await service.dismissJob(workspaceId, sampleJobA.id);
-      expect(dismissed.workspaceState?.isDismissed).toBe(true);
+      const list = await service.listByWorkspace(WS);
+      expect(repo.replaceCalls.at(-1)).toEqual([b.id]);
+      expect(list.find((j) => j.id === b.id)?.match?.matchedSkills).toEqual([
+        'typescript',
+      ]);
+    });
 
-      mockRepository.findWorkspaceJobState.mockResolvedValue({
-        id: 'state-1',
-        workspaceId,
-        jobId: sampleJobA.id,
+    it.each([
+      ['missing profile version (legacy)', { profileVersion: null }],
+      ['missing matcher version (legacy)', { matcherVersion: null }],
+      ['older matcher version', { matcherVersion: MATCHER_VERSION - 1 }],
+      ['custom weights', { weightsKey: '[["skill",1]]' }],
+    ])('treats a stored match with %s as stale', async (_label, patch) => {
+      const j = job({ requiredSkills: ['TypeScript'] });
+      repo.addJob(j);
+      await service.listByWorkspace(WS);
+      Object.assign(repo.matches[0], patch, { overallScore: 0.01 });
+
+      const list = await service.listByWorkspace(WS);
+      expect(repo.replaceCalls).toHaveLength(2);
+      expect(list[0]?.match?.overallScore).not.toBe(0.01);
+    });
+
+    it("never uses another workspace's matches", async () => {
+      const j = job();
+      repo.addJob(j);
+      repo.matches.push({
+        ...(await (async () => {
+          await service.listByWorkspace(WS);
+          return repo.matches[0];
+        })()),
+        workspaceId: OTHER_WS,
+        overallScore: 0.99,
+      });
+      repo.matches = repo.matches.filter((m) => m.workspaceId === OTHER_WS);
+
+      const list = await service.listByWorkspace(WS);
+      expect(list[0]?.match?.overallScore).not.toBe(0.99);
+      expect(repo.matches.filter((m) => m.workspaceId === WS)).toHaveLength(1);
+    });
+
+    it('profile-specific matches are separate per resume profile and record the profile state', async () => {
+      const j = job({ requiredSkills: ['TypeScript'] });
+      repo.addJob(j);
+      const rpA = resumeProfile({
+        id: 'rp-a',
+        updatedAt: '2026-09-01T00:00:00.000Z',
+      });
+      const rpB = resumeProfile({
+        id: 'rp-b',
+        roleFocus: 'Nurse',
+        updatedAt: '2026-09-02T00:00:00.000Z',
+      });
+      resumeProfileService.findById.mockImplementation(
+        (_ws: string, id: string) =>
+          Promise.resolve(
+            id === 'rp-a' ? rpA : id === 'rp-b' ? rpB : undefined,
+          ),
+      );
+
+      const a = await service.computeAndPersistMatch(j.id, WS, 'rp-a');
+      const b = await service.computeAndPersistMatch(j.id, WS, 'rp-b');
+      await service.listByWorkspace(WS);
+
+      expect(a.match?.resumeProfileId).toBe('rp-a');
+      expect(b.match?.resumeProfileId).toBe('rp-b');
+      const rows = repo.matches.filter((m) => m.jobId === j.id);
+      expect(rows.map((m) => m.resumeProfileId ?? 'generic').sort()).toEqual([
+        'generic',
+        'rp-a',
+        'rp-b',
+      ]);
+      expect(
+        rows
+          .find((m) => m.resumeProfileId === 'rp-a')
+          ?.resumeProfileUpdatedAt?.toISOString(),
+      ).toBe(rpA.updatedAt);
+    });
+
+    it('404s for a resume profile outside the workspace and persists nothing', async () => {
+      const j = job();
+      repo.addJob(j);
+      resumeProfileService.findById.mockResolvedValue(undefined);
+      await expect(
+        service.computeAndPersistMatch(j.id, WS, 'rp-foreign'),
+      ).rejects.toThrow(NotFoundException);
+      expect(repo.matches).toHaveLength(0);
+    });
+  });
+
+  // ── Area 1: Job Radar state invariant ────────────────────────────────────
+  describe('Job Radar state', () => {
+    it('save / dismiss / restore / unsave derive status from the flags', async () => {
+      const j = job();
+      repo.addJob(j);
+      expect((await service.saveJob(WS, j.id)).workspaceState?.status).toBe(
+        'saved',
+      );
+      const dismissed = await service.dismissJob(WS, j.id);
+      expect(dismissed.workspaceState).toMatchObject({
+        status: 'dismissed',
+        isSaved: true,
+        isDismissed: true,
+      });
+      expect((await service.restoreJob(WS, j.id)).workspaceState?.status).toBe(
+        'saved',
+      );
+      const unsaved = await service.updateJobState(WS, j.id, {
+        isSaved: false,
+      });
+      expect(unsaved.workspaceState).toMatchObject({
         status: 'discovered',
         isSaved: false,
-        isDismissed: false,
-        createdAt: '2026-08-18T00:00:00.000Z',
-        updatedAt: '2026-08-18T00:00:00.000Z',
       });
-
-      const restored = await service.restoreJob(workspaceId, sampleJobA.id);
-      expect(restored.workspaceState?.isDismissed).toBe(false);
     });
 
-    it('updates job notes and status', async () => {
-      mockRepository.findJobById.mockResolvedValue(sampleJobA);
-      mockRepository.findJobMatch.mockResolvedValue(null);
-      mockRepository.findWorkspaceJobState.mockResolvedValue({
-        id: 'state-1',
-        workspaceId,
-        jobId: sampleJobA.id,
+    it('an applied Application always wins and its appliedAt is mirrored', async () => {
+      const j = job();
+      repo.addJob(j);
+      applicationsService.getAppliedMirror.mockResolvedValue({
+        appliedAt: new Date('2026-09-01T00:00:00.000Z'),
+      });
+      await service.saveJob(WS, j.id);
+      await service.dismissJob(WS, j.id);
+      const state = (
+        await service.updateJobState(WS, j.id, {
+          isSaved: false,
+          status: 'discovered',
+        })
+      ).workspaceState;
+      expect(state).toMatchObject({
+        status: 'applied',
+        isSaved: false,
+        isDismissed: false,
+        appliedAt: '2026-09-01T00:00:00.000Z',
+      });
+    });
+
+    it('maps the legacy status field onto flags; explicit flags take precedence', async () => {
+      const j = job();
+      repo.addJob(j);
+      await service.updateJobState(WS, j.id, { status: 'dismissed' });
+      expect(repo.states.get(`${WS}:${j.id}`)).toMatchObject({
+        isDismissed: true,
+        status: 'dismissed',
+      });
+      await service.updateJobState(WS, j.id, {
         status: 'saved',
+        isDismissed: false,
+      });
+      expect(repo.states.get(`${WS}:${j.id}`)).toMatchObject({
         isSaved: true,
         isDismissed: false,
-        notes: 'Followed up with recruiter on LinkedIn',
-        createdAt: '2026-08-18T00:00:00.000Z',
-        updatedAt: '2026-08-18T00:00:00.000Z',
-      });
-
-      const updated = await service.updateJobState(workspaceId, sampleJobA.id, {
         status: 'saved',
-        notes: 'Followed up with recruiter on LinkedIn',
       });
-
-      expect(mockRepository.upsertWorkspaceJobState).toHaveBeenCalledWith(
-        workspaceId,
-        sampleJobA.id,
-        {
-          status: 'saved',
-          isSaved: undefined,
-          notes: 'Followed up with recruiter on LinkedIn',
-        },
-      );
-      expect(updated.workspaceState?.notes).toBe(
-        'Followed up with recruiter on LinkedIn',
-      );
-      expect(updated.workspaceState?.status).toBe('saved');
+      await service.updateJobState(WS, j.id, { notes: 'call back' });
+      expect(repo.states.get(`${WS}:${j.id}`)).toMatchObject({
+        notes: 'call back',
+        status: 'saved',
+      });
     });
 
-    it('unsaving clears isSaved (previously ignored)', async () => {
-      mockRepository.findJobById.mockResolvedValue(sampleJobA);
-      mockRepository.findJobMatch.mockResolvedValue(null);
-      mockRepository.findWorkspaceJobState.mockResolvedValue(null);
-
-      await service.updateJobState(workspaceId, sampleJobA.id, {
-        isSaved: false,
-        status: 'discovered',
-      });
-
-      expect(mockRepository.upsertWorkspaceJobState).toHaveBeenCalledWith(
-        workspaceId,
-        sampleJobA.id,
-        { status: 'discovered', isSaved: false, notes: undefined },
-      );
-    });
-
-    it.each(['interview', 'offer', 'rejected'] as const)(
-      'rejects application-owned stage %p on job state',
+    it.each(['interview', 'offer', 'rejected', 'nonsense'])(
+      'rejects status %p on job state',
       async (status) => {
-        mockRepository.findJobById.mockResolvedValue(sampleJobA);
+        const j = job();
+        repo.addJob(j);
         await expect(
-          service.updateJobState(workspaceId, sampleJobA.id, { status }),
+          service.updateJobState(WS, j.id, { status }),
         ).rejects.toThrow(BadRequestException);
-        expect(mockRepository.upsertWorkspaceJobState).not.toHaveBeenCalled();
+        expect(repo.states.size).toBe(0);
       },
     );
 
-    it('never downgrades an applied job when saving, dismissing, or setting status', async () => {
-      mockRepository.findJobById.mockResolvedValue(sampleJobA);
-      mockRepository.findJobMatch.mockResolvedValue(null);
-      mockRepository.findWorkspaceJobState.mockResolvedValue(null);
-      mockApplicationsService.hasAppliedToJob.mockResolvedValue(true);
-
-      await service.saveJob(workspaceId, sampleJobA.id);
-      await service.dismissJob(workspaceId, sampleJobA.id);
-      await service.updateJobState(workspaceId, sampleJobA.id, {
-        isSaved: false,
-        status: 'discovered',
-      });
-
-      const calls = mockRepository.upsertWorkspaceJobState.mock.calls as [
-        string,
-        string,
-        { status?: string },
-      ][];
-      const statuses = calls.map((call) => call[2].status);
-      expect(statuses).toEqual(['applied', 'applied', 'applied']);
-    });
-
-    it('status "applied" via job state creates/advances the Application', async () => {
-      mockRepository.findJobById.mockResolvedValue(sampleJobA);
-      mockRepository.findJobMatch.mockResolvedValue(null);
-      mockRepository.findWorkspaceJobState.mockResolvedValue(null);
-
-      await service.updateJobState(workspaceId, sampleJobA.id, {
+    it('status "applied" goes through the Application CRM', async () => {
+      const j = job();
+      repo.addJob(j);
+      await service.updateJobState(WS, j.id, {
         status: 'applied',
         appliedAt: '2026-09-01T00:00:00.000Z',
       });
+      expect(applicationsService.markApplied).toHaveBeenCalledWith(WS, j.id, {
+        appliedAt: new Date('2026-09-01T00:00:00.000Z'),
+      });
+    });
 
-      expect(mockApplicationsService.markApplied).toHaveBeenCalledWith(
-        workspaceId,
-        sampleJobA.id,
-        { appliedAt: new Date('2026-09-01T00:00:00.000Z') },
-      );
-      expect(mockRepository.upsertWorkspaceJobState).not.toHaveBeenCalled();
+    it('rejects appliedAt without status "applied"', async () => {
+      const j = job();
+      repo.addJob(j);
+      await expect(
+        service.updateJobState(WS, j.id, { appliedAt: '2026-09-01' }),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('applyToJob delegates to the Application CRM with the resume profile', async () => {
-      mockRepository.findJobById.mockResolvedValue(sampleJobA);
-      mockRepository.findJobMatch.mockResolvedValue(null);
-      mockRepository.findWorkspaceJobState.mockResolvedValue(null);
-
-      await service.applyToJob(workspaceId, sampleJobA.id, {
+      const j = job();
+      repo.addJob(j);
+      await service.applyToJob(WS, j.id, {
         resumeProfileId: 'rp-1',
-        notes: 'Referred by Sam',
+        notes: 'Referred',
       });
-
-      expect(mockApplicationsService.markApplied).toHaveBeenCalledWith(
-        workspaceId,
-        sampleJobA.id,
-        { resumeProfileId: 'rp-1', notes: 'Referred by Sam' },
-      );
+      expect(applicationsService.markApplied).toHaveBeenCalledWith(WS, j.id, {
+        resumeProfileId: 'rp-1',
+        notes: 'Referred',
+      });
     });
 
-    it('throws NotFoundException when interacting with nonexistent job', async () => {
-      mockRepository.findJobById.mockResolvedValue(null);
+    it('404s for a nonexistent job', async () => {
+      await expect(service.saveJob(WS, 'nope')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
 
-      await expect(service.saveJob(workspaceId, 'nonexistent')).rejects.toThrow(
+  // ── Pass 1 regressions: Job Detail and targeted resumes ──────────────────
+  describe('getJobDetail', () => {
+    it('returns the enriched JobOpportunity with a fresh match and state', async () => {
+      const j = job({ requiredSkills: ['TypeScript'] });
+      repo.addJob(j);
+      await service.saveJob(WS, j.id);
+      const detail = await service.getJobDetail(WS, j.id);
+      expect(detail.id).toBe(j.id);
+      expect(detail.match?.matchedSkills).toEqual(['typescript']);
+      expect(detail.match?.matcherVersion).toBe(MATCHER_VERSION);
+      expect(detail.workspaceState?.isSaved).toBe(true);
+    });
+
+    it('404s for an unknown job', async () => {
+      await expect(service.getJobDetail(WS, 'missing')).rejects.toThrow(
         NotFoundException,
       );
     });
   });
 
   describe('createTargetedResumeVersion', () => {
-    it('creates an immutable targeted ResumeVersion grounded on MasterCareerProfile matches', async () => {
-      mockRepository.findJobById.mockResolvedValue(sampleJobA);
-      mockCareerProfileService.findByWorkspace.mockResolvedValue(
-        sampleMasterProfile,
-      );
-      mockResumeProfileService.listByWorkspace.mockResolvedValue([
-        {
-          id: 'rp-1',
-          workspaceId,
-          name: 'General Software Profile',
-          visibleSections: ['identity', 'skills', 'experience', 'projects'],
-          sectionOrder: ['identity', 'skills', 'experience', 'projects'],
-          highlightRules: [],
-          priorityProjectIds: [],
-          prioritySkillIds: [],
-          priorityExperienceIds: [],
-          priorityAchievementIds: [],
-          priorityCertificationIds: [],
-          styleSettings: {},
-          createdAt: '2026-08-18T00:00:00.000Z',
-          updatedAt: '2026-08-18T00:00:00.000Z',
-        },
-      ]);
-
-      mockResumeProfileService.createVersion.mockImplementation(
-        async (
-          wsId: string,
-          rpId: string,
-          input: {
-            targetCompany?: string;
-            targetRole?: string;
-            outputFormat?: 'html' | 'latex' | 'pdf';
-            selectedRecordIds: {
-              skillIds: string[];
-              projectIds: string[];
-              experienceIds: string[];
-              achievementIds: string[];
-              certificationIds: string[];
-            };
-            jobAnalysisEvidence?: Record<string, unknown>;
-            matchResult?: Record<string, unknown>;
-            confidence?: number;
-            explanation?: string;
-            artifactMetadata?: Record<string, unknown>;
-          },
-        ) => {
-          return Promise.resolve({
-            id: 'ver-123',
-            workspaceId: wsId,
-            resumeProfileId: rpId,
-            targetCompany: input.targetCompany,
-            targetRole: input.targetRole,
-            outputFormat: input.outputFormat ?? 'html',
-            selectedRecordIds: input.selectedRecordIds,
-            masterProfileSnapshot: sampleMasterProfile,
-            jobAnalysisEvidence: input.jobAnalysisEvidence,
-            matchResult: input.matchResult,
-            confidence: input.confidence,
-            explanation: input.explanation,
-            artifactMetadata: input.artifactMetadata,
-            createdAt: '2026-08-18T00:00:00.000Z',
-          });
-        },
-      );
-
-      const result = await service.createTargetedResumeVersion(
-        sampleJobA.id,
-        workspaceId,
-      );
-
-      expect(result.version).toBeDefined();
-      expect(result.version.targetCompany).toBe('Stripe');
-      expect(result.version.targetRole).toBe('Senior TypeScript Engineer');
-      expect(result.version.selectedRecordIds.skillIds).toContain('sk-1'); // TypeScript skill selected
-      expect(result.analysis).toBeDefined();
-      expect(result.analysis.jobId).toBe('job-a');
-    });
-
-    it('rejects a supplied resume profile that does not exist in the workspace instead of substituting another', async () => {
-      mockRepository.findJobById.mockResolvedValue(sampleJobA);
-      mockCareerProfileService.findByWorkspace.mockResolvedValue(
-        sampleMasterProfile,
-      );
-      mockResumeProfileService.findById.mockResolvedValue(undefined);
-      mockResumeProfileService.listByWorkspace.mockResolvedValue([
-        { id: 'rp-other', name: 'Other' },
-      ]);
-
-      await expect(
-        service.createTargetedResumeVersion(
-          sampleJobA.id,
-          workspaceId,
-          'rp-missing',
-        ),
-      ).rejects.toThrow(NotFoundException);
-      expect(mockResumeProfileService.createVersion).not.toHaveBeenCalled();
-    });
-  });
-
-  // ── P1: Job Detail contract ─────────────────────────────────────────────
-  describe('getJobDetail', () => {
-    const storedMatch = (overrides: Partial<StoredJobMatch> = {}) =>
-      ({
-        id: 'm-1',
-        jobId: sampleJobA.id,
-        workspaceId,
-        resumeProfileId: undefined,
-        overallScore: 0.8,
-        skillScore: 0.9,
-        roleScore: 0.7,
-        experienceScore: 0.6,
-        locationScore: 1,
-        seniorityScore: 0.75,
-        matchedSkills: ['typescript'],
-        missingSkills: [],
-        confidence: 0.9,
-        explanation: 'Generic match',
-        evidence: null,
-        profileVersion: 1,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        ...overrides,
-      }) as StoredJobMatch;
-
-    it('returns the enriched JobOpportunity (job + workspace match + state)', async () => {
-      mockRepository.findJobById.mockResolvedValue(sampleJobA);
-      mockCareerProfileService.findByWorkspace.mockResolvedValue(
-        sampleMasterProfile,
-      );
-      mockRepository.listJobMatchesForWorkspace.mockResolvedValue([
-        storedMatch(),
-      ]);
-      mockRepository.findJobMatch.mockResolvedValue(storedMatch());
-      mockRepository.findWorkspaceJobState.mockResolvedValue({
-        status: 'saved',
-        isSaved: true,
-        isDismissed: false,
-        notes: 'Call recruiter',
+    it('creates a version grounded only in matched evidence', async () => {
+      const j = job({
+        company: 'Stripe',
+        requiredSkills: ['TypeScript', 'GraphQL'],
       });
+      repo.addJob(j);
+      resumeProfileService.listByWorkspace.mockResolvedValue([resumeProfile()]);
+      resumeProfileService.createVersion.mockImplementation(
+        (_ws: string, rpId: string, input: Record<string, unknown>) =>
+          Promise.resolve({ id: 'ver-1', resumeProfileId: rpId, ...input }),
+      );
 
-      const detail = await service.getJobDetail(workspaceId, sampleJobA.id);
+      const result = await service.createTargetedResumeVersion(j.id, WS);
 
-      expect(detail.id).toBe(sampleJobA.id);
-      expect(detail.company).toBe('Stripe');
-      expect(detail.matchScore).toBe(80);
-      expect(detail.match?.explanation).toBe('Generic match');
-      expect(detail.workspaceState).toEqual(
-        expect.objectContaining({ isSaved: true, notes: 'Call recruiter' }),
-      );
-      // Match lookups are workspace-scoped.
-      expect(mockRepository.findJobMatch).toHaveBeenCalledWith(
-        sampleJobA.id,
-        workspaceId,
-        undefined,
-      );
-      expect(mockRepository.findWorkspaceJobState).toHaveBeenCalledWith(
-        workspaceId,
-        sampleJobA.id,
-      );
-      // Fresh match already stored → nothing recomputed.
-      expect(mockRepository.upsertJobMatch).not.toHaveBeenCalled();
+      expect(result.version).toMatchObject({
+        targetCompany: 'Stripe',
+        resumeProfileId: 'rp-a',
+      });
+      expect(
+        (
+          result.version as unknown as {
+            selectedRecordIds: { skillIds: string[] };
+          }
+        ).selectedRecordIds.skillIds,
+      ).toEqual(['sk-1']);
+      expect(result.analysis.gaps.missingRequiredSkills).toEqual(['graphql']);
+      expect(
+        result.analysis.targetingRecommendations.prioritySkillNames,
+      ).toEqual(['typescript']);
     });
 
-    it('throws NotFoundException for an unknown job', async () => {
-      mockRepository.findJobById.mockResolvedValue(null);
+    it('rejects a supplied resume profile that is not in the workspace', async () => {
+      const j = job();
+      repo.addJob(j);
+      resumeProfileService.findById.mockResolvedValue(undefined);
       await expect(
-        service.getJobDetail(workspaceId, 'no-such-job'),
+        service.createTargetedResumeVersion(j.id, WS, 'rp-missing'),
       ).rejects.toThrow(NotFoundException);
-    });
-  });
-
-  // ── P2: Profile-specific matching ───────────────────────────────────────
-  describe('computeAndPersistMatch with resumeProfileId', () => {
-    const resumeProfileA = {
-      id: 'rp-a',
-      workspaceId,
-      name: 'SDE Resume',
-      roleFocus: 'TypeScript Engineer',
-      visibleSections: [],
-      sectionOrder: [],
-      highlightRules: [],
-      priorityProjectIds: [],
-      prioritySkillIds: [],
-      priorityExperienceIds: [],
-      priorityAchievementIds: [],
-      priorityCertificationIds: [],
-      styleSettings: {},
-      createdAt: '2026-08-18T00:00:00.000Z',
-      updatedAt: '2026-08-18T00:00:00.000Z',
-    };
-
-    beforeEach(() => {
-      mockRepository.findJobById.mockResolvedValue(sampleJobA);
-      mockCareerProfileService.findByWorkspace.mockResolvedValue(
-        sampleMasterProfile,
-      );
-      mockRepository.findWorkspaceJobState.mockResolvedValue(null);
-    });
-
-    it('persists and returns the match for exactly that resume profile', async () => {
-      mockResumeProfileService.findById.mockResolvedValue(resumeProfileA);
-      mockRepository.upsertJobMatch.mockResolvedValue({});
-      mockRepository.findJobMatch.mockImplementation(
-        (_jobId: string, _ws: string, rpId?: string) =>
-          Promise.resolve(
-            rpId === 'rp-a'
-              ? {
-                  id: 'm-a',
-                  jobId: sampleJobA.id,
-                  workspaceId,
-                  resumeProfileId: 'rp-a',
-                  overallScore: 0.91,
-                  skillScore: 1,
-                  roleScore: 0.8,
-                  experienceScore: 0.6,
-                  locationScore: 1,
-                  seniorityScore: 0.75,
-                  matchedSkills: ['typescript'],
-                  missingSkills: [],
-                  confidence: 1,
-                  explanation: 'Profile A match',
-                  evidence: null,
-                  profileVersion: 1,
-                  createdAt: new Date(),
-                  updatedAt: new Date(),
-                }
-              : {
-                  id: 'm-generic',
-                  jobId: sampleJobA.id,
-                  workspaceId,
-                  resumeProfileId: undefined,
-                  overallScore: 0.2,
-                  skillScore: 0.2,
-                  roleScore: 0.2,
-                  experienceScore: 0.2,
-                  locationScore: 0.2,
-                  seniorityScore: 0.2,
-                  matchedSkills: [],
-                  missingSkills: [],
-                  confidence: 1,
-                  explanation: 'Generic match',
-                  evidence: null,
-                  profileVersion: 1,
-                  createdAt: new Date(),
-                  updatedAt: new Date(),
-                },
-          ),
-      );
-
-      const result = await service.computeAndPersistMatch(
-        sampleJobA.id,
-        workspaceId,
-        'rp-a',
-      );
-
-      expect(mockRepository.upsertJobMatch).toHaveBeenCalledWith(
-        sampleJobA.id,
-        workspaceId,
-        expect.any(Object),
-        'rp-a',
-        sampleMasterProfile.version,
-      );
-      expect(mockRepository.findJobMatch).toHaveBeenCalledWith(
-        sampleJobA.id,
-        workspaceId,
-        'rp-a',
-      );
-      expect(result.match?.explanation).toBe('Profile A match');
-      expect(result.match?.resumeProfileId).toBe('rp-a');
-      expect(result.matchScore).toBe(91);
-    });
-
-    it('404s for a resume profile outside the workspace and persists nothing', async () => {
-      mockResumeProfileService.findById.mockResolvedValue(undefined);
-
-      await expect(
-        service.computeAndPersistMatch(
-          sampleJobA.id,
-          workspaceId,
-          'rp-foreign',
-        ),
-      ).rejects.toThrow(NotFoundException);
-      expect(mockRepository.upsertJobMatch).not.toHaveBeenCalled();
-    });
-
-    it('without resumeProfileId, returns the profile-agnostic match', async () => {
-      mockRepository.upsertJobMatch.mockResolvedValue({});
-      mockRepository.findJobMatch.mockResolvedValue(null);
-
-      await service.computeAndPersistMatch(sampleJobA.id, workspaceId);
-
-      expect(mockRepository.upsertJobMatch).toHaveBeenCalledWith(
-        sampleJobA.id,
-        workspaceId,
-        expect.any(Object),
-        undefined,
-        sampleMasterProfile.version,
-      );
-      expect(mockRepository.findJobMatch).toHaveBeenCalledWith(
-        sampleJobA.id,
-        workspaceId,
-        undefined,
-      );
+      expect(resumeProfileService.createVersion).not.toHaveBeenCalled();
     });
   });
 });

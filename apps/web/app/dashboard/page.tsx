@@ -42,7 +42,10 @@ export default async function DashboardPage() {
     const [profileResult, jobsResult, appsResult, handbookResult] =
       await Promise.allSettled([
         fetchCareerProfile(session.token, session.workspace.id),
-        listJobs(session.token, session.workspace.id, { limit: 6 }),
+        listJobs(session.token, session.workspace.id, {
+          limit: 6,
+          hideDismissed: true,
+        }),
         fetchApplications(session.token, session.workspace.id),
         fetchCareerHandbook(session.token, session.workspace.id),
       ]);

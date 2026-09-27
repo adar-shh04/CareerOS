@@ -2,65 +2,72 @@ import { Injectable } from '@nestjs/common';
 import type {
   CanonicalJob,
   JobAnalysisResult,
-  JobMatchResult,
   ResumeSection,
 } from '@repo/types';
 
-import type { MasterCareerProfile } from '../career-profile/career-profile.types';
+import type { MatchOutput } from './jobs.types';
+import { resolveJobRequirements } from './seniority';
 
+/**
+ * Structured job analysis derived from a deterministic match. Every skill
+ * classification comes from the matcher (canonical skill identity), so the
+ * analysis and the match can never disagree about what the profile has.
+ */
 @Injectable()
 export class JobAnalysisService {
   analyze(
     job: CanonicalJob,
     match: Pick<
-      JobMatchResult,
+      MatchOutput,
       | 'matchedSkills'
       | 'missingSkills'
+      | 'matchedPreferredSkills'
+      | 'missingPreferredSkills'
       | 'dimensionScores'
-      | 'confidence'
-      | 'explanation'
+      | 'evidence'
     >,
-    masterProfile: MasterCareerProfile,
   ): JobAnalysisResult {
-    const matchedSkillsSet = new Set(
-      match.matchedSkills.map((s) => s.toLowerCase()),
-    );
-
-    const missingRequiredSkills = job.requiredSkills.filter(
-      (s) => !matchedSkillsSet.has(s.toLowerCase()),
-    );
-
-    const missingPreferredSkills = job.preferredSkills.filter(
-      (s) => !matchedSkillsSet.has(s.toLowerCase()),
-    );
-
-    const totalRequired = job.requiredSkills.length;
-    const matchedCount = match.matchedSkills.length;
+    const requiredCount =
+      match.matchedSkills.length + match.missingSkills.length;
     const skillMatchPercentage =
-      totalRequired > 0
-        ? Math.round((matchedCount / totalRequired) * 100)
+      requiredCount > 0
+        ? Math.round((match.matchedSkills.length / requiredCount) * 100)
         : Math.round(match.dimensionScores.skill * 100);
 
-    const profileYears = this.estimateExperienceYears(masterProfile);
-    const reqMinYears = job.experienceRequirements?.minYears ?? 2;
+    const requirements = resolveJobRequirements(job);
+    const profileYears = match.evidence.experienceYears;
+    const requirementText =
+      job.experienceRequirements?.text ??
+      (requirements.requiredYears !== undefined
+        ? `${String(requirements.requiredYears)}+ years`
+        : undefined);
 
-    let seniorityAlignment: 'aligned' | 'under_qualified' | 'over_qualified' =
-      'aligned';
-    let experienceGap: string | undefined;
-
-    if (profileYears < reqMinYears) {
+    let seniorityAlignment: JobAnalysisResult['gaps']['seniorityAlignment'];
+    let experienceGap: string;
+    if (requirements.requiredYears === undefined) {
+      seniorityAlignment = 'unknown';
+      experienceGap =
+        'The posting does not state a years-of-experience requirement.';
+    } else if (profileYears < requirements.requiredYears) {
       seniorityAlignment = 'under_qualified';
-      experienceGap = `Job specifies ${job.experienceRequirements?.text ?? `${String(reqMinYears)}+ years`}, profile has ~${String(profileYears)} years.`;
-    } else if (profileYears > reqMinYears + 5) {
+      experienceGap = `Job specifies ${requirementText ?? ''}, profile has ~${String(profileYears)} years.`;
+    } else if (
+      profileYears >
+      (job.experienceRequirements?.maxYears ?? requirements.requiredYears + 5)
+    ) {
       seniorityAlignment = 'over_qualified';
-      experienceGap = `Profile has ~${String(profileYears)} years of experience, exceeding requirement of ${job.experienceRequirements?.text ?? `${String(reqMinYears)} years`}.`;
+      experienceGap = `Profile has ~${String(profileYears)} years of experience, exceeding requirement of ${requirementText ?? ''}.`;
     } else {
-      experienceGap = `Experience aligned (~${String(profileYears)} years vs ${job.experienceRequirements?.text ?? `${String(reqMinYears)}+ years`} required).`;
+      seniorityAlignment = 'aligned';
+      experienceGap = `Experience aligned (~${String(profileYears)} years vs ${requirementText ?? ''} required).`;
     }
 
-    const prioritySkillNames = Array.from(
-      new Set([...match.matchedSkills, ...job.requiredSkills.slice(0, 5)]),
-    );
+    // Only skills the profile actually has are recommended for emphasis;
+    // missing skills are reported as gaps, never as focus areas.
+    const prioritySkillNames = [
+      ...match.matchedSkills,
+      ...match.matchedPreferredSkills,
+    ];
 
     const recommendedSectionOrder: ResumeSection[] = [
       'identity',
@@ -73,12 +80,16 @@ export class JobAnalysisService {
       'links',
     ];
 
-    const suggestedFocus = `Emphasize key competencies in ${prioritySkillNames.slice(0, 4).join(', ')} matching ${job.title} at ${job.company}.`;
+    const suggestedFocus =
+      prioritySkillNames.length > 0
+        ? `Emphasize your evidence for ${prioritySkillNames.slice(0, 4).join(', ')}, which ${job.title} at ${job.company} lists.`
+        : `None of the skills ${job.title} at ${job.company} lists are in your Master Career Profile yet; review the gaps before tailoring.`;
 
     return {
       jobId: job.id,
       role: job.title,
-      seniority: job.seniority ?? 'Mid',
+      seniority: requirements.seniority ?? 'Not specified',
+      senioritySource: requirements.senioritySource,
       experienceRequirements: job.experienceRequirements,
       locationPolicy: {
         location: job.location,
@@ -90,11 +101,12 @@ export class JobAnalysisService {
         preferredSkills: job.preferredSkills,
         matchedSkills: match.matchedSkills,
         missingSkills: match.missingSkills,
+        matchedPreferredSkills: match.matchedPreferredSkills,
         skillMatchPercentage,
       },
       gaps: {
-        missingRequiredSkills,
-        missingPreferredSkills,
+        missingRequiredSkills: match.missingSkills,
+        missingPreferredSkills: match.missingPreferredSkills,
         experienceGap,
         seniorityAlignment,
       },
@@ -105,33 +117,5 @@ export class JobAnalysisService {
       },
       analyzedAt: new Date().toISOString(),
     };
-  }
-
-  private estimateExperienceYears(profile: MasterCareerProfile): number {
-    const experiences = profile.experiences;
-    let totalMonths = 0;
-
-    for (const exp of experiences) {
-      const start = this.parseYearMonth(exp.startDate);
-      const end = exp.current ? new Date() : this.parseYearMonth(exp.endDate);
-
-      if (start && end && end >= start) {
-        const months =
-          (end.getFullYear() - start.getFullYear()) * 12 +
-          (end.getMonth() - start.getMonth());
-        totalMonths += months;
-      }
-    }
-
-    return Math.max(0, Math.round(totalMonths / 12));
-  }
-
-  private parseYearMonth(dateStr?: string): Date | null {
-    if (!dateStr) return null;
-    const parts = dateStr.split('-');
-    const year = parseInt(parts[0] ?? '', 10);
-    const month = parseInt(parts[1] ?? '1', 10) - 1;
-    if (isNaN(year)) return null;
-    return new Date(year, isNaN(month) ? 0 : month, 1);
   }
 }
