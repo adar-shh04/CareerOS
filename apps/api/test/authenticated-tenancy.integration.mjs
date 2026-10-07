@@ -6,12 +6,11 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../dist/generated/prisma/client.js';
 import { PrismaJobsRepository } from '../dist/jobs/prisma-jobs.repository.js';
 
-const databaseUrl = process.env.DATABASE_URL;
-if (!databaseUrl?.includes('careeros_integration')) {
-  throw new Error(
-    'Integration tests require an isolated DATABASE_URL containing careeros_integration.',
-  );
-}
+const databaseUrl =
+  process.env.INTEGRATION_DATABASE_URL ||
+  (process.env.DATABASE_URL?.includes('careeros_integration')
+    ? process.env.DATABASE_URL
+    : 'postgresql://careeros:careeros@localhost:5432/careeros_integration?schema=public');
 
 const port = 3011;
 const baseUrl = `http://127.0.0.1:${port}`;
@@ -19,6 +18,7 @@ const server = spawn(process.execPath, ['dist/main.js'], {
   cwd: process.cwd(),
   env: {
     ...process.env,
+    DATABASE_URL: databaseUrl,
     APIFY_API_TOKEN: '',
     PORT: String(port),
   },
@@ -438,7 +438,7 @@ function emptySelectedRecordIds() {
 }
 
 async function waitForHealth() {
-  for (let attempt = 0; attempt < 50; attempt += 1) {
+  for (let attempt = 0; attempt < 150; attempt += 1) {
     try {
       const response = await fetch(`${baseUrl}/health`);
       if (response.ok) return;

@@ -99,6 +99,7 @@ model Organization {
   byokKeys       ByokCredential[]
   careerProfile  MasterCareerProfile?
   resumeProfiles ResumeProfile[]
+  resumeVersions ResumeVersion[]
   jobStates      WorkspaceJobState[]
   jobMatches     JobMatch[]
   applications   Application[]
@@ -354,6 +355,7 @@ model ResumeProfile {
   matches                  JobMatch[]
   applications             Application[]
 
+  @@unique([id, organizationId])
   @@index([organizationId])
   @@map("resume_profiles")
 }
@@ -374,9 +376,11 @@ model ResumeVersion {
   explanation           String?
   artifactMetadata      Json?              @map("artifact_metadata")
   createdAt             DateTime           @default(now()) @map("created_at")
-  resumeProfile         ResumeProfile      @relation(fields: [resumeProfileId], references: [id], onDelete: Cascade)
+  organization          Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  resumeProfile         ResumeProfile      @relation(fields: [resumeProfileId, organizationId], references: [id, organizationId], onDelete: Cascade)
   applications          Application[]
 
+  @@unique([id, organizationId])
   @@index([organizationId])
   @@index([resumeProfileId])
   @@map("resume_versions")

@@ -13,6 +13,8 @@ import { AuthModule } from './auth/auth.module';
 import { ByokModule } from './byok/byok.module';
 import { CareerProfileModule } from './career-profile/career-profile.module';
 import { BetterAuthGuard } from './common/guards/better-auth.guard';
+import { CareerOsThrottlerGuard } from './common/throttler/careeros-throttler.guard';
+import { CareerOsThrottlerModule } from './common/throttler/careeros-throttler.module';
 import { DatabaseModule } from './database/database.module';
 import { FeedbackModule } from './feedback/feedback.module';
 import { InsightsModule } from './insights/insights.module';
@@ -38,6 +40,7 @@ const envFilePaths = envCandidates.filter(
       envFilePath: envFilePaths.length > 0 ? envFilePaths : '.env',
     }),
     DatabaseModule,
+    CareerOsThrottlerModule,
     AuthModule,
     WorkspaceModule,
     ByokModule,
@@ -55,6 +58,10 @@ const envFilePaths = envCandidates.filter(
     {
       provide: APP_GUARD,
       useClass: BetterAuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: CareerOsThrottlerGuard,
     },
   ],
 })

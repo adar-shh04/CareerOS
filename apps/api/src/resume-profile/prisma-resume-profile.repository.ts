@@ -251,10 +251,11 @@ export class PrismaResumeProfileRepository implements ResumeProfileRepository {
 
   private toVersionCreateData(
     version: ResumeVersion,
-  ): Prisma.ResumeVersionCreateInput {
+  ): Prisma.ResumeVersionUncheckedCreateInput {
     return {
       id: version.id,
       organizationId: version.workspaceId,
+      resumeProfileId: version.resumeProfileId,
       targetCompany: version.targetCompany,
       targetRole: version.targetRole,
       masterProfileSnapshot: toInputJsonValue(version.masterProfileSnapshot),
@@ -269,7 +270,6 @@ export class PrismaResumeProfileRepository implements ResumeProfileRepository {
       explanation: version.explanation,
       artifactMetadata: toNullableInputJsonValue(version.artifactMetadata),
       createdAt: new Date(version.createdAt),
-      resumeProfile: { connect: { id: version.resumeProfileId } },
     };
   }
 

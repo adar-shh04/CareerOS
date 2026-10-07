@@ -7,6 +7,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 
 import { WorkspaceMemberGuard } from '../common/guards/workspace-member.guard';
 import { AiCoachService } from './ai-coach.service';
@@ -15,6 +16,7 @@ import type {
   SectionCoachingRequest,
 } from './ai-coach.types';
 
+@Throttle({ default: { limit: 20, ttl: 60000 } })
 @Controller('workspaces/:workspaceId/ai-coach')
 @UseGuards(WorkspaceMemberGuard)
 export class AiCoachController {

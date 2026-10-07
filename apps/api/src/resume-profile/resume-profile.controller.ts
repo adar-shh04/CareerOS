@@ -13,6 +13,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Throttle } from '@nestjs/throttler';
 
 import { WorkspaceMemberGuard } from '../common/guards/workspace-member.guard';
 import { ResumeParserService } from './resume-parser.service';
@@ -35,6 +36,7 @@ export class ResumeProfileController {
     private readonly resumeParserService: ResumeParserService,
   ) {}
 
+  @Throttle({ default: { limit: 15, ttl: 60000 } })
   @Post('parse')
   @UseInterceptors(
     FileInterceptor('file', {
