@@ -2,23 +2,20 @@ import type { ResumeProfileInput } from "@repo/types";
 import { NextResponse } from "next/server";
 
 import {
-  ApiError,
   deleteResumeProfile,
   fetchResumeProfile,
   updateResumeProfile,
 } from "@/lib/api";
-import { getServerSession } from "@/lib/server-session";
+import { getBffSession, handleBffError } from "@/lib/bff";
 
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ profileId: string }> },
 ) {
-  const session = await getServerSession();
-  const { profileId } = await params;
+  const { session, unauthorizedResponse } = await getBffSession();
+  if (unauthorizedResponse) return unauthorizedResponse;
 
-  if (!session) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+  const { profileId } = await params;
 
   try {
     const profile = await fetchResumeProfile(
@@ -28,10 +25,7 @@ export async function GET(
     );
     return NextResponse.json(profile);
   } catch (error) {
-    const status = error instanceof ApiError ? error.status : 500;
-    const message =
-      error instanceof Error ? error.message : "Unable to fetch resume profile.";
-    return NextResponse.json({ message }, { status });
+    return handleBffError(error, "Unable to fetch resume profile.");
   }
 }
 
@@ -39,12 +33,10 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ profileId: string }> },
 ) {
-  const session = await getServerSession();
-  const { profileId } = await params;
+  const { session, unauthorizedResponse } = await getBffSession();
+  if (unauthorizedResponse) return unauthorizedResponse;
 
-  if (!session) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+  const { profileId } = await params;
 
   try {
     const body = (await request.json()) as ResumeProfileInput;
@@ -56,10 +48,7 @@ export async function PUT(
     );
     return NextResponse.json(updated);
   } catch (error) {
-    const status = error instanceof ApiError ? error.status : 500;
-    const message =
-      error instanceof Error ? error.message : "Unable to update resume profile.";
-    return NextResponse.json({ message }, { status });
+    return handleBffError(error, "Unable to update resume profile.");
   }
 }
 
@@ -67,12 +56,10 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ profileId: string }> },
 ) {
-  const session = await getServerSession();
-  const { profileId } = await params;
+  const { session, unauthorizedResponse } = await getBffSession();
+  if (unauthorizedResponse) return unauthorizedResponse;
 
-  if (!session) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+  const { profileId } = await params;
 
   try {
     const result = await deleteResumeProfile(
@@ -82,9 +69,6 @@ export async function DELETE(
     );
     return NextResponse.json(result);
   } catch (error) {
-    const status = error instanceof ApiError ? error.status : 500;
-    const message =
-      error instanceof Error ? error.message : "Unable to delete resume profile.";
-    return NextResponse.json({ message }, { status });
+    return handleBffError(error, "Unable to delete resume profile.");
   }
 }

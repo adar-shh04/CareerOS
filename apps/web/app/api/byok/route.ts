@@ -1,14 +1,11 @@
 import { NextResponse } from "next/server";
 
 import { storeByokCredential } from "@/lib/api";
-import { getServerSession } from "@/lib/server-session";
+import { getBffSession, handleBffError } from "@/lib/bff";
 
 export async function POST(request: Request) {
-  const session = await getServerSession();
-
-  if (!session) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+  const { session, unauthorizedResponse } = await getBffSession();
+  if (unauthorizedResponse) return unauthorizedResponse;
 
   try {
     const body = (await request.json()) as {
@@ -18,7 +15,7 @@ export async function POST(request: Request) {
 
     if (!body.provider || !body.apiKey) {
       return NextResponse.json(
-        { message: "Provider and API key are required." },
+        { message: "Provider and API key are required.", statusCode: 400 },
         { status: 400 },
       );
     }
@@ -34,8 +31,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json(result);
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unable to store credential.";
-    return NextResponse.json({ message }, { status: 400 });
+    return handleBffError(error, "Unable to store credential.");
   }
 }

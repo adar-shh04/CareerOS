@@ -1,15 +1,12 @@
 import { NextResponse } from "next/server";
 
 import type { ListJobsParams } from "@/lib/api";
-import { ApiError, listJobs } from "@/lib/api";
-import { getServerSession } from "@/lib/server-session";
+import { listJobs } from "@/lib/api";
+import { getBffSession, handleBffError } from "@/lib/bff";
 
 export async function GET(request: Request) {
-  const session = await getServerSession();
-
-  if (!session) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+  const { session, unauthorizedResponse } = await getBffSession();
+  if (unauthorizedResponse) return unauthorizedResponse;
 
   try {
     const { searchParams } = new URL(request.url);
@@ -27,9 +24,6 @@ export async function GET(request: Request) {
     const jobs = await listJobs(session.token, session.workspace.id, params);
     return NextResponse.json(jobs);
   } catch (error) {
-    const status = error instanceof ApiError ? error.status : 500;
-    const message =
-      error instanceof Error ? error.message : "Unable to fetch job opportunities.";
-    return NextResponse.json({ message }, { status });
+    return handleBffError(error, "Unable to fetch job opportunities.");
   }
 }

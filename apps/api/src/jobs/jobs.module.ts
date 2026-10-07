@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 
 import { ApplicationsModule } from '../applications/applications.module';
 import { CareerProfileModule } from '../career-profile/career-profile.module';
-import { PrismaService } from '../database/prisma.service';
 import { ResumeProfileModule } from '../resume-profile/resume-profile.module';
 import { ApifyLinkedInAdapter } from './ingestion/apify-linkedin.adapter';
 import { JobDeduplicationService } from './ingestion/job-deduplication.service';
@@ -18,7 +17,6 @@ import { PrismaJobsRepository } from './prisma-jobs.repository';
   imports: [CareerProfileModule, ResumeProfileModule, ApplicationsModule],
   controllers: [JobsController],
   providers: [
-    PrismaService,
     PrismaJobsRepository,
     JobMatchingService,
     JobNormalizationService,

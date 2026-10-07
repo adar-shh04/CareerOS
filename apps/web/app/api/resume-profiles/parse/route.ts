@@ -1,14 +1,11 @@
 import { NextResponse } from "next/server";
 
-import { ApiError, parseResume } from "@/lib/api";
-import { getServerSession } from "@/lib/server-session";
+import { parseResume } from "@/lib/api";
+import { getBffSession, handleBffError } from "@/lib/bff";
 
 export async function POST(request: Request) {
-  const session = await getServerSession();
-
-  if (!session) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+  const { session, unauthorizedResponse } = await getBffSession();
+  if (unauthorizedResponse) return unauthorizedResponse;
 
   try {
     const contentType = request.headers.get("content-type") ?? "";
@@ -46,7 +43,10 @@ export async function POST(request: Request) {
 
       if (!body.resumeText && !body.fileBase64) {
         return NextResponse.json(
-          { message: "Either resume file or resumeText must be provided." },
+          {
+            message: "Either resume file or resumeText must be provided.",
+            statusCode: 400,
+          },
           { status: 400 },
         );
       }
@@ -60,9 +60,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json(parsedData);
   } catch (error) {
-    const status = error instanceof ApiError ? error.status : 500;
-    const message =
-      error instanceof Error ? error.message : "Unable to parse resume.";
-    return NextResponse.json({ message }, { status });
+    return handleBffError(error, "Unable to parse resume.");
   }
 }

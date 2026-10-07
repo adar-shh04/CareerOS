@@ -1,17 +1,14 @@
 import { NextResponse } from "next/server";
 
 import { restoreJob } from "@/lib/api";
-import { getServerSession } from "@/lib/server-session";
+import { getBffSession, handleBffError } from "@/lib/bff";
 
 export async function POST(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const session = await getServerSession();
-
-  if (!session) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+  const { session, unauthorizedResponse } = await getBffSession();
+  if (unauthorizedResponse) return unauthorizedResponse;
 
   try {
     const { id } = await params;
@@ -22,8 +19,6 @@ export async function POST(
     );
     return NextResponse.json(updatedJob);
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to restore job.";
-    return NextResponse.json({ message }, { status: 400 });
+    return handleBffError(error, "Failed to restore job.");
   }
 }

@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 export interface AICoachViewProps {
   masterProfile?: MasterCareerProfile | null;
@@ -250,17 +250,45 @@ export function AICoachView(props: AICoachViewProps) {
   // generated text. Without AI, fall back to evidence-only reorderings.
   const selectedProfileKey = selectedProfile?.id ?? null;
   const targetJobKey = activeTargetJob?.id ?? null;
+  // Display deterministic evidence recommendations immediately on mount or profile/job change.
+  // Never fire 4 uncoordinated LLM requests on mount!
   useEffect(() => {
     if (!masterProfile) {
       setRecommendations([]);
       return;
     }
-    // Ignore responses from a superseded request (profile/job changed).
-    const run = { cancelled: false };
+    const evidence = buildEvidenceRecommendations(masterProfile, activeTargetJob);
+    setRecommendations(evidence);
+  }, [masterProfile, activeTargetJob]);
+
+  // Check BYOK / AI provider availability once via status endpoint without firing LLM prompts
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    void (async () => {
+      try {
+        const res = await fetch("/api/byok/status", { cache: "no-store" });
+        const data = (await res.json()) as { configured?: boolean };
+        if (isMountedRef.current && res.ok) {
+          setAiAvailable(Boolean(data.configured));
+        }
+      } catch {
+        if (isMountedRef.current) {
+          setAiAvailable(false);
+        }
+      }
+    })();
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const loadAiRecommendations = useCallback(async () => {
+    if (!masterProfile) return;
     setLoadingRecommendations(true);
     setAiNotice(null);
 
-    void (async () => {
+    try {
       const results = await Promise.all(
         AI_SECTIONS.map(async (section) => {
           try {
@@ -299,7 +327,6 @@ export function AICoachView(props: AICoachViewProps) {
           }
         }),
       );
-      if (run.cancelled) return;
 
       const notConfigured = results.every(
         (r) => !r.data.available && r.data.failureReason === "not_configured",
@@ -342,22 +369,28 @@ export function AICoachView(props: AICoachViewProps) {
             status: "pending",
           });
         }
-        setRecommendations(recs);
+        if (recs.length > 0) {
+          setRecommendations(recs);
+        } else {
+          setRecommendations(buildEvidenceRecommendations(masterProfile, activeTargetJob));
+        }
         if (failed.length > 0) {
           setAiNotice(
-            `AI Coach could not produce a usable recommendation for: ${failed.join(", ")}. Nothing was generated for ${failed.length > 1 ? "those sections" : "that section"}.`,
+            `AI Coach could not produce a usable recommendation for: ${failed.join(", ")}. Showing evidence-based recommendations where applicable.`,
           );
         }
       }
+    } finally {
       setLoadingRecommendations(false);
-    })();
-
-    return () => {
-      run.cancelled = true;
-    };
-    // Re-run only when the inputs to coaching change.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [masterProfile, selectedProfileKey, targetJobKey]);
+    }
+  }, [
+    masterProfile,
+    targetJobKey,
+    jobRole,
+    selectedProfileKey,
+    activeTargetJob,
+    selectedProfile,
+  ]);
 
   const [applyingChanges, setApplyingChanges] = useState(false);
   const [applySuccessMessage, setApplySuccessMessage] = useState<string | null>(
@@ -597,6 +630,26 @@ export function AICoachView(props: AICoachViewProps) {
                   {applyingChanges
                     ? "Applying..."
                     : `Apply ${String(acceptedCount)} Accepted Change${acceptedCount > 1 ? "s" : ""}`}
+                </button>
+              )}
+
+              {aiAvailable !== false && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    void loadAiRecommendations();
+                  }}
+                  disabled={loadingRecommendations}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold border border-indigo-200 shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  {loadingRecommendations ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                  )}
+                  {recommendations.some((r) => r.source === "ai")
+                    ? "Refresh AI Tailoring"
+                    : "Generate AI Tailoring"}
                 </button>
               )}
 

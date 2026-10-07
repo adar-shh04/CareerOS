@@ -119,4 +119,125 @@ describe('Onboarding completion contract', () => {
       expect(latex).not.toMatch(/\{utf8\}/);
     });
   });
+
+  describe('WorkspaceService.ensureDefaultWorkspace', () => {
+    const userId = '00000000-0000-4000-8000-0000000000cc';
+
+    it('returns existing organization when membership already exists', async () => {
+      const client = {
+        member: {
+          findFirst: jest.fn().mockResolvedValue({
+            organizationId: 'existing-org-id',
+            organization: {
+              id: 'existing-org-id',
+              name: 'Existing Org',
+              slug: 'existing-org',
+            },
+          }),
+        },
+        session: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+        organization: { create: jest.fn() },
+      };
+
+      const service = new WorkspaceService({
+        client,
+      } as unknown as PrismaService);
+
+      const result = await service.ensureDefaultWorkspace(
+        userId,
+        'Test User',
+        'test@example.com',
+      );
+
+      expect(result.id).toBe('existing-org-id');
+      expect(result.name).toBe('Existing Org');
+      expect(client.organization.create).not.toHaveBeenCalled();
+      expect(client.session.updateMany).toHaveBeenCalledWith({
+        where: { userId, activeOrganizationId: null },
+        data: { activeOrganizationId: 'existing-org-id' },
+      });
+    });
+
+    it('creates new workspace with owner role when user has no membership', async () => {
+      const client = {
+        member: {
+          findFirst: jest.fn().mockResolvedValue(null),
+        },
+        session: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+        organization: {
+          create: jest.fn().mockResolvedValue({
+            id: 'new-org-id',
+            name: "John's Workspace",
+            slug: 'john-123',
+          }),
+        },
+      };
+
+      const service = new WorkspaceService({
+        client,
+      } as unknown as PrismaService);
+
+      const result = await service.ensureDefaultWorkspace(
+        userId,
+        'John',
+        'john@example.com',
+      );
+
+      expect(result.id).toBe('new-org-id');
+      expect(result.name).toBe("John's Workspace");
+      const firstCreateCall = client.organization.create.mock.calls[0] as [
+        {
+          data: {
+            name: string;
+            members: { create: { userId: string; role: string } };
+          };
+        },
+      ];
+      expect(firstCreateCall[0].data.name).toBe("John's Workspace");
+      expect(firstCreateCall[0].data.members.create.role).toBe('owner');
+      expect(client.session.updateMany).toHaveBeenCalledWith({
+        where: { userId },
+        data: { activeOrganizationId: 'new-org-id' },
+      });
+    });
+
+    it('recovers gracefully from concurrent creation collision', async () => {
+      let callCount = 0;
+      const client = {
+        member: {
+          findFirst: jest.fn().mockImplementation(() => {
+            callCount++;
+            if (callCount === 1) return Promise.resolve(null);
+            return Promise.resolve({
+              organizationId: 'collided-org-id',
+              organization: {
+                id: 'collided-org-id',
+                name: 'Collided Org',
+                slug: 'collided-org',
+              },
+            });
+          }),
+        },
+        session: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+        organization: {
+          create: jest
+            .fn()
+            .mockRejectedValue(new Error('Unique constraint failed')),
+        },
+      };
+
+      const service = new WorkspaceService({
+        client,
+      } as unknown as PrismaService);
+
+      const result = await service.ensureDefaultWorkspace(
+        userId,
+        'Racer',
+        'racer@example.com',
+      );
+
+      expect(result.id).toBe('collided-org-id');
+      expect(result.name).toBe('Collided Org');
+    });
+  });
 });

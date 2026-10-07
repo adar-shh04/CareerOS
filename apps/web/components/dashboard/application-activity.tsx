@@ -64,7 +64,7 @@ export function ApplicationActivity({
     }
   };
 
-  const formatRelativeDate = (isoString?: string | null) => {
+  const formatRelativeDate = (isoString?: string | Date | null) => {
     if (!isoString) return "";
     try {
       const date = new Date(isoString);

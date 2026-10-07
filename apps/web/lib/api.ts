@@ -1,14 +1,21 @@
 import type {
   AiCoachAnalysisResponse,
   AnalyzeRoleRequest,
+  ApplicationJobSummary,
+  ApplicationRecord,
+  ApplicationStats,
+  ApplicationStatus,
+  ApplicationStatusHistoryRecord,
   ApplySectionRecommendationRequest,
   AuthSession,
   ByokCredentialSummary,
   CareerHandbookResponse,
+  CreateApplicationInput,
   CreateResumeVersionInput,
   JobAnalysisResult,
   JobMatchingWeights,
   JobOpportunity,
+  MarkAppliedInput,
   MarketIntelligenceResponse,
   MasterCareerProfile,
   MasterCareerProfileInput,
@@ -18,25 +25,35 @@ import type {
   ResumeVersion,
   SectionCoachingRequest,
   SectionCoachingResponse,
+  UpdateApplicationInput,
   WorkspaceJobStatus,
 } from "@repo/types";
 
 import { getApiBaseUrl } from "./config";
 
 export class ApiError extends Error {
+  readonly status: number;
+  readonly error?: string;
+  readonly details?: unknown;
+
   constructor(
     message: string,
-    readonly status: number,
+    status: number,
+    error?: string,
+    details?: unknown,
   ) {
     super(message);
     this.name = "ApiError";
+    this.status = status;
+    this.error = error;
+    this.details = details;
   }
 }
 
 async function parseResponse<T>(response: Response): Promise<T> {
   const payload = (await response.json().catch(() => null)) as
     | T
-    | { message?: string | string[] }
+    | { message?: string | string[]; error?: string; details?: unknown }
     | null;
 
   if (!response.ok) {
@@ -49,7 +66,18 @@ async function parseResponse<T>(response: Response): Promise<T> {
           ? payload.message.join(", ")
           : payload.message
         : "Request failed";
-    throw new ApiError(message, response.status);
+    const errorType =
+      typeof payload === "object" &&
+      payload !== null &&
+      "error" in payload &&
+      typeof payload.error === "string"
+        ? payload.error
+        : undefined;
+    const details =
+      typeof payload === "object" && payload !== null && "details" in payload
+        ? payload.details
+        : undefined;
+    throw new ApiError(message, response.status, errorType, details);
   }
 
   return payload as T;
@@ -611,51 +639,18 @@ export async function parseResume(
 
 /* ── Application Tracking API ──────────────────────────────────────────── */
 
-export interface ApplicationJobSummary {
-  id: string;
-  title: string;
-  company: string;
-  location: string;
-  isRemote: boolean;
-  salaryRange?: string | null;
-  salaryMin?: number | null;
-  salaryMax?: number | null;
-  salaryCurrency?: string | null;
-  source?: string;
-  sourceUrl?: string | null;
-  postedAt?: string | null;
-  requiredSkills?: string[];
-}
-
-export interface TrackedApplication {
-  id: string;
-  organizationId: string;
-  jobId: string;
-  status: string;
-  notes: string | null;
-  appliedAt: string | null;
-  resumeProfileId: string | null;
-  resumeVersionId: string | null;
-  createdAt: string;
-  updatedAt: string;
-  job?: ApplicationJobSummary | null;
-}
-
-export interface ApplicationStatusHistory {
-  id: string;
-  applicationId: string;
-  status: string;
-  notes: string | null;
-  createdAt: string;
-}
-
-export interface ApplicationStats {
-  total: number;
-  saved: number;
-  applied: number;
-  interviewing: number;
-  offers: number;
-}
+export type TrackedApplication = ApplicationRecord<string>;
+export type ApplicationStatusHistory = ApplicationStatusHistoryRecord<string>;
+export type {
+  ApplicationJobSummary,
+  ApplicationRecord,
+  ApplicationStats,
+  ApplicationStatus,
+  ApplicationStatusHistoryRecord,
+  CreateApplicationInput,
+  MarkAppliedInput,
+  UpdateApplicationInput,
+};
 
 export async function fetchApplications(
   sessionCookie: string,

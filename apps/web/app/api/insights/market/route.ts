@@ -1,13 +1,11 @@
 import { NextResponse } from "next/server";
 
-import { ApiError, fetchMarketIntelligence } from "@/lib/api";
-import { getServerSession } from "@/lib/server-session";
+import { fetchMarketIntelligence } from "@/lib/api";
+import { getBffSession, handleBffError } from "@/lib/bff";
 
 export async function GET() {
-  const session = await getServerSession();
-  if (!session) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+  const { session, unauthorizedResponse } = await getBffSession();
+  if (unauthorizedResponse) return unauthorizedResponse;
 
   try {
     const market = await fetchMarketIntelligence(
@@ -16,11 +14,6 @@ export async function GET() {
     );
     return NextResponse.json(market);
   } catch (error) {
-    const status = error instanceof ApiError ? error.status : 500;
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Failed to fetch market intelligence.";
-    return NextResponse.json({ message }, { status });
+    return handleBffError(error, "Failed to fetch market intelligence.");
   }
 }

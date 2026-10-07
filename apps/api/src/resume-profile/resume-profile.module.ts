@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 
 import { ByokModule } from '../byok/byok.module';
 import { CareerProfileModule } from '../career-profile/career-profile.module';
-import { PrismaService } from '../database/prisma.service';
 import { PrismaResumeProfileRepository } from './prisma-resume-profile.repository';
 import { ResumeParserService } from './resume-parser.service';
 import { ResumeProfileController } from './resume-profile.controller';
@@ -13,7 +12,6 @@ import { ResumeProfileService } from './resume-profile.service';
   imports: [CareerProfileModule, ByokModule],
   controllers: [ResumeProfileController],
   providers: [
-    PrismaService,
     PrismaResumeProfileRepository,
     {
       provide: RESUME_PROFILE_REPOSITORY,

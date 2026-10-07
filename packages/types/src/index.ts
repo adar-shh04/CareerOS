@@ -678,5 +678,89 @@ export interface AiCoachAnalysisResponse {
     Record<AiCoachSection, SectionRecommendation>
   >;
 }
+
+/* ── Canonical Application Domain Types ─────────────────────────────── */
+
+export const APPLICATION_STATUSES = [
+  "saved",
+  "applied",
+  "screening",
+  "interview",
+  "offer",
+  "rejected",
+  "withdrawn",
+] as const;
+
+export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
+
+export interface ApplicationJobSummary<TDate = string | Date> {
+  id: string;
+  title: string;
+  company: string;
+  location: string;
+  isRemote: boolean;
+  salaryRange?: string | null;
+  salaryMin?: number | null;
+  salaryMax?: number | null;
+  salaryCurrency?: string | null;
+  source: string;
+  sourceUrl?: string | null;
+  postedAt?: TDate | null;
+  requiredSkills: string[];
+}
+
+export interface ApplicationRecord<TDate = string | Date> {
+  id: string;
+  organizationId: string;
+  jobId: string;
+  status: ApplicationStatus;
+  notes?: string | null;
+  appliedAt?: TDate | null;
+  resumeProfileId?: string | null;
+  resumeVersionId?: string | null;
+  createdAt: TDate;
+  updatedAt: TDate;
+  job?: ApplicationJobSummary<TDate> | null;
+}
+
+export interface ApplicationStatusHistoryRecord<TDate = string | Date> {
+  id: string;
+  applicationId: string;
+  status: ApplicationStatus;
+  notes?: string | null;
+  createdAt: TDate;
+}
+
+export interface CreateApplicationInput<TDate = string | Date> {
+  jobId: string;
+  status?: ApplicationStatus;
+  notes?: string;
+  appliedAt?: TDate;
+  resumeProfileId?: string;
+  resumeVersionId?: string;
+}
+
+export interface UpdateApplicationInput<TDate = string | Date> {
+  status?: ApplicationStatus;
+  notes?: string;
+  appliedAt?: TDate | null;
+  resumeProfileId?: string;
+  resumeVersionId?: string;
+}
+
+export interface MarkAppliedInput<TDate = string | Date> {
+  resumeProfileId?: string;
+  notes?: string;
+  appliedAt?: TDate;
+}
+
+export interface ApplicationStats {
+  total: number;
+  saved: number;
+  applied: number;
+  interviewing: number;
+  offers: number;
+}
+
 export * from "./latex.js";
 export * from "./onboarding.js";

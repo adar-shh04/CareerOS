@@ -5,6 +5,7 @@ import { bearer, organization } from 'better-auth/plugins';
 import { Pool } from 'pg';
 
 import { PrismaClient } from '../generated/prisma/client';
+import { ensureDefaultWorkspaceForUser } from '../workspace/workspace.service';
 
 /**
  * Better Auth needs its own long-lived Prisma client instance (separate
@@ -128,31 +129,13 @@ export const auth = betterAuth({
     user: {
       create: {
         after: async (user) => {
-          // Auto-create the user's first workspace, mirroring the old
-          // register() flow (one workspace per new account, owner role).
-          const workspaceName = user.name
-            ? `${user.name}'s Workspace`
-            : 'My Career Workspace';
-          const slug = `${slugify(user.name || user.email.split('@')[0])}-${Date.now().toString(36)}`;
-
-          const org = await prisma.organization.create({
-            data: {
-              name: workspaceName,
-              slug,
-              members: {
-                create: {
-                  userId: user.id,
-                  role: 'owner',
-                },
-              },
-            },
-          });
-
-          // Immediately bind the new workspace to any sessions created during autoSignIn
-          await prisma.session.updateMany({
-            where: { userId: user.id },
-            data: { activeOrganizationId: org.id },
-          });
+          // Auto-create the user's first workspace using the unified provisioner
+          await ensureDefaultWorkspaceForUser(
+            prisma,
+            user.id,
+            user.name,
+            user.email,
+          );
         },
       },
     },

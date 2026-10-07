@@ -2,17 +2,14 @@ import type { WorkspaceJobStatus } from "@repo/types";
 import { NextResponse } from "next/server";
 
 import { updateJobState } from "@/lib/api";
-import { getServerSession } from "@/lib/server-session";
+import { getBffSession, handleBffError } from "@/lib/bff";
 
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const session = await getServerSession();
-
-  if (!session) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+  const { session, unauthorizedResponse } = await getBffSession();
+  if (unauthorizedResponse) return unauthorizedResponse;
 
   try {
     const { id } = await params;
@@ -31,8 +28,6 @@ export async function PATCH(
     );
     return NextResponse.json(updatedJob);
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to update job state.";
-    return NextResponse.json({ message }, { status: 400 });
+    return handleBffError(error, "Failed to update job state.");
   }
 }

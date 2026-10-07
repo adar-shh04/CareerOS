@@ -2,18 +2,16 @@ import type { CreateResumeVersionInput } from "@repo/types";
 import { NextResponse } from "next/server";
 
 import { createResumeVersion, listResumeVersions } from "@/lib/api";
-import { getServerSession } from "@/lib/server-session";
+import { getBffSession, handleBffError } from "@/lib/bff";
 
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ profileId: string }> },
 ) {
-  const session = await getServerSession();
-  const { profileId } = await params;
+  const { session, unauthorizedResponse } = await getBffSession();
+  if (unauthorizedResponse) return unauthorizedResponse;
 
-  if (!session) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+  const { profileId } = await params;
 
   try {
     const versions = await listResumeVersions(
@@ -23,9 +21,7 @@ export async function GET(
     );
     return NextResponse.json(versions);
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unable to list resume versions.";
-    return NextResponse.json({ message }, { status: 400 });
+    return handleBffError(error, "Unable to list resume versions.");
   }
 }
 
@@ -33,12 +29,10 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ profileId: string }> },
 ) {
-  const session = await getServerSession();
-  const { profileId } = await params;
+  const { session, unauthorizedResponse } = await getBffSession();
+  if (unauthorizedResponse) return unauthorizedResponse;
 
-  if (!session) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+  const { profileId } = await params;
 
   try {
     const body = (await request.json()) as CreateResumeVersionInput;
@@ -50,10 +44,6 @@ export async function POST(
     );
     return NextResponse.json(created);
   } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Unable to create resume version.";
-    return NextResponse.json({ message }, { status: 400 });
+    return handleBffError(error, "Unable to create resume version.");
   }
 }

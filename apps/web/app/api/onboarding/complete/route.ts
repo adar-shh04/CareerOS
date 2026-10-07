@@ -2,31 +2,28 @@ import type { OnboardingProfileInput } from "@repo/types";
 import { NextResponse } from "next/server";
 
 import { completeOnboarding } from "@/lib/api";
-import { getServerSession } from "@/lib/server-session";
+import { getBffSession, handleBffError } from "@/lib/bff";
 
 export async function POST(request: Request) {
-  const serverSession = await getServerSession();
-
-  if (!serverSession) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+  const { session, unauthorizedResponse } = await getBffSession();
+  if (unauthorizedResponse) return unauthorizedResponse;
 
   try {
     const body = (await request.json()) as OnboardingProfileInput;
 
     if (!body.name || !body.workspaceName) {
       return NextResponse.json(
-        { message: "Name and workspace name are required." },
+        {
+          message: "Name and workspace name are required.",
+          statusCode: 400,
+        },
         { status: 400 },
       );
     }
 
-    const updatedSession = await completeOnboarding(serverSession.token, body);
-
+    const updatedSession = await completeOnboarding(session.token, body);
     return NextResponse.json(updatedSession);
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unable to complete onboarding.";
-    return NextResponse.json({ message }, { status: 400 });
+    return handleBffError(error, "Unable to complete onboarding.");
   }
 }

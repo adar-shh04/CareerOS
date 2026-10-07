@@ -1,14 +1,11 @@
 import { NextResponse } from "next/server";
 
 import { fetchByokStatus } from "@/lib/api";
-import { getServerSession } from "@/lib/server-session";
+import { getBffSession, handleBffError } from "@/lib/bff";
 
 export async function GET() {
-  const session = await getServerSession();
-
-  if (!session) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+  const { session, unauthorizedResponse } = await getBffSession();
+  if (unauthorizedResponse) return unauthorizedResponse;
 
   try {
     const credentials = await fetchByokStatus(
@@ -19,11 +16,9 @@ export async function GET() {
     return NextResponse.json({
       configured: credentials.length > 0,
       providers: credentials.map((c) => c.provider),
+      credentials,
     });
-  } catch {
-    return NextResponse.json(
-      { configured: false, providers: [] },
-      { status: 200 },
-    );
+  } catch (error) {
+    return handleBffError(error, "Failed to load BYOK status.");
   }
 }

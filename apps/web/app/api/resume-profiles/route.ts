@@ -1,33 +1,24 @@
 import type { ResumeProfileInput } from "@repo/types";
 import { NextResponse } from "next/server";
 
-import { ApiError, createResumeProfile, listResumeProfiles } from "@/lib/api";
-import { getServerSession } from "@/lib/server-session";
+import { createResumeProfile, listResumeProfiles } from "@/lib/api";
+import { getBffSession, handleBffError } from "@/lib/bff";
 
 export async function GET() {
-  const session = await getServerSession();
-
-  if (!session) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+  const { session, unauthorizedResponse } = await getBffSession();
+  if (unauthorizedResponse) return unauthorizedResponse;
 
   try {
     const profiles = await listResumeProfiles(session.token, session.workspace.id);
     return NextResponse.json(profiles);
   } catch (error) {
-    const status = error instanceof ApiError ? error.status : 500;
-    const message =
-      error instanceof Error ? error.message : "Unable to list resume profiles.";
-    return NextResponse.json({ message }, { status });
+    return handleBffError(error, "Unable to list resume profiles.");
   }
 }
 
 export async function POST(request: Request) {
-  const session = await getServerSession();
-
-  if (!session) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+  const { session, unauthorizedResponse } = await getBffSession();
+  if (unauthorizedResponse) return unauthorizedResponse;
 
   try {
     const body = (await request.json()) as ResumeProfileInput;
@@ -38,9 +29,6 @@ export async function POST(request: Request) {
     );
     return NextResponse.json(created);
   } catch (error) {
-    const status = error instanceof ApiError ? error.status : 500;
-    const message =
-      error instanceof Error ? error.message : "Unable to create resume profile.";
-    return NextResponse.json({ message }, { status });
+    return handleBffError(error, "Unable to create resume profile.");
   }
 }

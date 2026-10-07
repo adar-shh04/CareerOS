@@ -2,6 +2,7 @@ import {
   CanActivate,
   ExecutionContext,
   Injectable,
+  Optional,
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
@@ -10,21 +11,19 @@ import type { Request } from 'express';
 import type { AuthenticatedUser } from '../../auth/auth.types';
 import { auth } from '../../auth/better-auth.instance';
 import { PrismaService } from '../../database/prisma.service';
+import {
+  ensureDefaultWorkspaceForUser,
+  WorkspaceService,
+} from '../../workspace/workspace.service';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
-
-function slugify(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 48);
-}
 
 @Injectable()
 export class BetterAuthGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly prisma: PrismaService,
+    @Optional()
+    private readonly workspaceService?: WorkspaceService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -93,31 +92,20 @@ export class BetterAuthGuard implements CanActivate {
 
     // If the authenticated user has no workspace at all, auto-provision their initial personal workspace
     if (!activeOrganizationId && !isOnboardingComplete) {
-      const workspaceName = session.user.name
-        ? `${session.user.name}'s Workspace`
-        : 'My Career Workspace';
-      const slug = `${slugify(session.user.name || session.user.email.split('@')[0])}-${Date.now().toString(36)}`;
+      const defaultOrg = this.workspaceService
+        ? await this.workspaceService.ensureDefaultWorkspace(
+            session.user.id,
+            session.user.name,
+            session.user.email,
+          )
+        : await ensureDefaultWorkspaceForUser(
+            this.prisma.client,
+            session.user.id,
+            session.user.name,
+            session.user.email,
+          );
 
-      const newOrg = await this.prisma.client.organization.create({
-        data: {
-          name: workspaceName,
-          slug,
-          members: {
-            create: {
-              userId: session.user.id,
-              role: 'owner',
-            },
-          },
-        },
-      });
-
-      activeOrganizationId = newOrg.id;
-      await this.prisma.client.session
-        .updateMany({
-          where: { userId: session.user.id },
-          data: { activeOrganizationId: newOrg.id },
-        })
-        .catch(() => undefined);
+      activeOrganizationId = defaultOrg.id;
     }
 
     const user: AuthenticatedUser = {

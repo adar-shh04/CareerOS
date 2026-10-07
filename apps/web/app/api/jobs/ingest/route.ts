@@ -1,14 +1,11 @@
 import { NextResponse } from "next/server";
 
-import { ApiError, ingestJobs } from "@/lib/api";
-import { getServerSession } from "@/lib/server-session";
+import { ingestJobs } from "@/lib/api";
+import { getBffSession, handleBffError } from "@/lib/bff";
 
 export async function POST(request: Request) {
-  const session = await getServerSession();
-
-  if (!session) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+  const { session, unauthorizedResponse } = await getBffSession();
+  if (unauthorizedResponse) return unauthorizedResponse;
 
   try {
     const body = (await request.json().catch(() => ({}))) as {
@@ -25,9 +22,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json(result);
   } catch (error) {
-    const status = error instanceof ApiError ? error.status : 400;
-    const message =
-      error instanceof Error ? error.message : "Failed to trigger job ingestion.";
-    return NextResponse.json({ message }, { status });
+    return handleBffError(error, "Failed to trigger job ingestion.");
   }
 }

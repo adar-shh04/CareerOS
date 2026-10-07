@@ -34,50 +34,70 @@ export class ResumeParserService {
   ): Promise<MasterCareerProfileInput> {
     this.logger.log(`Parsing resume for workspace: ${workspaceId}`);
 
-    let apiKey: string | null = null;
-    let provider: 'openai' | 'anthropic' | null = null;
-
     if (this.aiCapabilityService) {
       const cap = await this.aiCapabilityService.resolveCapability(workspaceId);
-      if (cap.available && cap.apiKey) {
-        apiKey = cap.apiKey;
-        provider = cap.provider === 'anthropic' ? 'anthropic' : 'openai';
-      }
-    } else {
-      // Direct BYOK fallback for test compatibility
-      try {
-        apiKey = await this.byokService.getDecryptedKey(workspaceId, 'openai');
-        provider = 'openai';
-      } catch {
+      if (cap.available) {
         try {
-          apiKey = await this.byokService.getDecryptedKey(
-            workspaceId,
-            'anthropic',
+          this.logger.log(
+            `Using AI capability '${String(cap.provider)}' for resume parsing.`,
           );
-          provider = 'anthropic';
-        } catch {
-          // No key configured
-        }
-      }
-    }
+          const completion = await this.aiCapabilityService.generateCompletion(
+            workspaceId,
+            {
+              systemPrompt: this.getSystemPrompt(),
+              userPrompt: `Parse this resume text:\n\n${resumeText}`,
+              temperature: 0.1,
+              jsonMode: true,
+            },
+          );
 
-    if (apiKey && provider) {
-      try {
-        this.logger.log(`Using AI provider '${provider}' for resume parsing.`);
-        if (provider === 'openai') {
-          return await this.parseWithOpenAI(apiKey, resumeText);
-        } else {
-          return await this.parseWithAnthropic(apiKey, resumeText);
+          if (completion.available && completion.text) {
+            const parsed = this.parseAndValidateAiOutput(completion.text);
+            if (parsed) {
+              return parsed;
+            }
+            this.logger.warn(
+              'AI resume parsing response failed schema validation. Falling back to heuristics.',
+            );
+          } else {
+            this.logger.warn(
+              `AI resume parser unavailable (${completion.failureReason ?? 'unknown'}). Falling back to heuristics.`,
+            );
+          }
+        } catch (err) {
+          this.logger.error(
+            `AI resume parsing failed: ${err instanceof Error ? err.message : String(err)}. Falling back to heuristics.`,
+          );
         }
-      } catch (err) {
-        this.logger.error(
-          `AI resume parsing failed: ${err instanceof Error ? err.message : String(err)}. Falling back to heuristics.`,
-        );
       }
     }
 
     this.logger.log('Using fallback heuristic resume parser.');
     return this.parseWithHeuristics(resumeText);
+  }
+
+  parseAndValidateAiOutput(text: string): MasterCareerProfileInput | null {
+    try {
+      const cleanJson = text
+        .trim()
+        .replace(/^```(?:json)?\s*/i, '')
+        .replace(/\s*```$/i, '')
+        .trim();
+
+      const parsed = JSON.parse(cleanJson) as unknown;
+      if (typeof parsed !== 'object' || parsed === null) {
+        return null;
+      }
+
+      const obj = parsed as Record<string, unknown>;
+      if (!obj.identity || typeof obj.identity !== 'object') {
+        return null;
+      }
+
+      return this.normalizeParsedJson(obj as Partial<MasterCareerProfileInput>);
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -258,85 +278,6 @@ export class ResumeParserService {
         issueDate: c.issueDate,
       })),
     };
-  }
-
-  private async parseWithOpenAI(
-    apiKey: string,
-    text: string,
-  ): Promise<MasterCareerProfileInput> {
-    const prompt = this.getSystemPrompt();
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: prompt },
-          { role: 'user', content: `Parse this resume text:\n\n${text}` },
-        ],
-        response_format: { type: 'json_object' },
-        temperature: 0.1,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(
-        `OpenAI API responded with status ${String(response.status)}`,
-      );
-    }
-
-    interface OpenAIResponse {
-      choices: { message: { content: string } }[];
-    }
-    const data = (await response.json()) as OpenAIResponse;
-    const jsonText = data.choices[0]?.message?.content;
-    if (!jsonText) throw new Error('Empty response from OpenAI');
-
-    return JSON.parse(jsonText) as MasterCareerProfileInput;
-  }
-
-  private async parseWithAnthropic(
-    apiKey: string,
-    text: string,
-  ): Promise<MasterCareerProfileInput> {
-    const prompt = this.getSystemPrompt();
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-3-5-haiku-20241022',
-        max_tokens: 4000,
-        system:
-          prompt +
-          '\nReturn ONLY a raw, minified JSON object matching the requested schema. Do not wrap in markdown blocks.',
-        messages: [
-          { role: 'user', content: `Parse this resume text:\n\n${text}` },
-        ],
-        temperature: 0.1,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(
-        `Anthropic API responded with status ${String(response.status)}`,
-      );
-    }
-
-    interface AnthropicResponse {
-      content: { text: string }[];
-    }
-    const data = (await response.json()) as AnthropicResponse;
-    const contentText = data.content[0]?.text;
-    if (!contentText) throw new Error('Empty response from Anthropic');
-
-    return JSON.parse(contentText) as MasterCareerProfileInput;
   }
 
   private getSystemPrompt(): string {

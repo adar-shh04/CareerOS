@@ -9,6 +9,7 @@ export class DatabaseConfigurationError extends Error {}
 @Injectable()
 export class PrismaService implements OnModuleDestroy {
   private clientInstance: PrismaClient | undefined;
+  private poolInstance: Pool | undefined;
 
   get client(): PrismaClient {
     if (!this.clientInstance) {
@@ -18,9 +19,9 @@ export class PrismaService implements OnModuleDestroy {
         throw new DatabaseConfigurationError('DATABASE_URL is required.');
       }
 
-      const pool = new Pool({ connectionString });
+      this.poolInstance = new Pool({ connectionString });
       this.clientInstance = new PrismaClient({
-        adapter: new PrismaPg(pool),
+        adapter: new PrismaPg(this.poolInstance),
       });
     }
 
@@ -29,5 +30,6 @@ export class PrismaService implements OnModuleDestroy {
 
   async onModuleDestroy(): Promise<void> {
     await this.clientInstance?.$disconnect();
+    await this.poolInstance?.end();
   }
 }

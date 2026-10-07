@@ -1,15 +1,12 @@
 import type { MasterCareerProfileInput } from "@repo/types";
 import { NextResponse } from "next/server";
 
-import { ApiError, fetchCareerProfile, saveCareerProfile } from "@/lib/api";
-import { getServerSession } from "@/lib/server-session";
+import { fetchCareerProfile, saveCareerProfile } from "@/lib/api";
+import { getBffSession, handleBffError } from "@/lib/bff";
 
 export async function GET() {
-  const session = await getServerSession();
-
-  if (!session) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+  const { session, unauthorizedResponse } = await getBffSession();
+  if (unauthorizedResponse) return unauthorizedResponse;
 
   try {
     const profile = await fetchCareerProfile(
@@ -19,22 +16,13 @@ export async function GET() {
 
     return NextResponse.json(profile);
   } catch (error) {
-    const status = error instanceof ApiError ? error.status : 400;
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Unable to fetch career profile.";
-
-    return NextResponse.json({ message }, { status });
+    return handleBffError(error, "Unable to fetch career profile.");
   }
 }
 
 export async function PUT(request: Request) {
-  const session = await getServerSession();
-
-  if (!session) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+  const { session, unauthorizedResponse } = await getBffSession();
+  if (unauthorizedResponse) return unauthorizedResponse;
 
   try {
     const body = (await request.json()) as MasterCareerProfileInput;
@@ -45,8 +33,6 @@ export async function PUT(request: Request) {
     );
     return NextResponse.json(updated);
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unable to save career profile.";
-    return NextResponse.json({ message }, { status: 400 });
+    return handleBffError(error, "Unable to save career profile.");
   }
 }

@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import mammoth from 'mammoth';
 
+import type { AiCapabilityService } from '../byok/ai-capability.service';
 import type { ByokService } from '../byok/byok.service';
 import { ResumeParserService } from './resume-parser.service';
 
@@ -22,6 +23,10 @@ describe('ResumeParserService', () => {
   let mockByokService: {
     getDecryptedKey: jest.Mock;
   };
+  let mockAiCapabilityService: {
+    resolveCapability: jest.Mock;
+    generateCompletion: jest.Mock;
+  };
 
   const workspaceId = 'ws-test-123';
 
@@ -30,8 +35,13 @@ describe('ResumeParserService', () => {
     mockByokService = {
       getDecryptedKey: jest.fn().mockRejectedValue(new Error('No key')),
     };
+    mockAiCapabilityService = {
+      resolveCapability: jest.fn().mockResolvedValue({ available: false }),
+      generateCompletion: jest.fn().mockResolvedValue({ available: false }),
+    };
     service = new ResumeParserService(
       mockByokService as unknown as ByokService,
+      mockAiCapabilityService as unknown as AiCapabilityService,
     );
   });
 
@@ -201,6 +211,120 @@ Senior Engineer at Acme Corp
       expect(result.identity.email).toBe('johndoe@example.com');
       expect(result.skills).toBeDefined();
       expect(result.skills?.length).toBeGreaterThan(0);
+    });
+
+    it('parses resume using AI capability when available', async () => {
+      mockAiCapabilityService.resolveCapability.mockResolvedValue({
+        available: true,
+        provider: 'openai',
+        source: 'byok',
+        apiKey: 'sk-test',
+      });
+      mockAiCapabilityService.generateCompletion.mockResolvedValue({
+        available: true,
+        text: JSON.stringify({
+          identity: {
+            fullName: 'Sarah Connor',
+            email: 'sarah@resistance.org',
+            headline: 'Systems Defender',
+          },
+          skills: [{ name: 'Cybersecurity' }, { name: 'Tactical Planning' }],
+          experiences: [],
+        }),
+      });
+
+      const rawResume =
+        'Sarah Connor\nsarah@resistance.org\nCybersecurity Specialist';
+      const result = await service.parse(workspaceId, rawResume);
+
+      expect(mockAiCapabilityService.generateCompletion).toHaveBeenCalledTimes(
+        1,
+      );
+      expect(result.identity.fullName).toBe('Sarah Connor');
+      expect(result.identity.email).toBe('sarah@resistance.org');
+      expect(result.skills?.[0]?.name).toBe('Cybersecurity');
+    });
+
+    it('handles AI response wrapped in markdown json code fences', async () => {
+      mockAiCapabilityService.resolveCapability.mockResolvedValue({
+        available: true,
+        provider: 'anthropic',
+        source: 'byok',
+        apiKey: 'sk-ant-test',
+      });
+      mockAiCapabilityService.generateCompletion.mockResolvedValue({
+        available: true,
+        text: '```json\n{\n  "identity": {\n    "fullName": "Markdown User",\n    "email": "md@example.com"\n  },\n  "skills": [{"name": "React"}]\n}\n```',
+      });
+
+      const result = await service.parse(
+        workspaceId,
+        'Markdown User\nmd@example.com',
+      );
+      expect(result.identity.fullName).toBe('Markdown User');
+      expect(result.identity.email).toBe('md@example.com');
+      expect(result.skills?.[0]?.name).toBe('React');
+    });
+
+    it('gracefully falls back to heuristic parser when AI returns malformed JSON', async () => {
+      mockAiCapabilityService.resolveCapability.mockResolvedValue({
+        available: true,
+        provider: 'openai',
+        source: 'byok',
+        apiKey: 'sk-test',
+      });
+      mockAiCapabilityService.generateCompletion.mockResolvedValue({
+        available: true,
+        text: 'This is not valid JSON at all: {broken',
+      });
+
+      const rawResume = 'Alice Walker\nalice@example.com\nSkills: Python, Go';
+      const result = await service.parse(workspaceId, rawResume);
+
+      // Should not throw, should fall back to heuristic parse
+      expect(result).toBeDefined();
+      expect(result.identity.fullName).toBe('Alice Walker');
+      expect(result.identity.email).toBe('alice@example.com');
+    });
+
+    it('gracefully falls back to heuristic parser when AI returns invalid schema (missing identity)', async () => {
+      mockAiCapabilityService.resolveCapability.mockResolvedValue({
+        available: true,
+        provider: 'openai',
+        source: 'byok',
+        apiKey: 'sk-test',
+      });
+      mockAiCapabilityService.generateCompletion.mockResolvedValue({
+        available: true,
+        text: JSON.stringify({ randomField: 123 }),
+      });
+
+      const rawResume = 'Bob Vance\nbob@vance.com\nSkills: Sales';
+      const result = await service.parse(workspaceId, rawResume);
+
+      expect(result).toBeDefined();
+      expect(result.identity.fullName).toBe('Bob Vance');
+      expect(result.identity.email).toBe('bob@vance.com');
+    });
+
+    it('gracefully falls back to heuristic parser when AI completion fails or errors', async () => {
+      mockAiCapabilityService.resolveCapability.mockResolvedValue({
+        available: true,
+        provider: 'openai',
+        source: 'byok',
+        apiKey: 'sk-test',
+      });
+      mockAiCapabilityService.generateCompletion.mockRejectedValue(
+        new Error('Network timeout calling OpenAI'),
+      );
+
+      const rawResume =
+        'Charlie Brown\ncharlie@peanuts.com\nSkills: Management';
+      const result = await service.parse(workspaceId, rawResume);
+
+      expect(result).toBeDefined();
+      expect(result.identity.fullName).toBe('Charlie Brown');
+      expect(result.identity.email).toBe('charlie@peanuts.com');
     });
   });
 });

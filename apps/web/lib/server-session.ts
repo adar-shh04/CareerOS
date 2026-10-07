@@ -26,8 +26,16 @@ export interface ServerSession {
     name: string;
     slug: string;
   };
-
   needsOnboarding: boolean;
+}
+
+export interface GetServerSessionOptions {
+  /**
+   * If false, skips fetching full organization metadata.
+   * Useful for BFF route handlers which only require the workspace ID and token.
+   * Defaults to true.
+   */
+  fetchMetadata?: boolean;
 }
 
 /**
@@ -38,7 +46,9 @@ export interface ServerSession {
  * use the session's activeOrganizationId when available, otherwise
  * fall back to the user's first organization.
  */
-export async function getServerSession(): Promise<ServerSession | null> {
+export async function getServerSession(
+  options: GetServerSessionOptions = { fetchMetadata: true },
+): Promise<ServerSession | null> {
   const incomingHeaders = await headers();
   const cookie = incomingHeaders.get("cookie");
 
@@ -120,6 +130,19 @@ export async function getServerSession(): Promise<ServerSession | null> {
         slug: "",
       },
       needsOnboarding: true,
+    };
+  }
+
+  if (options.fetchMetadata === false) {
+    return {
+      token: cookie,
+      user: payload.user,
+      workspace: {
+        id: workspaceId,
+        name: "Workspace",
+        slug: "",
+      },
+      needsOnboarding: false,
     };
   }
 

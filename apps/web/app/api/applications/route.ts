@@ -1,34 +1,26 @@
 import { NextResponse } from "next/server";
 
 import {
-  ApiError,
   fetchApplications,
   trackApplication,
 } from "@/lib/api";
-import { getServerSession } from "@/lib/server-session";
+import { getBffSession, handleBffError } from "@/lib/bff";
 
 export async function GET() {
-  const session = await getServerSession();
-  if (!session) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+  const { session, unauthorizedResponse } = await getBffSession();
+  if (unauthorizedResponse) return unauthorizedResponse;
 
   try {
     const apps = await fetchApplications(session.token, session.workspace.id);
     return NextResponse.json(apps);
   } catch (error) {
-    const status = error instanceof ApiError ? error.status : 500;
-    const message =
-      error instanceof Error ? error.message : "Failed to load applications.";
-    return NextResponse.json({ message }, { status });
+    return handleBffError(error, "Failed to load applications.");
   }
 }
 
 export async function POST(request: Request) {
-  const session = await getServerSession();
-  if (!session) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+  const { session, unauthorizedResponse } = await getBffSession();
+  if (unauthorizedResponse) return unauthorizedResponse;
 
   try {
     const body = (await request.json().catch(() => ({}))) as {
@@ -39,7 +31,7 @@ export async function POST(request: Request) {
 
     if (!body.jobId) {
       return NextResponse.json(
-        { message: "jobId is required" },
+        { message: "jobId is required", statusCode: 400 },
         { status: 400 },
       );
     }
@@ -53,9 +45,6 @@ export async function POST(request: Request) {
     );
     return NextResponse.json(app);
   } catch (error) {
-    const status = error instanceof ApiError ? error.status : 500;
-    const message =
-      error instanceof Error ? error.message : "Failed to create application.";
-    return NextResponse.json({ message }, { status });
+    return handleBffError(error, "Failed to create application.");
   }
 }

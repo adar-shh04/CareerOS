@@ -1,17 +1,15 @@
 import { NextResponse } from "next/server";
 
-import { ApiError, fetchApplicationHistory } from "@/lib/api";
-import { getServerSession } from "@/lib/server-session";
+import { fetchApplicationHistory } from "@/lib/api";
+import { getBffSession, handleBffError } from "@/lib/bff";
 
 interface RouteParams {
   params: Promise<{ applicationId: string }>;
 }
 
 export async function GET(_request: Request, { params }: RouteParams) {
-  const session = await getServerSession();
-  if (!session) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+  const { session, unauthorizedResponse } = await getBffSession();
+  if (unauthorizedResponse) return unauthorizedResponse;
 
   const { applicationId } = await params;
 
@@ -23,9 +21,6 @@ export async function GET(_request: Request, { params }: RouteParams) {
     );
     return NextResponse.json(history);
   } catch (error) {
-    const status = error instanceof ApiError ? error.status : 500;
-    const message =
-      error instanceof Error ? error.message : "Failed to load application history.";
-    return NextResponse.json({ message }, { status });
+    return handleBffError(error, "Failed to load application history.");
   }
 }

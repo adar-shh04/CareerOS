@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { generateLatexFromProfile } from '@repo/types';
 
 import { PrismaService } from '../database/prisma.service';
-import { Prisma } from '../generated/prisma/client';
+import { Prisma, PrismaClient } from '../generated/prisma/client';
 import { CompleteOnboardingDto } from './workspace.dto';
 
 function slugify(value: string): string {
@@ -13,9 +13,113 @@ function slugify(value: string): string {
     .slice(0, 48);
 }
 
+export interface DefaultWorkspaceResult {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+export async function ensureDefaultWorkspaceForUser(
+  prismaClient: PrismaClient,
+  userId: string,
+  userName?: string | null,
+  email?: string | null,
+): Promise<DefaultWorkspaceResult> {
+  const existingMembership = await prismaClient.member.findFirst({
+    where: { userId },
+    include: { organization: true },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  if (existingMembership?.organization) {
+    await prismaClient.session
+      .updateMany({
+        where: { userId, activeOrganizationId: null },
+        data: { activeOrganizationId: existingMembership.organizationId },
+      })
+      .catch(() => undefined);
+
+    return {
+      id: existingMembership.organization.id,
+      name: existingMembership.organization.name,
+      slug: existingMembership.organization.slug,
+    };
+  }
+
+  const workspaceName = userName
+    ? `${userName}'s Workspace`
+    : 'My Career Workspace';
+  const baseSlug = userName ?? email?.split('@')[0] ?? 'workspace';
+  const slug = `${slugify(baseSlug)}-${Date.now().toString(36)}`;
+
+  try {
+    const org = await prismaClient.organization.create({
+      data: {
+        name: workspaceName,
+        slug,
+        members: {
+          create: {
+            userId,
+            role: 'owner',
+          },
+        },
+      },
+    });
+
+    await prismaClient.session
+      .updateMany({
+        where: { userId },
+        data: { activeOrganizationId: org.id },
+      })
+      .catch(() => undefined);
+
+    return {
+      id: org.id,
+      name: org.name,
+      slug: org.slug,
+    };
+  } catch (error: unknown) {
+    const fallbackMembership = await prismaClient.member.findFirst({
+      where: { userId },
+      include: { organization: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    if (fallbackMembership?.organization) {
+      await prismaClient.session
+        .updateMany({
+          where: { userId, activeOrganizationId: null },
+          data: { activeOrganizationId: fallbackMembership.organizationId },
+        })
+        .catch(() => undefined);
+
+      return {
+        id: fallbackMembership.organization.id,
+        name: fallbackMembership.organization.name,
+        slug: fallbackMembership.organization.slug,
+      };
+    }
+
+    throw error;
+  }
+}
+
 @Injectable()
 export class WorkspaceService {
   constructor(private readonly prisma: PrismaService) {}
+
+  async ensureDefaultWorkspace(
+    userId: string,
+    userName?: string | null,
+    email?: string | null,
+  ): Promise<DefaultWorkspaceResult> {
+    return ensureDefaultWorkspaceForUser(
+      this.prisma.client,
+      userId,
+      userName,
+      email,
+    );
+  }
 
   async completeOnboarding(
     userId: string,
@@ -53,32 +157,27 @@ export class WorkspaceService {
     let organizationId: string;
 
     if (!membership) {
-      const slug = `${slugify(dto.workspaceName || 'My Career Workspace')}-${Date.now().toString(36)}`;
-      const organization = await this.prisma.client.organization.create({
-        data: {
-          name: dto.workspaceName || 'My Career Workspace',
-          slug,
-          metadata: metadataString,
-          members: {
-            create: {
-              userId,
-              role: 'owner',
-            },
+      const defaultOrg = await this.ensureDefaultWorkspace(userId, dto.name);
+      organizationId = defaultOrg.id;
+
+      await this.prisma.client.$transaction([
+        this.prisma.client.user.update({
+          where: { id: userId },
+          data: { name: dto.name },
+        }),
+        this.prisma.client.organization.update({
+          where: { id: organizationId },
+          data: {
+            name: dto.workspaceName || defaultOrg.name,
+            metadata: metadataString,
           },
-        },
-      });
-
-      organizationId = organization.id;
-
-      await this.prisma.client.user.update({
-        where: { id: userId },
-        data: { name: dto.name },
-      });
+        }),
+      ]);
 
       await this.prisma.client.session
         .updateMany({
           where: { userId },
-          data: { activeOrganizationId: organization.id },
+          data: { activeOrganizationId: organizationId },
         })
         .catch(() => undefined);
     } else {

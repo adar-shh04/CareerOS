@@ -1,17 +1,15 @@
 import { NextResponse } from "next/server";
 
-import { ApiError, fetchResumeVersion } from "@/lib/api";
-import { getServerSession } from "@/lib/server-session";
+import { fetchResumeVersion } from "@/lib/api";
+import { getBffSession, handleBffError } from "@/lib/bff";
 
 interface RouteParams {
   params: Promise<{ profileId: string; versionId: string }>;
 }
 
 export async function GET(_request: Request, { params }: RouteParams) {
-  const session = await getServerSession();
-  if (!session) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+  const { session, unauthorizedResponse } = await getBffSession();
+  if (unauthorizedResponse) return unauthorizedResponse;
 
   const { profileId, versionId } = await params;
 
@@ -24,9 +22,6 @@ export async function GET(_request: Request, { params }: RouteParams) {
     );
     return NextResponse.json(version);
   } catch (error) {
-    const status = error instanceof ApiError ? error.status : 500;
-    const message =
-      error instanceof Error ? error.message : "Failed to load resume version.";
-    return NextResponse.json({ message }, { status });
+    return handleBffError(error, "Failed to load resume version.");
   }
 }

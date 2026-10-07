@@ -1,17 +1,15 @@
 import { NextResponse } from "next/server";
 
-import { ApiError, fetchJobAnalysis } from "@/lib/api";
-import { getServerSession } from "@/lib/server-session";
+import { fetchJobAnalysis } from "@/lib/api";
+import { getBffSession, handleBffError } from "@/lib/bff";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
 export async function GET(_request: Request, { params }: RouteParams) {
-  const session = await getServerSession();
-  if (!session) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+  const { session, unauthorizedResponse } = await getBffSession();
+  if (unauthorizedResponse) return unauthorizedResponse;
 
   const { id: jobId } = await params;
 
@@ -23,9 +21,6 @@ export async function GET(_request: Request, { params }: RouteParams) {
     );
     return NextResponse.json(analysis);
   } catch (error) {
-    const status = error instanceof ApiError ? error.status : 500;
-    const message =
-      error instanceof Error ? error.message : "Failed to analyze job.";
-    return NextResponse.json({ message }, { status });
+    return handleBffError(error, "Failed to analyze job.");
   }
 }

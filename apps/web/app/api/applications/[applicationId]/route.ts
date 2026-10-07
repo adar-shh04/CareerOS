@@ -1,22 +1,19 @@
 import { NextResponse } from "next/server";
 
 import {
-  ApiError,
   deleteApplication,
   fetchApplication,
   updateApplicationState,
 } from "@/lib/api";
-import { getServerSession } from "@/lib/server-session";
+import { getBffSession, handleBffError } from "@/lib/bff";
 
 interface RouteParams {
   params: Promise<{ applicationId: string }>;
 }
 
 export async function GET(_request: Request, { params }: RouteParams) {
-  const session = await getServerSession();
-  if (!session) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+  const { session, unauthorizedResponse } = await getBffSession();
+  if (unauthorizedResponse) return unauthorizedResponse;
 
   const { applicationId } = await params;
 
@@ -28,18 +25,13 @@ export async function GET(_request: Request, { params }: RouteParams) {
     );
     return NextResponse.json(app);
   } catch (error) {
-    const status = error instanceof ApiError ? error.status : 500;
-    const message =
-      error instanceof Error ? error.message : "Failed to load application.";
-    return NextResponse.json({ message }, { status });
+    return handleBffError(error, "Failed to load application.");
   }
 }
 
 export async function PATCH(request: Request, { params }: RouteParams) {
-  const session = await getServerSession();
-  if (!session) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+  const { session, unauthorizedResponse } = await getBffSession();
+  if (unauthorizedResponse) return unauthorizedResponse;
 
   const { applicationId } = await params;
 
@@ -58,18 +50,13 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     );
     return NextResponse.json(app);
   } catch (error) {
-    const status = error instanceof ApiError ? error.status : 500;
-    const message =
-      error instanceof Error ? error.message : "Failed to update application.";
-    return NextResponse.json({ message }, { status });
+    return handleBffError(error, "Failed to update application.");
   }
 }
 
 export async function DELETE(_request: Request, { params }: RouteParams) {
-  const session = await getServerSession();
-  if (!session) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+  const { session, unauthorizedResponse } = await getBffSession();
+  if (unauthorizedResponse) return unauthorizedResponse;
 
   const { applicationId } = await params;
 
@@ -77,9 +64,6 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
     await deleteApplication(session.token, session.workspace.id, applicationId);
     return new NextResponse(null, { status: 204 });
   } catch (error) {
-    const status = error instanceof ApiError ? error.status : 500;
-    const message =
-      error instanceof Error ? error.message : "Failed to delete application.";
-    return NextResponse.json({ message }, { status });
+    return handleBffError(error, "Failed to delete application.");
   }
 }
