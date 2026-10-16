@@ -12,9 +12,9 @@
   },
   "dependencies": {
     "@repo/types": "workspace:*",
-    "better-auth": "^1.4.6",
+    "better-auth": "1.4.9",
     "lucide-react": "^1.25.0",
-    "next": "16.2.0",
+    "next": "15.5.24",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },
@@ -26,7 +26,7 @@
     "@types/react": "19.2.2",
     "@types/react-dom": "19.2.2",
     "eslint": "^9.39.1",
-    "postcss": "^8.5.26",
+    "postcss": "8.5.12",
     "tailwindcss": "^4.3.3",
     "typescript": "5.9.2"
   }

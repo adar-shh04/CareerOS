@@ -42,14 +42,14 @@ importers:
         specifier: workspace:*
         version: link:../../packages/types
       better-auth:
-        specifier: ^1.4.6
-        version: 1.6.25(@prisma/client@7.9.0(prisma@7.9.0(@types/react-dom@19.2.2(@types/react@19.2.2))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.9.2))(typescript@5.9.2))(mysql2@3.15.3)(next@16.2.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(pg@8.22.0)(prisma@7.9.0(@types/react-dom@19.2.2(@types/react@19.2.2))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.9.2))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+        specifier: 1.4.9
+        version: 1.4.9(@prisma/client@7.9.0(prisma@7.9.0(@types/react-dom@19.2.2(@types/react@19.2.2))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.9.2))(typescript@5.9.2))(mysql2@3.15.3)(next@16.2.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(pg@8.22.0)(prisma@7.9.0(@types/react-dom@19.2.2(@types/react@19.2.2))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.9.2))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       class-transformer:
         specifier: ^0.5.1
         version: 0.5.1
       class-validator:
-        specifier: ^0.15.1
-        version: 0.15.1
+        specifier: 0.14.0
+        version: 0.14.0
       express:
         specifier: ^5.2.1
         version: 5.2.1
@@ -60,8 +60,8 @@ importers:
         specifier: ^2.4.5
         version: 2.4.5
       pg:
-        specifier: ^8.22.0
-        version: 8.22.0
+        specifier: 2.11.2
+        version: 2.11.2
       reflect-metadata:
         specifier: ^0.2.2
         version: 0.2.2
@@ -163,14 +163,14 @@ importers:
         specifier: workspace:*
         version: link:../../packages/types
       better-auth:
-        specifier: ^1.4.6
-        version: 1.6.25(@prisma/client@7.9.0(prisma@7.9.0(@types/react-dom@19.2.2(@types/react@19.2.2))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.9.2))(typescript@5.9.2))(mysql2@3.15.3)(next@16.2.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(pg@8.22.0)(prisma@7.9.0(@types/react-dom@19.2.2(@types/react@19.2.2))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.9.2))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+        specifier: 1.4.9
+        version: 1.4.9(@prisma/client@7.9.0(prisma@7.9.0(@types/react-dom@19.2.2(@types/react@19.2.2))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.9.2))(typescript@5.9.2))(mysql2@3.15.3)(next@16.2.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(pg@8.22.0)(prisma@7.9.0(@types/react-dom@19.2.2(@types/react@19.2.2))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.9.2))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       lucide-react:
         specifier: ^1.25.0
         version: 1.25.0(react@19.2.0)
       next:
-        specifier: 16.2.0
-        version: 16.2.0(@babel/core@7.29.7)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+        specifier: 15.5.24
+        version: 15.5.24(@babel/core@7.29.7)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       react:
         specifier: ^19.2.0
         version: 19.2.0
@@ -200,8 +200,8 @@ importers:
         specifier: ^9.39.1
         version: 9.39.1(jiti@2.7.0)
       postcss:
-        specifier: ^8.5.26
-        version: 8.5.26
+        specifier: 8.5.12
+        version: 8.5.12
       tailwindcss:
         specifier: ^4.3.3
         version: 4.3.3
