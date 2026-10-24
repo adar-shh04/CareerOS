@@ -22,9 +22,11 @@ interface ApifyLinkedInItem {
   location?: string;
   link?: string;
   url?: string;
+  jobUrl?: string;
   description?: string;
   salary?: string;
   postedAt?: string;
+  postedDate?: string;
   publishedAt?: string;
   isRemote?: boolean;
   workType?: string;
@@ -83,11 +85,11 @@ export class ApifyLinkedInAdapter implements JobSourceAdapter {
     params: FetchJobsParams,
     apiToken: string,
   ): Promise<RawIngestedJob[]> {
-    const url = `https://api.apify.com/v2/acts/apify~linkedin-jobs-scraper/run-sync-get-dataset-items?token=${apiToken}`;
+    const url = `https://api.apify.com/v2/acts/johnvc~linkedin-jobs-api/run-sync-get-dataset-items?token=${apiToken}`;
     const payload = {
-      title: params.query,
+      keyword: params.query,
       location: params.location ?? 'Remote',
-      rows: params.limit ?? 20,
+      maxJobs: params.limit ?? 20,
     };
 
     let response: Response;
@@ -145,7 +147,7 @@ export class ApifyLinkedInAdapter implements JobSourceAdapter {
     const company = item.companyName ?? item.company ?? 'Unknown Company';
     const title = item.title ?? 'Software Engineer';
     const location = item.location ?? 'Remote';
-    const sourceUrl = item.link ?? item.url ?? undefined;
+    const sourceUrl = item.jobUrl ?? item.link ?? item.url ?? undefined;
     const description = item.description ?? `${title} position at ${company}.`;
 
     const isRemote =
@@ -162,7 +164,7 @@ export class ApifyLinkedInAdapter implements JobSourceAdapter {
       location,
       description,
       salaryText: item.salary,
-      postedAtText: item.postedAt ?? item.publishedAt,
+      postedAtText: item.postedDate ?? item.postedAt ?? item.publishedAt,
       isRemote,
       rawSkills: item.skills,
       rawData: item as unknown as Record<string, unknown>,

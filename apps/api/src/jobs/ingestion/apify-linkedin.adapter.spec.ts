@@ -180,5 +180,83 @@ describe('ApifyLinkedInAdapter', () => {
       expect(job.salaryText).toBe('$200,000 - $250,000');
       expect(job.rawSkills).toEqual(['Go', 'Kubernetes', 'PostgreSQL']);
     });
+
+    it('calls johnvc~linkedin-jobs-api and maps its dataset rows', async () => {
+      process.env.APIFY_API_TOKEN = 'valid-token';
+
+      // Shaped like the actor's dataset: job rows, plus error and
+      // free-tier notice rows that must not become jobs.
+      const actorItems = [
+        {
+          result_type: 'job',
+          jobId: '4300000001',
+          jobUrl: 'https://www.linkedin.com/jobs/view/4300000001',
+          title: 'Senior Backend Engineer',
+          companyName: 'Harbor Labs',
+          companyUrl: 'https://www.linkedin.com/company/harbor-labs',
+          location: 'New York, NY',
+          seniorityLevel: 'Mid-Senior level',
+          employmentType: 'Full-time',
+          jobFunction: 'Engineering and Information Technology',
+          description: 'Build and run the services behind our hiring tools.',
+          salary: '$150,000 - $190,000',
+          postedDate: '2026-10-19',
+          numApplicants: 47,
+          applyUrl: 'https://www.linkedin.com/jobs/view/4300000001/apply',
+          summary:
+            'Senior Backend Engineer, at Harbor Labs, New York, NY, Full-time, $150,000 - $190,000',
+        },
+        {
+          result_type: 'error',
+          error_type: 'CollectionError',
+          sourceUrl: 'backend engineer',
+          error_message: 'LinkedIn returned no results for this search.',
+        },
+        {
+          free_tier_notice: true,
+          message: 'Free monthly usage limit reached for this actor.',
+        },
+      ];
+
+      const fetchMock = jest.fn().mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        json: () => Promise.resolve(actorItems),
+      });
+      global.fetch = fetchMock;
+
+      const jobs = await adapter.fetchJobs({
+        query: 'Backend Engineer',
+        location: 'New York, NY',
+        limit: 5,
+      });
+
+      const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+      expect(url).toContain(
+        '/v2/acts/johnvc~linkedin-jobs-api/run-sync-get-dataset-items?token=valid-token',
+      );
+      expect(JSON.parse(init.body as string)).toEqual({
+        keyword: 'Backend Engineer',
+        location: 'New York, NY',
+        maxJobs: 5,
+      });
+
+      expect(jobs).toHaveLength(1);
+      const job = jobs[0];
+      expect(job.externalId).toBe('4300000001');
+      expect(job.source).toBe('linkedin-apify');
+      expect(job.sourceUrl).toBe(
+        'https://www.linkedin.com/jobs/view/4300000001',
+      );
+      expect(job.company).toBe('Harbor Labs');
+      expect(job.title).toBe('Senior Backend Engineer');
+      expect(job.location).toBe('New York, NY');
+      expect(job.description).toBe(
+        'Build and run the services behind our hiring tools.',
+      );
+      expect(job.salaryText).toBe('$150,000 - $190,000');
+      expect(job.postedAtText).toBe('2026-10-19');
+      expect(job.isRemote).toBe(false);
+    });
   });
 });

@@ -111,7 +111,7 @@ JobIngestionService
     ↓
 ApifyLinkedInAdapter.fetchJobs()
     ├── APIFY_API_TOKEN: params.apiKey ?? APIFY_API_TOKEN env var
-    └── Calls: apify~linkedin-jobs-scraper actor (sync run)
+    └── Calls: johnvc~linkedin-jobs-api actor (sync run)
     ↓
 JobNormalizationService.normalize()
     └── Standardizes title, company, location, remote, skills, salary
