@@ -75,8 +75,7 @@ async function main(): Promise<void> {
       process.env.DATABASE_URL &&
         (process.env.DATABASE_URL.includes('supabase.com') ||
           process.env.DATABASE_URL.includes('pooler.supabase.com') ||
-          process.env.DATABASE_URL.includes('rds.amazonaws.com') ||
-          process.env.DATABASE_URL.includes('cockroachlabs.cloud')),
+          process.env.DATABASE_URL.includes('rds.amazonaws.com')),
     );
 
   if (isProductionDb && process.env.ALLOW_PRODUCTION_SEED !== 'true') {

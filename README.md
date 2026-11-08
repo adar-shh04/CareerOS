@@ -206,10 +206,11 @@ If none of these are set, AI features return an honest capability-unavailable re
 | Variable | Description |
 |---|---|
 | `RESEND_API_KEY` | Email delivery (transactional emails) |
-| `UPSTASH_REDIS_REST_URL` | Redis for caching / background jobs |
-| `TRIGGER_SECRET_KEY` | Background job runner (Trigger.dev) |
-| `POSTHOG_KEY` | Product analytics |
-| `SENTRY_DSN` | Error monitoring |
+| `UPSTASH_REDIS_REST_URL` | Redis for caching / rate limiting |
+| `REDIS_URL` | Local / standalone Redis connection string for rate limiting (default: `redis://localhost:6380`) |
+| `TRIGGER_SECRET_KEY` | Background job runner (Trigger.dev — planned roadmap) |
+| `POSTHOG_KEY` | Product analytics (planned roadmap) |
+| `SENTRY_DSN` | Error monitoring (planned roadmap) |
 
 ---
 

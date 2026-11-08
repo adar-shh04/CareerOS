@@ -7,7 +7,7 @@ const authPaths = ["/login", "/register"];
 
 /**
  * True when Better Auth confirms the request's session is currently valid.
- * Uses the same endpoint as lib/server-session.ts, so middleware and server
+ * Uses the same endpoint as lib/server-session.ts, so proxy and server
  * components agree about who is signed in.
  */
 async function hasValidSession(request: NextRequest): Promise<boolean> {
@@ -26,7 +26,7 @@ async function hasValidSession(request: NextRequest): Promise<boolean> {
   }
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   // Better Auth prefixes the cookie with "__Secure-" on HTTPS / in production;
   // getSessionCookie recognizes both the prefixed and unprefixed names.
@@ -53,6 +53,9 @@ export async function middleware(request: NextRequest) {
 
   return NextResponse.next();
 }
+
+export const middleware = proxy;
+export default proxy;
 
 export const config = {
   matcher: ["/", "/login", "/register", "/onboarding", "/dashboard/:path*"],

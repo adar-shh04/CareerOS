@@ -131,16 +131,14 @@ export function DashboardShell({
 
       {/* ── Collapsible Dark Left Sidebar (in-flow sticky on desktop, off-canvas drawer on mobile) ── */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 lg:sticky lg:top-0 lg:h-screen lg:z-30 shrink-0 flex flex-col justify-between bg-[#0d131f] border-r border-[#1a2333] transition-all duration-300 ease-in-out ${sidebarWidthClass} ${
-          mobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-        }`}
+        className={`fixed inset-y-0 left-0 z-50 lg:sticky lg:top-0 lg:h-screen lg:z-30 shrink-0 flex flex-col justify-between bg-[#0d131f] border-r border-[#1a2333] transition-all duration-300 ease-in-out ${sidebarWidthClass} ${mobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+          }`}
       >
         <div className="flex flex-col flex-1 min-h-0 overflow-y-auto">
           {/* Brand Header & Toggle */}
           <div
-            className={`shrink-0 flex h-16 items-center justify-between border-b border-[#1a2333]/80 px-4 ${
-              isCollapsed && isMounted ? "justify-center px-2" : ""
-            }`}
+            className={`shrink-0 flex h-16 items-center justify-between border-b border-[#1a2333]/80 px-4 ${isCollapsed && isMounted ? "justify-center px-2" : ""
+              }`}
           >
             {isCollapsed && isMounted ? (
               <div className="flex flex-col items-center gap-1">
@@ -214,22 +212,19 @@ export function DashboardShell({
                   href={item.href}
                   onClick={() => setMobileMenuOpen(false)}
                   title={isCollapsed && isMounted ? item.name : undefined}
-                  className={`group flex items-center rounded-xl text-sm font-medium transition-all ${
-                    isCollapsed && isMounted
+                  className={`group flex items-center rounded-xl text-sm font-medium transition-all ${isCollapsed && isMounted
                       ? "h-11 w-11 justify-center mx-auto p-0"
                       : "gap-3.5 px-3.5 py-2.5"
-                  } ${
-                    active
+                    } ${active
                       ? "bg-[#182234] text-white shadow-xs"
                       : "text-slate-400 hover:bg-[#141c2c] hover:text-white"
-                  }`}
+                    }`}
                 >
                   <Icon
-                    className={`h-4 w-4 shrink-0 transition-colors ${
-                      active
+                    className={`h-4 w-4 shrink-0 transition-colors ${active
                         ? "text-[#38bdf8]"
                         : "text-slate-400 group-hover:text-slate-200"
-                    }`}
+                      }`}
                   />
                   {(!isCollapsed || !isMounted) && <span>{item.name}</span>}
                 </Link>
@@ -245,15 +240,13 @@ export function DashboardShell({
             href="/settings"
             onClick={() => setMobileMenuOpen(false)}
             title={isCollapsed && isMounted ? "Account & Settings" : undefined}
-            className={`group flex items-center rounded-xl text-sm font-medium transition-colors ${
-              isCollapsed && isMounted
+            className={`group flex items-center rounded-xl text-sm font-medium transition-colors ${isCollapsed && isMounted
                 ? "h-10 w-10 justify-center mx-auto p-0"
                 : "gap-3 px-3 py-2"
-            } ${
-              pathname.startsWith("/settings")
+              } ${pathname.startsWith("/settings")
                 ? "bg-[#182234] text-white"
                 : "text-slate-400 hover:bg-[#141c2c] hover:text-white"
-            }`}
+              }`}
           >
             <Settings className="h-4 w-4 text-slate-400 group-hover:text-slate-200" />
             {(!isCollapsed || !isMounted) && <span>Settings</span>}
@@ -264,11 +257,10 @@ export function DashboardShell({
             type="button"
             onClick={() => void logout()}
             title={isCollapsed && isMounted ? "Sign Out" : undefined}
-            className={`group flex items-center w-full rounded-xl text-sm font-medium text-slate-400 hover:bg-rose-950/40 hover:text-rose-400 transition-colors cursor-pointer ${
-              isCollapsed && isMounted
+            className={`group flex items-center w-full rounded-xl text-sm font-medium text-slate-400 hover:bg-rose-950/40 hover:text-rose-400 transition-colors cursor-pointer ${isCollapsed && isMounted
                 ? "h-10 w-10 justify-center mx-auto p-0"
                 : "gap-3 px-3 py-2 text-left"
-            }`}
+              }`}
           >
             <LogOut className="h-4 w-4 text-slate-400 group-hover:text-rose-400" />
             {(!isCollapsed || !isMounted) && <span>Sign Out</span>}
@@ -279,11 +271,10 @@ export function DashboardShell({
             <Link
               href="/settings"
               title="Manage Account & Settings"
-              className={`flex items-center rounded-xl transition-colors hover:bg-[#141c2c] ${
-                isCollapsed && isMounted
+              className={`flex items-center rounded-xl transition-colors hover:bg-[#141c2c] ${isCollapsed && isMounted
                   ? "justify-center p-1.5"
                   : "gap-2.5 px-2 py-1.5"
-              }`}
+                }`}
             >
               <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full border border-slate-700 bg-slate-800">
                 {effectiveAvatar ? (
