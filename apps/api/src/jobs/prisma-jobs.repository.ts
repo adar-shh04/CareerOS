@@ -117,6 +117,10 @@ export class PrismaJobsRepository {
    */
   async upsertCanonicalJob(input: CreateJobInput): Promise<CanonicalJob> {
     const data = this.toJobData(input);
+    // Ownership is immutable (trigger trg_jobs_owner_immutable): a row that
+    // already exists is never re-owned, so updates must not write the column.
+    const updateData: Partial<typeof data> = { ...data };
+    delete updateData.ownerOrganizationId;
 
     // If neither externalId nor fingerprint is provided, create directly
     if (!input.externalId && !input.fingerprint) {
@@ -150,7 +154,7 @@ export class PrismaJobsRepository {
       const row = await this.prisma.client.job.update({
         where: { id: existing.id },
         data: {
-          ...data,
+          ...updateData,
           ...(input.externalId ? { externalId: input.externalId } : {}),
         },
       });
@@ -175,7 +179,7 @@ export class PrismaJobsRepository {
           const row = await this.prisma.client.job.update({
             where: { id: retryExisting.id },
             data: {
-              ...data,
+              ...updateData,
               ...(input.externalId ? { externalId: input.externalId } : {}),
             },
           });

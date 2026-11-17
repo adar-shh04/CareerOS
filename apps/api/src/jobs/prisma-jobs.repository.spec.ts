@@ -452,6 +452,23 @@ describe('PrismaJobsRepository', () => {
       ).rejects.toThrow('db down');
     });
 
+    it('updating an existing job never writes the owner column (ownership is immutable)', async () => {
+      mockJob.findUnique.mockResolvedValue({ ...sampleDbJob });
+      mockJob.update.mockResolvedValue({ ...sampleDbJob });
+      await repository.upsertCanonicalJob({
+        company: 'Acme',
+        title: 'Eng',
+        location: 'Remote',
+        fingerprint: 'fp-001',
+        ownerOrganizationId: 'ws-a',
+      });
+      const data = (
+        mockJob.update.mock.calls[0] as [{ data: Record<string, unknown> }]
+      )[0].data;
+      expect(data).not.toHaveProperty('ownerOrganizationId');
+      expect(mockJob.create).not.toHaveBeenCalled();
+    });
+
     it('a private job is created owned, never shared', async () => {
       mockJob.create.mockResolvedValue({
         ...sampleDbJob,

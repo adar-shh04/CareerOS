@@ -29,6 +29,14 @@ Deviations from the original task text, decided deliberately:
    job read path and in the database by triggers
    (`20261118120000_job_owner_integrity_triggers`): an Application, JobMatch or
    WorkspaceJobState can never reference another workspace's private job.
+   Review found that check raced with an ownership change (reproduced on
+   PostgreSQL 17 with two connections), so ownership is now immutable after
+   creation (`20261118130000_job_owner_immutable`) and the child check reads the
+   job row under `FOR KEY SHARE` and fails closed. No flow ever re-owns a job;
+   private to shared would also leak the pasted text to every workspace.
+   Concurrency tests: `apps/api/src/job-owner-integrity.db.spec.ts`. DB-backed
+   suites can be pointed at a disposable database with `TEST_DATABASE_URL`
+   (`apps/api/.env` otherwise always wins).
 2. **"Load sample demonstration jobs" (T-03) is not implemented.** It would
    write demo rows into real workspaces. The acceptance criterion is amended to:
    a new user sees a clear empty state with "Paste your first job" and an

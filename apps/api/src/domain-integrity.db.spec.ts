@@ -618,22 +618,27 @@ describeWithDatabase('Domain & data integrity (PostgreSQL)', () => {
       }
     });
 
-    it('a shared job already used by another workspace cannot be made private', async () => {
+    it('job ownership is immutable through the ORM too, even for the only workspace using it', async () => {
+      // (Superseded earlier rule: a referenced shared job could be made
+      // private to its one user. Ownership is now immutable outright; see
+      // 20261118130000_job_owner_immutable and job-owner-integrity.db.spec.ts
+      // for the PostgreSQL-level and concurrency coverage.)
       const shared = await createJob({ title: `${token} Referenced Shared` });
       await prisma.client.workspaceJobState.create({
         data: { organizationId: wsB, jobId: shared.id },
       });
-      await expect(
-        prisma.client.job.update({
-          where: { id: shared.id },
-          data: { ownerOrganizationId: wsA },
-        }),
-      ).rejects.toThrow(/Foreign key constraint/);
-      // ...but it can become private to the one workspace that uses it.
-      await prisma.client.job.update({
+      for (const owner of [wsA, wsB]) {
+        await expect(
+          prisma.client.job.update({
+            where: { id: shared.id },
+            data: { ownerOrganizationId: owner },
+          }),
+        ).rejects.toThrow();
+      }
+      const after = await prisma.client.job.findUniqueOrThrow({
         where: { id: shared.id },
-        data: { ownerOrganizationId: wsB },
       });
+      expect(after.ownerOrganizationId).toBeNull();
     });
 
     it('concurrent identical submissions create exactly one job and report the rest as duplicates', async () => {
