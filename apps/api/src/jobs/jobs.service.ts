@@ -175,7 +175,7 @@ export class JobsService {
     workspaceId: string,
     jobId: string,
   ): Promise<JobOpportunity> {
-    const job = await this.requireJob(jobId);
+    const job = await this.requireJob(jobId, workspaceId);
     await this.ensureFreshGenericMatches(workspaceId, [
       { id: job.id, updatedAt: new Date(job.updatedAt) },
     ]);
@@ -265,7 +265,7 @@ export class JobsService {
     resumeProfileId?: string,
     weights?: Partial<JobMatchingWeights>,
   ): Promise<JobOpportunity> {
-    const job = await this.requireJob(jobId);
+    const job = await this.requireJob(jobId, workspaceId);
 
     const masterProfile =
       await this.careerProfileService.findByWorkspace(workspaceId);
@@ -317,7 +317,7 @@ export class JobsService {
   // stored status is always derived (see job-state.ts), never set directly.
 
   async saveJob(workspaceId: string, jobId: string): Promise<JobOpportunity> {
-    await this.requireJob(jobId);
+    await this.requireJob(jobId, workspaceId);
     await this.writeJobFlags(workspaceId, jobId, { isSaved: true });
     return this.getEnrichedOpportunity(workspaceId, jobId);
   }
@@ -326,7 +326,7 @@ export class JobsService {
     workspaceId: string,
     jobId: string,
   ): Promise<JobOpportunity> {
-    await this.requireJob(jobId);
+    await this.requireJob(jobId, workspaceId);
     await this.writeJobFlags(workspaceId, jobId, { isDismissed: true });
     return this.getEnrichedOpportunity(workspaceId, jobId);
   }
@@ -335,7 +335,7 @@ export class JobsService {
     workspaceId: string,
     jobId: string,
   ): Promise<JobOpportunity> {
-    await this.requireJob(jobId);
+    await this.requireJob(jobId, workspaceId);
     await this.writeJobFlags(workspaceId, jobId, { isDismissed: false });
     return this.getEnrichedOpportunity(workspaceId, jobId);
   }
@@ -370,7 +370,7 @@ export class JobsService {
       appliedAt?: string;
     },
   ): Promise<JobOpportunity> {
-    await this.requireJob(jobId);
+    await this.requireJob(jobId, workspaceId);
 
     if (data.status && APPLICATION_OWNED_STATUSES.includes(data.status)) {
       throw new BadRequestException(
@@ -462,7 +462,7 @@ export class JobsService {
     jobId: string,
     resumeProfileId?: string,
   ): Promise<JobOpportunity> {
-    const job = await this.requireJob(jobId);
+    const job = await this.requireJob(jobId, workspaceId);
 
     const [match, state] = await Promise.all([
       this.repository.findJobMatch(jobId, workspaceId, resumeProfileId),
@@ -519,12 +519,52 @@ export class JobsService {
     };
   }
 
+  /**
+   * Add a job the user pasted in. Stored as a private job of this workspace,
+   * normalized like any ingested job, and returned enriched with this
+   * workspace's match and state. If the workspace already has this posting
+   * (see JobIngestionService.ingestManual) nothing is written: the existing job
+   * is returned with duplicate = true so the UI can say it was seen before.
+   */
+  async addManualJob(
+    workspaceId: string,
+    input: {
+      title: string;
+      company: string;
+      description: string;
+      location?: string;
+      isRemote?: boolean;
+      salaryRange?: string;
+      sourceUrl?: string;
+    },
+  ): Promise<{ job: JobOpportunity; duplicate: boolean }> {
+    const { job, created } = await this.ingestionService.ingestManual(
+      {
+        title: input.title,
+        company: input.company,
+        description: input.description,
+        location: input.location ?? '',
+        isRemote: input.isRemote,
+        salaryText: input.salaryRange,
+        sourceUrl: input.sourceUrl,
+      },
+      workspaceId,
+    );
+    return {
+      job: await this.getJobDetail(workspaceId, job.id),
+      duplicate: !created,
+    };
+  }
+
   async createJob(input: CreateJobInput): Promise<CanonicalJob> {
     return this.repository.upsertCanonicalJob(input);
   }
 
-  async findJobById(id: string): Promise<CanonicalJob | null> {
-    return this.repository.findJobById(id);
+  async findJobById(
+    id: string,
+    workspaceId: string,
+  ): Promise<CanonicalJob | null> {
+    return this.repository.findJobById(id, workspaceId);
   }
 
   // ── Targeted Resume Generation & Analysis ─────────────────────────────
@@ -533,7 +573,7 @@ export class JobsService {
     jobId: string,
     workspaceId: string,
   ): Promise<JobAnalysisResult> {
-    const job = await this.requireJob(jobId);
+    const job = await this.requireJob(jobId, workspaceId);
 
     const masterProfile =
       await this.careerProfileService.findByWorkspace(workspaceId);
@@ -548,7 +588,7 @@ export class JobsService {
   }
 
   async recommendResumeProfile(workspaceId: string, jobId: string) {
-    const job = await this.requireJob(jobId);
+    const job = await this.requireJob(jobId, workspaceId);
 
     const masterProfile =
       await this.careerProfileService.findByWorkspace(workspaceId);
@@ -611,7 +651,7 @@ export class JobsService {
     workspaceId: string,
     resumeProfileId?: string,
   ) {
-    const job = await this.requireJob(jobId);
+    const job = await this.requireJob(jobId, workspaceId);
 
     const masterProfile =
       await this.careerProfileService.findByWorkspace(workspaceId);
@@ -693,8 +733,11 @@ export class JobsService {
 
   // ── Internal helpers ───────────────────────────────────────────────────
 
-  private async requireJob(jobId: string): Promise<CanonicalJob> {
-    const job = await this.repository.findJobById(jobId);
+  private async requireJob(
+    jobId: string,
+    workspaceId: string,
+  ): Promise<CanonicalJob> {
+    const job = await this.repository.findJobById(jobId, workspaceId);
     if (!job) throw new NotFoundException(`Job ${jobId} not found.`);
     return job;
   }

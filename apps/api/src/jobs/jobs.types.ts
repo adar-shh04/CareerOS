@@ -45,6 +45,8 @@ export interface MatchOutput {
 
 /** Shape for creating or upserting a canonical job record. */
 export interface CreateJobInput {
+  /** Set => private job visible only to this workspace; unset => shared catalog. */
+  ownerOrganizationId?: string;
   externalId?: string;
   fingerprint?: string;
   source?: string;

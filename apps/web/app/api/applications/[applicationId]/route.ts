@@ -39,7 +39,9 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     const body = (await request.json().catch(() => ({}))) as {
       status?: string;
       notes?: string;
-      appliedAt?: string;
+      appliedAt?: string | null;
+      followUpAt?: string | null;
+      deadlineAt?: string | null;
     };
 
     const app = await updateApplicationState(

@@ -5,7 +5,10 @@ import { PrismaJobsRepository } from '../prisma-jobs.repository';
 import { ApifyLinkedInAdapter } from './apify-linkedin.adapter';
 import { JobDeduplicationService } from './job-deduplication.service';
 import { JobNormalizationService } from './job-normalization.service';
-import type { JobSourceAdapter } from './job-source-adapter.interface';
+import type {
+  JobSourceAdapter,
+  RawIngestedJob,
+} from './job-source-adapter.interface';
 
 export interface IngestionOptions {
   source?: string;
@@ -40,6 +43,73 @@ export class JobIngestionService {
 
   registerAdapter(adapter: JobSourceAdapter): void {
     this.adapters.set(adapter.sourceId, adapter);
+  }
+
+  /**
+   * Add one user-supplied job as a private job of `ownerOrganizationId`,
+   * unless the same posting is already visible to that workspace.
+   *
+   * A posting is a duplicate when, among the jobs this workspace can see
+   * (shared catalog + its own), one has the same canonical source URL, or the
+   * same company + title + location. When no location was given, only a posting
+   * with an identical description counts (company + title alone would wrongly
+   * merge distinct openings). A duplicate is returned untouched: it is never
+   * updated or re-created, so the user's saved/applied history stays intact.
+   *
+   * Reuses the normalization pipeline (skills, seniority, salary, remote
+   * policy) but not an adapter. No externalId, so the global (source,
+   * externalId) key can't collide; the owner-salted fingerprint keeps private
+   * jobs apart from shared ones and from other workspaces.
+   */
+  async ingestManual(
+    raw: Omit<RawIngestedJob, 'externalId' | 'source'>,
+    ownerOrganizationId: string,
+  ): Promise<{ job: CanonicalJob; created: boolean }> {
+    const hasLocation = raw.location.trim().length > 0;
+    const sourceUrl = this.deduplicationService.normalizeSourceUrl(
+      raw.sourceUrl,
+    );
+    const normalized = this.normalizationService.normalize({
+      ...raw,
+      location: hasLocation ? raw.location : 'Not specified',
+      sourceUrl,
+      externalId: '',
+      source: 'manual',
+    });
+    const input = {
+      ...normalized,
+      externalId: undefined,
+      ownerOrganizationId,
+    };
+    const discriminator = hasLocation
+      ? ''
+      : this.deduplicationService.hashText(normalized.description ?? '');
+    const ownedFingerprint = this.deduplicationService.computeOwnedFingerprint(
+      input,
+      ownerOrganizationId,
+      discriminator,
+    );
+    // A shared-catalog twin is only comparable when a real location was given.
+    const sharedFingerprint = hasLocation
+      ? this.deduplicationService.computeFingerprint(input)
+      : undefined;
+
+    const existing = await this.repository.findVisibleDuplicate(
+      ownerOrganizationId,
+      {
+        sourceUrl,
+        fingerprints: [ownedFingerprint, sharedFingerprint].filter(
+          (f): f is string => f !== undefined,
+        ),
+      },
+    );
+    if (existing) return { job: existing, created: false };
+
+    const job = await this.repository.upsertCanonicalJob({
+      ...input,
+      fingerprint: ownedFingerprint,
+    });
+    return { job, created: true };
   }
 
   async ingest(options: IngestionOptions): Promise<IngestionResult> {

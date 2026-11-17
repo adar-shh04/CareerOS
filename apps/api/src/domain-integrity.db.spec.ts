@@ -14,7 +14,10 @@ import { CareerProfileService } from './career-profile/career-profile.service';
 import type { MasterCareerProfile } from './career-profile/career-profile.types';
 import { PrismaCareerProfileRepository } from './career-profile/prisma-career-profile.repository';
 import { PrismaService } from './database/prisma.service';
-import type { JobIngestionService } from './jobs/ingestion/job-ingestion.service';
+import type { ApifyLinkedInAdapter } from './jobs/ingestion/apify-linkedin.adapter';
+import { JobDeduplicationService } from './jobs/ingestion/job-deduplication.service';
+import { JobIngestionService } from './jobs/ingestion/job-ingestion.service';
+import { JobNormalizationService } from './jobs/ingestion/job-normalization.service';
 import { JobAnalysisService } from './jobs/job-analysis.service';
 import { JobMatchingService } from './jobs/job-matching.service';
 import { JobsService } from './jobs/jobs.service';
@@ -38,13 +41,19 @@ describeWithDatabase('Domain & data integrity (PostgreSQL)', () => {
     careerProfiles,
   );
   const applications = new ApplicationsService(prisma);
+  const ingestion = new JobIngestionService(
+    { sourceId: 'linkedin-apify' } as ApifyLinkedInAdapter,
+    new JobNormalizationService(),
+    new JobDeduplicationService(),
+    jobsRepo,
+  );
   const jobs = new JobsService(
     jobsRepo,
     new JobMatchingService(),
     new JobAnalysisService(),
     careerProfiles,
     resumeProfiles,
-    {} as JobIngestionService,
+    ingestion,
     applications,
   );
 
@@ -282,7 +291,7 @@ describeWithDatabase('Domain & data integrity (PostgreSQL)', () => {
       });
       jobIds.push(saved.id);
 
-      const read = await jobsRepo.findJobById(saved.id);
+      const read = await jobsRepo.findJobById(saved.id, wsA);
       expect(read).toMatchObject({
         seniority: 'Senior',
         experienceRequirements: { minYears: 6, text: '6+ years' },
@@ -301,7 +310,7 @@ describeWithDatabase('Domain & data integrity (PostgreSQL)', () => {
 
     it('a legacy job (never normalized) is distinguishable and uses the labelled fallback', async () => {
       const legacy = await createJob({ title: `${token} Staff Engineer` });
-      const read = await jobsRepo.findJobById(legacy.id);
+      const read = await jobsRepo.findJobById(legacy.id, wsA);
       expect(read?.isNormalized).toBe(false);
       expect(read?.seniority).toBeUndefined();
       const detail = await jobs.getJobDetail(wsA, legacy.id);
@@ -481,6 +490,112 @@ describeWithDatabase('Domain & data integrity (PostgreSQL)', () => {
       expect(
         historical?.masterProfileSnapshot.projects.map((p) => p.id),
       ).toEqual([projectId]);
+    });
+  });
+
+  // ── Manual job entry: private jobs are tenant-isolated ─────────────────
+  describe('Manual (workspace-owned) jobs', () => {
+    const manual = {
+      title: `${token} Platform Engineer`,
+      company: `${token} Manual Co`,
+      location: 'Remote',
+      description:
+        'Build platform tooling with TypeScript and PostgreSQL. 4+ years of experience required.',
+    };
+
+    it('is visible to its owner only; same paste elsewhere never touches it', async () => {
+      const { job: a, duplicate: aDup } = await jobs.addManualJob(wsA, manual);
+      jobIds.push(a.id);
+      expect(aDup).toBe(false);
+
+      const listedA = await jobs.listByWorkspace(wsA, { query: token });
+      expect(listedA.map((j) => j.id)).toContain(a.id);
+      const listedB = await jobs.listByWorkspace(wsB, { query: token });
+      expect(listedB.map((j) => j.id)).not.toContain(a.id);
+      await expect(jobs.getJobDetail(wsB, a.id)).rejects.toThrow(/not found/i);
+      await expect(applications.create(wsB, { jobId: a.id })).rejects.toThrow(
+        /not found/i,
+      );
+
+      const { job: b, duplicate: bDup } = await jobs.addManualJob(wsB, {
+        ...manual,
+        description: manual.description + ' (B edit)',
+      });
+      jobIds.push(b.id);
+      // another workspace's private job is never a duplicate for B
+      expect(bDup).toBe(false);
+      expect(b.id).not.toBe(a.id);
+      const rereadA = await jobsRepo.findJobById(a.id, wsA);
+      expect(rereadA?.description).toBe(manual.description);
+    });
+
+    it('the same posting again is a duplicate: nothing created or changed, history kept', async () => {
+      const posting = {
+        ...manual,
+        title: `${token} Idempotent`,
+        sourceUrl: `https://jobs.example.com/${token}/1`,
+      };
+      const first = await jobs.addManualJob(wsA, posting);
+      jobIds.push(first.job.id);
+      expect(first.duplicate).toBe(false);
+      await jobs.saveJob(wsA, first.job.id);
+
+      // identical, re-pasted with edits, other casing, tracking params
+      for (const again of [
+        posting,
+        { ...posting, description: manual.description + ' Edited.' },
+        { ...posting, title: `${token} Idempotent`.toUpperCase() },
+        {
+          ...posting,
+          title: `${token} Different Title`,
+          sourceUrl: posting.sourceUrl + '/?utm_source=x#apply',
+        },
+      ]) {
+        const r = await jobs.addManualJob(wsA, again);
+        expect(r.duplicate).toBe(true);
+        expect(r.job.id).toBe(first.job.id);
+        expect(r.job.workspaceState?.isSaved).toBe(true);
+      }
+      const row = await jobsRepo.findJobById(first.job.id, wsA);
+      expect(row?.description).toBe(manual.description);
+      expect(
+        await prisma.client.job.count({
+          where: { ownerOrganizationId: wsA, title: posting.title },
+        }),
+      ).toBe(1);
+    });
+
+    it('a genuinely different job is created', async () => {
+      const other = await jobs.addManualJob(wsA, {
+        ...manual,
+        title: `${token} Data Engineer`,
+        sourceUrl: `https://jobs.example.com/${token}/2`,
+      });
+      jobIds.push(other.job.id);
+      expect(other.duplicate).toBe(false);
+    });
+
+    it('a posting already in the shared catalog is reported as a duplicate', async () => {
+      const company = `${token} Shared Co`;
+      const title = `${token} Shared Role`;
+      const shared = await createJob({
+        company,
+        title,
+        location: 'Berlin',
+        fingerprint: new JobDeduplicationService().computeFingerprint({
+          company,
+          title,
+          location: 'Berlin',
+        }),
+      });
+      const r = await jobs.addManualJob(wsA, {
+        ...manual,
+        company,
+        title,
+        location: 'Berlin',
+      });
+      expect(r.duplicate).toBe(true);
+      expect(r.job.id).toBe(shared.id);
     });
   });
 });

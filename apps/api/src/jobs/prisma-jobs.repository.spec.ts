@@ -360,4 +360,77 @@ describe('PrismaJobsRepository', () => {
       expect(stored.resumeProfileId).toBe('rp-1');
     });
   });
+
+  describe('workspace visibility of private jobs', () => {
+    const visibility = (ws: string) => ({
+      OR: [{ ownerOrganizationId: null }, { ownerOrganizationId: ws }],
+    });
+    const uuid = '6f1c2b1e-3d4a-4b5c-8d6e-7f8091a2b3c4';
+
+    it('findJobById only returns shared jobs or the callers own', async () => {
+      mockJob.findFirst.mockResolvedValue(null);
+      await expect(repository.findJobById(uuid, 'ws-b')).resolves.toBeNull();
+      expect(mockJob.findFirst).toHaveBeenCalledWith({
+        where: { id: uuid, ...visibility('ws-b') },
+      });
+      expect(mockJob.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('listCandidateJobs always applies the visibility filter', async () => {
+      mockJob.findMany.mockResolvedValue([]);
+      await repository.listCandidateJobs('ws-b', { remoteOnly: true });
+      const where = (
+        mockJob.findMany.mock.calls[0] as [{ where: { AND: unknown[] } }]
+      )[0].where;
+      expect(where.AND[0]).toEqual(visibility('ws-b'));
+    });
+
+    it('findVisibleDuplicate matches by URL or fingerprint within visible jobs only', async () => {
+      mockJob.findFirst.mockResolvedValue(null);
+      await repository.findVisibleDuplicate('ws-b', {
+        sourceUrl: 'https://x.com/j/1',
+        fingerprints: ['fp-owned', 'fp-shared'],
+      });
+      expect(mockJob.findFirst).toHaveBeenCalledWith({
+        where: {
+          AND: [
+            visibility('ws-b'),
+            {
+              OR: [
+                { sourceUrl: 'https://x.com/j/1' },
+                { fingerprint: { in: ['fp-owned', 'fp-shared'] } },
+              ],
+            },
+          ],
+        },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      });
+      // nothing to match on => no query
+      mockJob.findFirst.mockClear();
+      await expect(
+        repository.findVisibleDuplicate('ws-b', { fingerprints: [] }),
+      ).resolves.toBeNull();
+      expect(mockJob.findFirst).not.toHaveBeenCalled();
+    });
+
+    it('a private job is created owned, never shared', async () => {
+      mockJob.create.mockResolvedValue({
+        ...sampleDbJob,
+        externalId: null,
+        ownerOrganizationId: 'ws-a',
+      });
+      await repository.upsertCanonicalJob({
+        company: 'Acme',
+        title: 'Eng',
+        location: 'Remote',
+        ownerOrganizationId: 'ws-a',
+      });
+      const data = (
+        mockJob.create.mock.calls[0] as [
+          { data: { ownerOrganizationId: string | null } },
+        ]
+      )[0].data;
+      expect(data.ownerOrganizationId).toBe('ws-a');
+    });
+  });
 });

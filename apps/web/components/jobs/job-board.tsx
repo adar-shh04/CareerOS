@@ -1,12 +1,15 @@
 "use client";
 
 import type { JobOpportunity, ResumeProfile, ResumeVersion } from "@repo/types";
-import { Briefcase, RefreshCw, Sparkles } from "lucide-react";
+import { Briefcase, Plus, RefreshCw, Sparkles } from "lucide-react";
+import { useRouter } from "next/navigation";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { TrackedApplication } from "@/lib/api";
 
+import { AddJobDialog } from "./add-job-dialog";
 import { JobDetailsDrawer } from "./job-details-drawer";
+import { JobEmptyState } from "./job-empty-state";
 import { JobFilters } from "./job-filters";
 import { JobList } from "./job-list";
 import { JobSearch } from "./job-search";
@@ -23,6 +26,7 @@ export function JobBoard({
   onNavigateToResume,
   initialSavedOnly = false,
 }: JobBoardProps = {}) {
+  const router = useRouter();
   const containerRef = useRef<HTMLDivElement>(null);
   const [isDualPane, setIsDualPane] = useState(false);
   const [jobs, setJobs] = useState<JobOpportunity[]>([]);
@@ -179,6 +183,7 @@ export function JobBoard({
     });
   }, [jobs, savedOnly, showDismissed]);
 
+  const [addJobOpen, setAddJobOpen] = useState(false);
   const [ingesting, setIngesting] = useState(false);
   const [ingestError, setIngestError] = useState<string | null>(null);
 
@@ -222,6 +227,66 @@ export function JobBoard({
       </button>
     ) : null;
 
+  // "Nothing is narrowing the list and it is still empty" is the first-run
+  // state; otherwise an empty list is the result of a search or filter.
+  const filtersActive =
+    appliedQuery !== "" ||
+    remoteOnly ||
+    savedOnly ||
+    selectedSkill !== "" ||
+    jobs.length > 0;
+  const emptyState = (
+    <JobEmptyState
+      query={searchQuery}
+      filtersActive={filtersActive}
+      savedOnly={savedOnly}
+      onResetQuery={() => {
+        setSearchQuery("");
+        setSelectedSkill("");
+        setRemoteOnly(false);
+        runSearch("");
+      }}
+      onAddJob={() => {
+        setAddJobOpen(true);
+      }}
+      onFetchLive={() => {
+        void handleIngestJobs();
+      }}
+      fetchingLive={ingesting}
+    />
+  );
+
+  // A host page (the dashboard) can show the new version itself; everywhere
+  // else (/jobs, /jobs/saved) open it directly so creation is never silent.
+  const handleTargetedResumeCreated = (
+    version: ResumeVersion,
+    profile: ResumeProfile,
+  ) => {
+    setSelectedJob(null);
+    if (onNavigateToResume) {
+      onNavigateToResume(version, profile);
+    } else {
+      router.push(`/resumes/${profile.id}/versions/${version.id}`);
+    }
+  };
+
+  const handleJobAdded = (job: JobOpportunity) => {
+    setAddJobOpen(false);
+    // Clear filters that could hide the new job, reload the ranked list, and
+    // open the job so the user lands on its match breakdown.
+    const filtersActive =
+      appliedQuery !== "" || selectedSkill !== "" || remoteOnly || savedOnly;
+    setSearchQuery("");
+    setAppliedQuery("");
+    setSelectedSkill("");
+    setRemoteOnly(false);
+    setSavedOnly(false);
+    // Changing a filter already reloads via the effect on fetchJobs; only
+    // refetch directly when nothing changed (avoids a stale-filter race).
+    if (!filtersActive) void fetchJobs();
+    setSelectedJob(job);
+  };
+
   return (
     <div ref={containerRef} className="flex flex-col gap-6 max-w-7xl mx-auto p-4 sm:p-6 w-full">
       {/* Header */}
@@ -241,6 +306,17 @@ export function JobBoard({
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setAddJobOpen(true);
+            }}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-[#1d68ed] hover:bg-[#1555c8] text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Add Job
+          </button>
+
           <button
             type="button"
             onClick={() => {
@@ -325,6 +401,7 @@ export function JobBoard({
               onRetry={() => {
                 runSearch(searchQuery);
               }}
+              emptyState={emptyState}
             />
             {loadMoreButton}
           </div>
@@ -346,12 +423,7 @@ export function JobBoard({
                     prevJobs.map((j) => (j.id === updatedJob.id ? updatedJob : j)),
                   );
                 }}
-                onNavigateToResume={(version, profile) => {
-                  setSelectedJob(null);
-                  if (onNavigateToResume) {
-                    onNavigateToResume(version, profile);
-                  }
-                }}
+                onNavigateToResume={handleTargetedResumeCreated}
               />
             ) : (
               <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-10 flex flex-col items-center justify-center text-center space-y-3 sticky top-4 min-h-[420px] shadow-2xs">
@@ -389,6 +461,7 @@ export function JobBoard({
             onRetry={() => {
               runSearch(searchQuery);
             }}
+            emptyState={emptyState}
           />
           {loadMoreButton}
 
@@ -407,16 +480,18 @@ export function JobBoard({
                 prevJobs.map((j) => (j.id === updatedJob.id ? updatedJob : j)),
               );
             }}
-            onNavigateToResume={(version, profile) => {
-              setSelectedJob(null);
-              if (onNavigateToResume) {
-                onNavigateToResume(version, profile);
-              }
-            }}
+            onNavigateToResume={handleTargetedResumeCreated}
           />
         </>
       )}
+
+      <AddJobDialog
+        open={addJobOpen}
+        onClose={() => {
+          setAddJobOpen(false);
+        }}
+        onCreated={handleJobAdded}
+      />
     </div>
   );
 }
-

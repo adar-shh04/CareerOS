@@ -18,6 +18,7 @@ import {
   type MarketSkillDemand,
 } from "./career-insights-card";
 import { CareerSnapshot } from "./career-snapshot";
+import { FollowUpReminders } from "./follow-up-reminders";
 import { JobRadarPreview } from "./job-radar-preview";
 import { NextBestAction } from "./next-best-action";
 
@@ -331,6 +332,8 @@ export function CareerDashboardView({
 
         {/* Right Column (4 cols on xl+): Application Activity & Market Intelligence */}
         <div className="flex flex-col gap-6 xl:col-span-4">
+          <FollowUpReminders applications={applications} />
+
           <ApplicationActivity
             loading={loading}
             applications={applications}

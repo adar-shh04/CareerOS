@@ -14,6 +14,8 @@ import React, { useCallback, useEffect, useState } from "react";
 
 import type { TrackedApplication } from "@/lib/api";
 
+import { ReminderBadges } from "./reminder-badges";
+
 /* ── Status config ───────────────────────────────────────────────────────── */
 
 type ApplicationStatus =
@@ -243,6 +245,7 @@ function ApplicationRow({
 
       {/* Status badge */}
       <StatusBadge status={app.status} />
+      <ReminderBadges app={app} />
 
       {/* Move to */}
       <StatusSelect

@@ -30,7 +30,14 @@ export class InsightsService {
     workspaceId: string,
   ): Promise<MarketIntelligenceResponse> {
     // 1. Check job data count
-    const jobDataCount = await this.prisma.client.job.count();
+    const jobDataCount = await this.prisma.client.job.count({
+      where: {
+        OR: [
+          { ownerOrganizationId: null },
+          { ownerOrganizationId: workspaceId },
+        ],
+      },
+    });
     if (jobDataCount === 0) {
       return {
         available: false,
@@ -44,6 +51,12 @@ export class InsightsService {
     // 2. Deterministic aggregates computed only from real ingested listings.
     //    These are returned whether or not AI synthesis is available.
     const sampleJobs = await this.prisma.client.job.findMany({
+      where: {
+        OR: [
+          { ownerOrganizationId: null },
+          { ownerOrganizationId: workspaceId },
+        ],
+      },
       take: 20,
       orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
       select: {

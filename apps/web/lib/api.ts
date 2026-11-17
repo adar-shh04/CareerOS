@@ -414,6 +414,70 @@ export async function getJob(
   return parseResponse<JobOpportunity>(response);
 }
 
+export interface CreateManualJobInput {
+  title: string;
+  company: string;
+  description: string;
+  location?: string;
+  isRemote?: boolean;
+  salaryRange?: string;
+  sourceUrl?: string;
+}
+
+/** Add a job the user pasted in (private to the workspace). */
+export async function createManualJob(
+  sessionCookie: string,
+  workspaceId: string,
+  input: CreateManualJobInput,
+): Promise<CreateManualJobResult> {
+  const response = await fetch(`${getWorkspacePath(workspaceId)}/jobs`, {
+    method: "POST",
+    headers: {
+      Cookie: sessionCookie,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+  return parseResponse<CreateManualJobResult>(response);
+}
+
+/** duplicate = the workspace already had this posting; nothing was created. */
+export interface CreateManualJobResult {
+  job: JobOpportunity;
+  duplicate: boolean;
+}
+
+/** Draft fields read from a public posting; nothing is saved. */
+export interface ImportedJobDraft {
+  title: string;
+  company: string;
+  location?: string;
+  isRemote: boolean;
+  salaryRange?: string;
+  description: string;
+  sourceUrl: string;
+}
+
+/** Read a public job URL into draft form fields (the user reviews and submits). */
+export async function importJobFromUrl(
+  sessionCookie: string,
+  workspaceId: string,
+  url: string,
+): Promise<ImportedJobDraft> {
+  const response = await fetch(
+    `${getWorkspacePath(workspaceId)}/jobs/import-url`,
+    {
+      method: "POST",
+      headers: {
+        Cookie: sessionCookie,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ url }),
+    },
+  );
+  return parseResponse<ImportedJobDraft>(response);
+}
+
 export async function ingestJobs(
   sessionCookie: string,
   workspaceId: string,
@@ -733,7 +797,9 @@ export async function updateApplicationState(
   input: {
     status?: string;
     notes?: string;
-    appliedAt?: string;
+    appliedAt?: string | null;
+    followUpAt?: string | null;
+    deadlineAt?: string | null;
     resumeProfileId?: string | null;
   },
 ): Promise<TrackedApplication> {

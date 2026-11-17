@@ -716,6 +716,10 @@ export interface ApplicationRecord<TDate = string | Date> {
   status: ApplicationStatus;
   notes?: string | null;
   appliedAt?: TDate | null;
+  /** Date-only (UTC midnight of the chosen day): when to follow up. */
+  followUpAt?: TDate | null;
+  /** Date-only (UTC midnight of the chosen day): application deadline. */
+  deadlineAt?: TDate | null;
   resumeProfileId?: string | null;
   resumeVersionId?: string | null;
   createdAt: TDate;
@@ -736,6 +740,8 @@ export interface CreateApplicationInput<TDate = string | Date> {
   status?: ApplicationStatus;
   notes?: string;
   appliedAt?: TDate;
+  followUpAt?: TDate | null;
+  deadlineAt?: TDate | null;
   resumeProfileId?: string;
   resumeVersionId?: string;
 }
@@ -744,6 +750,8 @@ export interface UpdateApplicationInput<TDate = string | Date> {
   status?: ApplicationStatus;
   notes?: string;
   appliedAt?: TDate | null;
+  followUpAt?: TDate | null;
+  deadlineAt?: TDate | null;
   resumeProfileId?: string;
   resumeVersionId?: string;
 }

@@ -1,13 +1,17 @@
 import { BadRequestException } from '@nestjs/common';
 
+import type { JobUrlScraperService } from './ingestion/job-url-scraper.service';
 import { JobsController } from './jobs.controller';
 import type { JobsService } from './jobs.service';
 
 describe('JobsController list query parsing', () => {
   const listByWorkspace = jest.fn().mockResolvedValue([]);
-  const controller = new JobsController({
-    listByWorkspace,
-  } as unknown as JobsService);
+  const controller = new JobsController(
+    {
+      listByWorkspace,
+    } as unknown as JobsService,
+    {} as unknown as JobUrlScraperService,
+  );
 
   beforeEach(() => listByWorkspace.mockClear());
 

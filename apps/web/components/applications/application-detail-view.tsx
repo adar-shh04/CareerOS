@@ -21,6 +21,9 @@ import type {
   ApplicationStatusHistory,
   TrackedApplication,
 } from "@/lib/api";
+import { storedDayKey } from "@/lib/application-reminders";
+
+import { ReminderBadges } from "./reminder-badges";
 
 type ApplicationStatus =
   | "saved"
@@ -111,6 +114,8 @@ export function ApplicationDetailView({ applicationId }: ApplicationDetailViewPr
 
   const [notes, setNotes] = useState("");
   const [appliedAt, setAppliedAt] = useState("");
+  const [followUpAt, setFollowUpAt] = useState("");
+  const [deadlineAt, setDeadlineAt] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
   const [notesSaved, setNotesSaved] = useState(false);
 
@@ -132,6 +137,8 @@ export function ApplicationDetailView({ applicationId }: ApplicationDetailViewPr
           ? new Date(data.appliedAt).toISOString().split("T")[0] ?? ""
           : "",
       );
+      setFollowUpAt(storedDayKey(data.followUpAt));
+      setDeadlineAt(storedDayKey(data.deadlineAt));
 
       // Load status history
       setHistoryLoading(true);
@@ -193,9 +200,21 @@ export function ApplicationDetailView({ applicationId }: ApplicationDetailViewPr
         body: JSON.stringify({
           notes: notes.trim(),
           appliedAt: appliedAt ? new Date(appliedAt).toISOString() : null,
+          followUpAt: followUpAt || null,
+          deadlineAt: deadlineAt || null,
         }),
       });
       if (res.ok) {
+        const saved = (await res.json()) as TrackedApplication;
+        setApp((prev) =>
+          prev
+            ? {
+                ...prev,
+                followUpAt: saved.followUpAt,
+                deadlineAt: saved.deadlineAt,
+              }
+            : prev,
+        );
         setNotesSaved(true);
         setTimeout(() => setNotesSaved(false), 3000);
       }
@@ -316,6 +335,9 @@ export function ApplicationDetailView({ applicationId }: ApplicationDetailViewPr
               {app.job.salaryRange}
             </p>
           )}
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            <ReminderBadges app={app} />
+          </div>
 
           {app.job?.requiredSkills && app.job.requiredSkills.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-3">
@@ -409,6 +431,39 @@ export function ApplicationDetailView({ applicationId }: ApplicationDetailViewPr
                 onChange={(e) => setAppliedAt(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:border-[#1d68ed] focus:bg-white focus:ring-2 focus:ring-[#1d68ed]/20 focus:outline-none"
               />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label
+                  htmlFor="follow-up-date-input"
+                  className="block text-xs text-slate-700 mb-1.5 font-medium"
+                >
+                  Follow-up Reminder
+                </label>
+                <input
+                  id="follow-up-date-input"
+                  type="date"
+                  value={followUpAt}
+                  onChange={(e) => setFollowUpAt(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:border-[#1d68ed] focus:bg-white focus:ring-2 focus:ring-[#1d68ed]/20 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="deadline-date-input"
+                  className="block text-xs text-slate-700 mb-1.5 font-medium"
+                >
+                  Application Deadline
+                </label>
+                <input
+                  id="deadline-date-input"
+                  type="date"
+                  value={deadlineAt}
+                  onChange={(e) => setDeadlineAt(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:border-[#1d68ed] focus:bg-white focus:ring-2 focus:ring-[#1d68ed]/20 focus:outline-none"
+                />
+              </div>
             </div>
 
             <div>

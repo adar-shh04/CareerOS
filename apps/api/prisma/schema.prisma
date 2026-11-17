@@ -100,6 +100,7 @@ model Organization {
   resumeProfiles ResumeProfile[]
   resumeVersions ResumeVersion[]
   jobStates      WorkspaceJobState[]
+  ownedJobs      Job[]                @relation("OrganizationOwnedJobs")
   jobMatches     JobMatch[]
   applications   Application[]
 
@@ -386,38 +387,43 @@ model ResumeVersion {
 }
 
 model Job {
-  id                 String              @id @default(uuid()) @db.Uuid
-  externalId         String?             @map("external_id")
-  fingerprint        String?
-  source             String              @default("manual")
-  sourceUrl          String?             @map("source_url")
-  company            String
-  title              String
-  location           String
-  isRemote           Boolean             @default(false) @map("is_remote")
-  remotePolicy       String?             @map("remote_policy")
-  employmentType     String?             @map("employment_type")
-  salaryMin          Float?              @map("salary_min")
-  salaryMax          Float?              @map("salary_max")
-  salaryCurrency     String?             @map("salary_currency")
-  salaryRange        String?             @map("salary_range")
-  description        String?
-  requiredSkills     String[]            @default([]) @map("required_skills")
-  preferredSkills    String[]            @default([]) @map("preferred_skills")
-  postedAt           DateTime?           @map("posted_at")
-  expiresAt          DateTime?           @map("expires_at")
-  rawMetadata        Json?               @map("raw_metadata")
-  normalizedMetadata Json?               @map("normalized_metadata")
-  createdAt          DateTime            @default(now()) @map("created_at")
-  updatedAt          DateTime            @updatedAt @map("updated_at")
-  workspaceStates    WorkspaceJobState[]
-  matches            JobMatch[]
-  applications       Application[]
+  id                  String              @id @default(uuid()) @db.Uuid
+  externalId          String?             @map("external_id")
+  fingerprint         String?
+  source              String              @default("manual")
+  sourceUrl           String?             @map("source_url")
+  company             String
+  title               String
+  location            String
+  isRemote            Boolean             @default(false) @map("is_remote")
+  remotePolicy        String?             @map("remote_policy")
+  employmentType      String?             @map("employment_type")
+  salaryMin           Float?              @map("salary_min")
+  salaryMax           Float?              @map("salary_max")
+  salaryCurrency      String?             @map("salary_currency")
+  salaryRange         String?             @map("salary_range")
+  description         String?
+  requiredSkills      String[]            @default([]) @map("required_skills")
+  preferredSkills     String[]            @default([]) @map("preferred_skills")
+  postedAt            DateTime?           @map("posted_at")
+  expiresAt           DateTime?           @map("expires_at")
+  rawMetadata         Json?               @map("raw_metadata")
+  normalizedMetadata  Json?               @map("normalized_metadata")
+  /// NULL = shared catalog job (seeded / ingested), visible to every workspace.
+  /// Set = private job a workspace added by hand; visible to that workspace only.
+  ownerOrganizationId String?             @map("owner_organization_id") @db.Uuid
+  createdAt           DateTime            @default(now()) @map("created_at")
+  updatedAt           DateTime            @updatedAt @map("updated_at")
+  ownerOrganization   Organization?       @relation("OrganizationOwnedJobs", fields: [ownerOrganizationId], references: [id], onDelete: Cascade)
+  workspaceStates     WorkspaceJobState[]
+  matches             JobMatch[]
+  applications        Application[]
 
   @@unique([source, externalId])
   @@unique([fingerprint])
   @@index([company])
   @@index([title])
+  @@index([ownerOrganizationId])
   @@map("jobs")
 }
 
@@ -487,6 +493,9 @@ model Application {
   status          String                     @default("saved") // saved, applied, screening, interview, offer, rejected, withdrawn
   notes           String?
   appliedAt       DateTime?                  @map("applied_at")
+  /// Date-only semantics: stored as UTC midnight of the chosen calendar day.
+  followUpAt      DateTime?                  @map("follow_up_at")
+  deadlineAt      DateTime?                  @map("deadline_at")
   resumeProfileId String?                    @map("resume_profile_id") @db.Uuid
   resumeVersionId String?                    @map("resume_version_id") @db.Uuid
   createdAt       DateTime                   @default(now()) @map("created_at")
@@ -506,6 +515,8 @@ model Application {
   @@index([jobId])
   @@index([resumeProfileId])
   @@index([resumeVersionId])
+  @@index([organizationId, followUpAt])
+  @@index([organizationId, deadlineAt])
   @@map("applications")
 }
 

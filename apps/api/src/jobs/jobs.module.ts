@@ -7,6 +7,8 @@ import { ApifyLinkedInAdapter } from './ingestion/apify-linkedin.adapter';
 import { JobDeduplicationService } from './ingestion/job-deduplication.service';
 import { JobIngestionService } from './ingestion/job-ingestion.service';
 import { JobNormalizationService } from './ingestion/job-normalization.service';
+import { JobUrlScraperService } from './ingestion/job-url-scraper.service';
+import { SafeUrlFetcherService } from './ingestion/safe-url-fetcher.service';
 import { JobAnalysisService } from './job-analysis.service';
 import { JobMatchingService } from './job-matching.service';
 import { JobsController } from './jobs.controller';
@@ -25,6 +27,8 @@ import { PrismaJobsRepository } from './prisma-jobs.repository';
     JobIngestionService,
     JobAnalysisService,
     JobsService,
+    SafeUrlFetcherService,
+    JobUrlScraperService,
   ],
   exports: [
     JobsService,

@@ -45,6 +45,11 @@ export function JobDetailsDrawer({
   const [matchError, setMatchError] = useState<string | null>(null);
   const [creatingResume, setCreatingResume] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  // Set after a targeted resume is created so the user always gets a visible
+  // confirmation and a way to open it, whichever page hosts the drawer.
+  const [createdResumeHref, setCreatedResumeHref] = useState<string | null>(
+    null,
+  );
   const [actionLoading, setActionLoading] = useState(false);
   const [trackingLoading, setTrackingLoading] = useState(false);
   const [notes, setNotes] = useState(job?.workspaceState?.notes ?? "");
@@ -53,6 +58,13 @@ export function JobDetailsDrawer({
   useEffect(() => {
     setNotes(job?.workspaceState?.notes ?? "");
   }, [job]);
+
+  // A confirmation belongs to the job it was created for.
+  const jobId = job?.id;
+  useEffect(() => {
+    setCreatedResumeHref(null);
+    setCreateError(null);
+  }, [jobId]);
 
   if (!job) return null;
 
@@ -149,6 +161,7 @@ export function JobDetailsDrawer({
   const handleCreateTargetedResume = async () => {
     setCreatingResume(true);
     setCreateError(null);
+    setCreatedResumeHref(null);
     try {
       const res = await fetch(`/api/jobs/${job.id}/targeted-resume`, {
         method: "POST",
@@ -162,6 +175,9 @@ export function JobDetailsDrawer({
         version: ResumeVersion;
         profile: ResumeProfile;
       };
+      setCreatedResumeHref(
+        `/resumes/${data.profile.id}/versions/${data.version.id}`,
+      );
       if (onNavigateToResume) {
         onNavigateToResume(data.version, data.profile);
       }
@@ -509,6 +525,23 @@ export function JobDetailsDrawer({
 
         {/* Action Footer */}
         <div className="pt-4 border-t border-slate-100 space-y-3">
+          {createdResumeHref && (
+            <div
+              role="status"
+              className="flex items-center justify-between gap-3 text-xs text-emerald-800 bg-emerald-50 p-2.5 rounded border border-emerald-200"
+            >
+              <span className="flex items-center gap-1.5 font-medium">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                Targeted resume created.
+              </span>
+              <Link
+                href={createdResumeHref}
+                className="font-semibold underline underline-offset-2 hover:text-emerald-950"
+              >
+                View version →
+              </Link>
+            </div>
+          )}
           {createError && (
             <p className="text-xs text-rose-700 bg-rose-50 p-2 rounded border border-rose-200">
               {createError}

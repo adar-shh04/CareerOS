@@ -27,6 +27,13 @@ import {
   parseNormalizedMetadata,
 } from './normalized-metadata';
 
+/** Shared catalog jobs plus the workspace's own private jobs. */
+function visibleToWorkspace(workspaceId: string): Prisma.JobWhereInput {
+  return {
+    OR: [{ ownerOrganizationId: null }, { ownerOrganizationId: workspaceId }],
+  };
+}
+
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -45,6 +52,7 @@ export class PrismaJobsRepository {
   async upsertCanonicalJob(input: CreateJobInput): Promise<CanonicalJob> {
     const data = {
       source: input.source ?? 'manual',
+      ownerOrganizationId: input.ownerOrganizationId ?? null,
       sourceUrl: input.sourceUrl ?? null,
       company: input.company,
       title: input.title,
@@ -151,7 +159,7 @@ export class PrismaJobsRepository {
     query: ListJobsQuery = {},
   ): Promise<JobRankingKey[]> {
     const { query: q, remoteOnly, skill, savedOnly, hideDismissed } = query;
-    const and: Prisma.JobWhereInput[] = [];
+    const and: Prisma.JobWhereInput[] = [visibleToWorkspace(workspaceId)];
 
     if (remoteOnly) and.push({ isRemote: true });
     if (skill) {
@@ -203,11 +211,41 @@ export class PrismaJobsRepository {
     return rows.map((r) => this.mapJob(r));
   }
 
-  async findJobById(id: string): Promise<CanonicalJob | null> {
+  /**
+   * A job is visible to a workspace when it is a shared catalog job or the
+   * workspace's own private job. Another workspace's private job is "not found".
+   */
+  async findJobById(
+    id: string,
+    workspaceId: string,
+  ): Promise<CanonicalJob | null> {
     // Job ids are UUID columns; anything else cannot exist (and would make
     // PostgreSQL raise instead of returning "not found").
     if (!uuidPattern.test(id)) return null;
-    const row = await this.prisma.client.job.findUnique({ where: { id } });
+    const row = await this.prisma.client.job.findFirst({
+      where: { id, ...visibleToWorkspace(workspaceId) },
+    });
+    return row ? this.mapJob(row) : null;
+  }
+
+  /**
+   * Oldest job visible to the workspace that matches the canonical source URL
+   * or any of the fingerprints, or null.
+   */
+  async findVisibleDuplicate(
+    workspaceId: string,
+    match: { sourceUrl?: string; fingerprints: string[] },
+  ): Promise<CanonicalJob | null> {
+    const or: Prisma.JobWhereInput[] = [];
+    if (match.sourceUrl) or.push({ sourceUrl: match.sourceUrl });
+    if (match.fingerprints.length > 0) {
+      or.push({ fingerprint: { in: match.fingerprints } });
+    }
+    if (or.length === 0) return null;
+    const row = await this.prisma.client.job.findFirst({
+      where: { AND: [visibleToWorkspace(workspaceId), { OR: or }] },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    });
     return row ? this.mapJob(row) : null;
   }
 

@@ -124,7 +124,7 @@ export class ApplicationsService {
   ): Promise<ApplicationRecord> {
     const status = input.status ?? 'saved';
     this.assertValidStatus(status);
-    await this.assertJobExists(input.jobId);
+    await this.assertJobExists(input.jobId, workspaceId);
     await this.assertResumeReferences(workspaceId, input);
 
     const existing = await this.prisma.client.application.findFirst({
@@ -147,6 +147,8 @@ export class ApplicationsService {
             notes: input.notes ?? null,
             appliedAt:
               input.appliedAt ?? (status === 'applied' ? new Date() : null),
+            followUpAt: input.followUpAt ?? null,
+            deadlineAt: input.deadlineAt ?? null,
             resumeProfileId: input.resumeProfileId ?? null,
             resumeVersionId: input.resumeVersionId ?? null,
           },
@@ -222,6 +224,12 @@ export class ApplicationsService {
           ...(input.status ? { status: input.status } : {}),
           ...(input.notes !== undefined ? { notes: input.notes } : {}),
           ...(appliedAt !== undefined ? { appliedAt } : {}),
+          ...(input.followUpAt !== undefined
+            ? { followUpAt: input.followUpAt }
+            : {}),
+          ...(input.deadlineAt !== undefined
+            ? { deadlineAt: input.deadlineAt }
+            : {}),
           ...(input.resumeProfileId !== undefined
             ? { resumeProfileId: input.resumeProfileId }
             : {}),
@@ -257,7 +265,7 @@ export class ApplicationsService {
     jobId: string,
     input: MarkAppliedInput = {},
   ): Promise<ApplicationRecord> {
-    await this.assertJobExists(jobId);
+    await this.assertJobExists(jobId, workspaceId);
     await this.assertResumeReferences(workspaceId, {
       resumeProfileId: input.resumeProfileId,
     });
@@ -403,10 +411,19 @@ export class ApplicationsService {
     });
   }
 
-  private async assertJobExists(jobId: string): Promise<void> {
+  private async assertJobExists(
+    jobId: string,
+    workspaceId: string,
+  ): Promise<void> {
     const job = uuidPattern.test(jobId)
-      ? await this.prisma.client.job.findUnique({
-          where: { id: jobId },
+      ? await this.prisma.client.job.findFirst({
+          where: {
+            id: jobId,
+            OR: [
+              { ownerOrganizationId: null },
+              { ownerOrganizationId: workspaceId },
+            ],
+          },
           select: { id: true },
         })
       : null;
@@ -491,6 +508,8 @@ export class ApplicationsService {
       status: row.status as ApplicationStatus,
       notes: row.notes,
       appliedAt: row.appliedAt,
+      followUpAt: row.followUpAt,
+      deadlineAt: row.deadlineAt,
       resumeProfileId: row.resumeProfileId,
       resumeVersionId: row.resumeVersionId,
       createdAt: row.createdAt,

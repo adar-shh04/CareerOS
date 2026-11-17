@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -14,6 +13,7 @@ import {
 } from '@nestjs/common';
 
 import { WorkspaceMemberGuard } from '../common/guards/workspace-member.guard';
+import { parseDateField } from './application-dates';
 import { ApplicationsService } from './applications.service';
 import type { ApplicationStatus } from './applications.types';
 
@@ -21,13 +21,15 @@ import type { ApplicationStatus } from './applications.types';
 function parseAppliedAt(
   value: string | null | undefined,
 ): Date | null | undefined {
-  if (value === undefined) return undefined;
-  if (value === null || value === '') return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    throw new BadRequestException('appliedAt must be a valid ISO date.');
-  }
-  return date;
+  return parseDateField('appliedAt', value);
+}
+
+/** Follow-up / deadline: calendar days, stored as UTC midnight. */
+function parseDay(
+  field: 'followUpAt' | 'deadlineAt',
+  value: string | null | undefined,
+): Date | null | undefined {
+  return parseDateField(field, value, { dateOnly: true });
 }
 
 @Controller('workspaces/:workspaceId/applications')
@@ -57,6 +59,8 @@ export class ApplicationsController {
       status?: ApplicationStatus;
       notes?: string;
       appliedAt?: string;
+      followUpAt?: string | null;
+      deadlineAt?: string | null;
       resumeProfileId?: string;
       resumeVersionId?: string;
     },
@@ -64,6 +68,8 @@ export class ApplicationsController {
     return this.applicationsService.create(workspaceId, {
       ...body,
       appliedAt: parseAppliedAt(body.appliedAt) ?? undefined,
+      followUpAt: parseDay('followUpAt', body.followUpAt),
+      deadlineAt: parseDay('deadlineAt', body.deadlineAt),
     });
   }
 
@@ -114,6 +120,8 @@ export class ApplicationsController {
       status?: ApplicationStatus;
       notes?: string;
       appliedAt?: string | null;
+      followUpAt?: string | null;
+      deadlineAt?: string | null;
       resumeProfileId?: string;
       resumeVersionId?: string;
     },
@@ -121,6 +129,8 @@ export class ApplicationsController {
     return this.applicationsService.update(workspaceId, applicationId, {
       ...body,
       appliedAt: parseAppliedAt(body.appliedAt),
+      followUpAt: parseDay('followUpAt', body.followUpAt),
+      deadlineAt: parseDay('deadlineAt', body.deadlineAt),
     });
   }
 

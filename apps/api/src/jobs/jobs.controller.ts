@@ -9,11 +9,18 @@ import {
   Patch,
   Post,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import type { JobMatchingWeights, JobOpportunity } from '@repo/types';
+import type { Response } from 'express';
 
 import { WorkspaceMemberGuard } from '../common/guards/workspace-member.guard';
+import { CreateManualJobDto } from './create-manual-job.dto';
+import { ImportJobUrlDto } from './import-job-url.dto';
+import type { JobUrlDraft } from './ingestion/job-url-extractors';
+import { JobUrlScraperService } from './ingestion/job-url-scraper.service';
 import { DEFAULT_PAGE_SIZE, JobsService, MAX_PAGE_SIZE } from './jobs.service';
 import type { ListJobsQuery } from './jobs.types';
 
@@ -31,7 +38,10 @@ function parseNonNegativeInt(
 @Controller('workspaces/:workspaceId/jobs')
 @UseGuards(WorkspaceMemberGuard)
 export class JobsController {
-  constructor(private readonly jobsService: JobsService) {}
+  constructor(
+    private readonly jobsService: JobsService,
+    private readonly urlScraper: JobUrlScraperService,
+  ) {}
 
   /**
    * GET /workspaces/:workspaceId/jobs
@@ -79,6 +89,42 @@ export class JobsController {
     @Param('jobId') jobId: string,
   ): Promise<JobOpportunity> {
     return this.jobsService.getJobDetail(workspaceId, jobId);
+  }
+
+  /**
+   * POST /workspaces/:workspaceId/jobs
+   * Add a job the user pasted in. It becomes a private job of this workspace
+   * (never visible to other workspaces) and is returned with its match.
+   * If the workspace already has the same posting, nothing is created and the
+   * existing job comes back with duplicate: true (HTTP 200 instead of 201).
+   */
+  @Post()
+  async createManualJob(
+    @Param('workspaceId') workspaceId: string,
+    @Body() body: CreateManualJobDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<{ job: JobOpportunity; duplicate: boolean }> {
+    const result = await this.jobsService.addManualJob(workspaceId, body);
+    // 201 when a job was created, 200 when the posting already existed.
+    res.status(result.duplicate ? HttpStatus.OK : HttpStatus.CREATED);
+    return result;
+  }
+
+  /**
+   * POST /workspaces/:workspaceId/jobs/import-url
+   * Read a public job posting (Greenhouse, Lever, or any page with schema.org
+   * JobPosting data) and return DRAFT form fields. Saves nothing: the client
+   * reviews the draft and submits it through POST /jobs. 400 for unsafe URLs,
+   * 422 when the page cannot be read (paste the description instead).
+   */
+  @Post('import-url')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
+  async importJobFromUrl(
+    @Param('workspaceId') _workspaceId: string,
+    @Body() body: ImportJobUrlDto,
+  ): Promise<JobUrlDraft> {
+    return this.urlScraper.importFromUrl(body.url);
   }
 
   /**

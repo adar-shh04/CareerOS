@@ -21,6 +21,8 @@ interface JobListProps {
   query?: string;
   onResetQuery?: () => void;
   onRetry?: () => void;
+  /** Rendered instead of the default empty state when there are no jobs. */
+  emptyState?: React.ReactNode;
 }
 
 export function JobList({
@@ -34,6 +36,7 @@ export function JobList({
   query,
   onResetQuery,
   onRetry,
+  emptyState,
 }: JobListProps) {
   if (loading) {
     return <JobSkeleton />;
@@ -50,7 +53,11 @@ export function JobList({
   }
 
   if (jobs.length === 0) {
-    return <JobEmptyState query={query} onResetQuery={onResetQuery} />;
+    return (
+      emptyState ?? (
+        <JobEmptyState query={query} onResetQuery={onResetQuery} />
+      )
+    );
   }
 
   return (

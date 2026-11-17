@@ -19,7 +19,7 @@ describe('ApplicationsService', () => {
       findMany: jest.Mock;
       create: jest.Mock;
     };
-    job: { findUnique: jest.Mock };
+    job: { findFirst: jest.Mock };
     resumeProfile: { findFirst: jest.Mock };
     resumeVersion: { findFirst: jest.Mock };
     workspaceJobState: {
@@ -81,7 +81,7 @@ describe('ApplicationsService', () => {
         findMany: jest.fn(),
         create: jest.fn(),
       },
-      job: { findUnique: jest.fn().mockResolvedValue({ id: jobId }) },
+      job: { findFirst: jest.fn().mockResolvedValue({ id: jobId }) },
       resumeProfile: {
         findFirst: jest.fn().mockResolvedValue({ id: resumeProfileId }),
       },
@@ -136,6 +136,24 @@ describe('ApplicationsService', () => {
       expect(client.applicationStatusHistory.create).toHaveBeenCalled();
     });
 
+    it('persists followUpAt / deadlineAt on create', async () => {
+      const followUpAt = new Date('2026-12-05T00:00:00.000Z');
+      const deadlineAt = new Date('2026-12-20T00:00:00.000Z');
+      client.application.findFirst.mockResolvedValue(null);
+      client.application.create.mockResolvedValue({
+        ...mockApp,
+        followUpAt,
+        deadlineAt,
+      });
+
+      await service.create(workspaceId, { jobId, followUpAt, deadlineAt });
+      expect(client.application.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ followUpAt, deadlineAt }) as unknown,
+        }),
+      );
+    });
+
     it('throws BadRequestException when duplicate job application exists', async () => {
       client.application.findFirst.mockResolvedValue(mockApp);
       await expect(service.create(workspaceId, { jobId })).rejects.toThrow(
@@ -151,7 +169,7 @@ describe('ApplicationsService', () => {
     });
 
     it('throws NotFoundException for an unknown job', async () => {
-      client.job.findUnique.mockResolvedValue(null);
+      client.job.findFirst.mockResolvedValue(null);
       await expect(service.create(workspaceId, { jobId })).rejects.toThrow(
         NotFoundException,
       );
@@ -280,6 +298,48 @@ describe('ApplicationsService', () => {
           data: expect.objectContaining({ appliedAt: null }) as unknown,
         }),
       );
+    });
+
+    it('sets, changes and clears followUpAt / deadlineAt independently', async () => {
+      const followUpAt = new Date('2026-12-05T00:00:00.000Z');
+      const deadlineAt = new Date('2026-12-20T00:00:00.000Z');
+      client.application.findFirst.mockResolvedValue(mockApp);
+      client.application.update.mockResolvedValue({
+        ...mockApp,
+        followUpAt,
+        deadlineAt,
+      });
+
+      const result = await service.update(workspaceId, appId, {
+        followUpAt,
+        deadlineAt,
+      });
+      expect(client.application.update).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ followUpAt, deadlineAt }) as unknown,
+        }),
+      );
+      expect(result.followUpAt).toEqual(followUpAt);
+      expect(result.deadlineAt).toEqual(deadlineAt);
+
+      await service.update(workspaceId, appId, { followUpAt: null });
+      const call = client.application.update.mock.calls[1] as [
+        { data: Record<string, unknown> },
+      ];
+      expect(call[0].data.followUpAt).toBeNull();
+      expect(call[0].data).not.toHaveProperty('deadlineAt');
+    });
+
+    it('does not touch the reminder dates when they are omitted', async () => {
+      client.application.findFirst.mockResolvedValue(mockApp);
+      client.application.update.mockResolvedValue(mockApp);
+
+      await service.update(workspaceId, appId, { notes: 'hi' });
+      const call = client.application.update.mock.calls[0] as [
+        { data: Record<string, unknown> },
+      ];
+      expect(call[0].data).not.toHaveProperty('followUpAt');
+      expect(call[0].data).not.toHaveProperty('deadlineAt');
     });
 
     it('does not invent an applied date when jumping straight to "interview"', async () => {
@@ -414,7 +474,7 @@ describe('ApplicationsService', () => {
     });
 
     it('404s for an unknown job', async () => {
-      client.job.findUnique.mockResolvedValue(null);
+      client.job.findFirst.mockResolvedValue(null);
       await expect(service.markApplied(workspaceId, jobId)).rejects.toThrow(
         NotFoundException,
       );

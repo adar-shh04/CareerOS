@@ -63,7 +63,10 @@ export class AiCoachService {
     let jobDescription = '';
 
     if (params.jobId) {
-      const job = await this.jobsRepository.findJobById(params.jobId);
+      const job = await this.jobsRepository.findJobById(
+        params.jobId,
+        workspaceId,
+      );
       if (job) {
         jobTitle = job.title;
         jobCompany = job.company;
@@ -198,7 +201,7 @@ ${evidenceText}`;
     let jobTitle = req.targetRole ?? 'Target Role';
     let jobDescription = '';
     if (req.jobId) {
-      const job = await this.jobsRepository.findJobById(req.jobId);
+      const job = await this.jobsRepository.findJobById(req.jobId, workspaceId);
       if (job) {
         jobTitle = job.title;
         jobDescription = job.description ?? '';
