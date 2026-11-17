@@ -53,13 +53,19 @@ describeWithDatabase('Private-job ownership integrity (PostgreSQL)', () => {
   const wsA = randomUUID();
   const wsB = randomUUID();
   const jobIds: string[] = [];
-  const clients: Client[] = [];
+  /**
+   * Extra sessions opened by a test (the concurrent transactions). They are
+   * rolled back and closed after EVERY test, pass or fail: a failed assertion
+   * must never leave a transaction open, because its row locks would make the
+   * final cleanup wait forever.
+   */
+  const sessions: Client[] = [];
 
   /** A new, independent connection (its own session and transactions). */
   const connect = async (): Promise<Client> => {
     const client = new Client({ connectionString: url });
     await client.connect();
-    clients.push(client);
+    sessions.push(client);
     return client;
   };
 
@@ -119,7 +125,8 @@ describeWithDatabase('Private-job ownership integrity (PostgreSQL)', () => {
   };
 
   beforeAll(async () => {
-    admin = await connect();
+    admin = new Client({ connectionString: url });
+    await admin.connect();
     await admin.query(
       `insert into organizations (id, name, slug, created_at) values
          ($1, 'Owner Integrity A', $3, now()),
@@ -128,7 +135,18 @@ describeWithDatabase('Private-job ownership integrity (PostgreSQL)', () => {
     );
   });
 
+  afterEach(async () => {
+    await Promise.all(
+      sessions.splice(0).map(async (client) => {
+        await client.query('ROLLBACK').catch(() => undefined);
+        await client.end().catch(() => undefined);
+      }),
+    );
+  });
+
   afterAll(async () => {
+    // Fail fast instead of hanging if something still holds a lock.
+    await admin.query("set lock_timeout = '10s'");
     for (const kind of KINDS) {
       await admin.query(
         `delete from ${CHILD_TABLE[kind]} where organization_id in ($1, $2)`,
@@ -140,7 +158,7 @@ describeWithDatabase('Private-job ownership integrity (PostgreSQL)', () => {
       wsA,
       wsB,
     ]);
-    await Promise.all(clients.map((c) => c.end().catch(() => undefined)));
+    await admin.end().catch(() => undefined);
   });
 
   // ── Reference rules ─────────────────────────────────────────────────────
