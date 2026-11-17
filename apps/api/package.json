@@ -24,7 +24,7 @@
     "test:cov": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config ./test/jest-e2e.json",
-    "test:integration": "pnpm run build && node test/authenticated-tenancy.integration.mjs"
+    "test:integration": "node test/check-integration-env.mjs && pnpm run build && node test/authenticated-tenancy.integration.mjs"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

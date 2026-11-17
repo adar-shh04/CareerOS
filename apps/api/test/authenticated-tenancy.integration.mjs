@@ -1,24 +1,35 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
-import { Pool } from 'pg';
-import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient } from '../dist/generated/prisma/client.js';
-import { PrismaJobsRepository } from '../dist/jobs/prisma-jobs.repository.js';
+import guard from './integration-db-guard.cjs';
 
-const databaseUrl =
-  process.env.INTEGRATION_DATABASE_URL ||
-  (process.env.DATABASE_URL?.includes('careeros_integration')
-    ? process.env.DATABASE_URL
-    : 'postgresql://careeros:careeros@localhost:5432/careeros_integration?schema=public');
+// SAFETY FIRST. Validate the target before importing anything that can open a
+// connection (pg, Prisma, the built app) and before starting the API process.
+// INTEGRATION_DATABASE_URL is required; there is no default and no fallback to
+// DATABASE_URL. See test/INTEGRATION_TESTS.md and integration-db-guard.cjs.
+let databaseUrl;
+try {
+  databaseUrl = guard.resolveForProcess();
+} catch (error) {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(guard.GUARD_EXIT_CODE);
+}
+
+const { Pool } = await import('pg');
+const { PrismaPg } = await import('@prisma/adapter-pg');
+const { PrismaClient } = await import('../dist/generated/prisma/client.js');
+const { PrismaJobsRepository } = await import(
+  '../dist/jobs/prisma-jobs.repository.js'
+);
 
 const port = 3011;
 const baseUrl = `http://127.0.0.1:${port}`;
 const server = spawn(process.execPath, ['dist/main.js'], {
   cwd: process.cwd(),
+  // The API process sees ONLY the validated database (DATABASE_URL and
+  // DIRECT_URL both set to it).
   env: {
-    ...process.env,
-    DATABASE_URL: databaseUrl,
+    ...guard.buildApiEnv(process.env, databaseUrl),
     APIFY_API_TOKEN: '',
     PORT: String(port),
   },
