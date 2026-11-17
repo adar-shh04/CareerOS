@@ -52,12 +52,31 @@ access and never prints credentials. It refuses:
   database name;
 - the developer database: the same host, port and database name as any
   `DATABASE_URL` / `DIRECT_URL` in your shell, `apps/api/.env` or the repository
-  root `.env` (`localhost`, `127.0.0.1` and `::1` count as one host);
+  root `.env`. Every spelling of "this machine" counts as one host: `localhost`
+  (and `*.localhost`, with or without a trailing dot), all of `127.0.0.0/8`,
+  `0.0.0.0`, `::1`, `::`, IPv4-mapped / IPv4-compatible IPv6 loopback such as
+  `::ffff:127.0.0.1`, and numeric spellings such as `2130706433`,
+  `0x7f000001`, `0177.0.0.1` or `127.1`. Numeric spellings of any other IPv4
+  address are normalised too (`0xa000005` is `10.0.0.5`);
 - a database whose name does not contain a disposable marker as a whole word
   (`test`, `tmp`, `temp`, `disposable`, `integration`, `e2e`, `scratch`,
   `ephemeral`, `throwaway`, `ci`; for example `careeros_integration`, not
   `careeros`, `postgres` or `careeros_latest`). There is no override: rename the
   database.
+
+The check fails closed. If the collision check cannot be completed it refuses
+instead of continuing without it:
+
+- an `.env` file that exists but cannot be read or parsed (a missing file is
+  fine and contributes nothing);
+- a developer `DATABASE_URL` / `DIRECT_URL` that looks like a PostgreSQL URL
+  (`postgres://` / `postgresql://`) but has no host or database name. Values
+  with other schemes are not PostgreSQL endpoints and are ignored.
+
+Limit: the check uses no DNS, so two different hostnames that merely resolve to
+the same machine (for example a hostname alias for your development database)
+cannot be recognised. Keep the integration database on a separate endpoint, or
+at least a separate, clearly disposable database name.
 
 A refusal exits with code 2 and an explanatory message. The API process the test
 launches receives the validated URL as both `DATABASE_URL` and `DIRECT_URL`, so

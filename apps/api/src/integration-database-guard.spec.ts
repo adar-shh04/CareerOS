@@ -12,6 +12,7 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 
+import dotenv from 'dotenv';
 import { Client, Pool } from 'pg';
 
 import { resolveTestDatabaseUrl } from './testing/test-database-guard';
@@ -90,6 +91,26 @@ const UNSAFE: [string, string | undefined, RegExp][] = [
   [
     'developer database via ::1',
     url('careeros', '[::1]'),
+    /developer database/,
+  ],
+  [
+    'developer database via 127.0.0.9',
+    url('careeros', '127.0.0.9'),
+    /developer database/,
+  ],
+  [
+    'developer database via decimal IPv4',
+    url('careeros', '2130706433'),
+    /developer database/,
+  ],
+  [
+    'developer database via IPv4-mapped IPv6',
+    url('careeros', '[::ffff:127.0.0.1]'),
+    /developer database/,
+  ],
+  [
+    'developer database via localhost.',
+    url('careeros', 'localhost.'),
     /developer database/,
   ],
   [
@@ -238,6 +259,202 @@ describe('integration database guard: rules', () => {
   });
 });
 
+describe('integration database guard: every spelling of the same host', () => {
+  const dev = 'postgresql://u:p@localhost:5432/careeros_integration';
+  const against = (host: string, developer = dev, port = '5432') =>
+    resolve(url('careeros_integration', host, port), [developer]);
+
+  it.each([
+    'localhost',
+    'LOCALHOST',
+    'localhost.',
+    'db.localhost',
+    '127.0.0.1',
+    '127.0.0.2',
+    '127.1.2.3',
+    '127.255.255.254',
+    '127.1', // short form
+    '2130706433', // decimal 127.0.0.1
+    '2130706434', // decimal 127.0.0.2
+    '0x7f000001', // hex
+    '0177.0.0.1', // octal
+    '0.0.0.0',
+    '[::1]',
+    '[0:0:0:0:0:0:0:1]',
+    '[::]',
+    '[::ffff:127.0.0.1]', // IPv4-mapped loopback
+    '[::ffff:7f00:1]',
+    '[::ffff:127.255.0.9]',
+    '[::127.0.0.1]', // IPv4-compatible loopback
+  ])('%s is the same machine as localhost', (host) => {
+    expect(() => against(host)).toThrow(/developer database/);
+  });
+
+  it.each([
+    '128.0.0.1', // just outside 127.0.0.0/8
+    '126.255.255.255',
+    '127', // inet_aton: 0.0.0.127, not loopback
+    '10.0.0.5',
+    '[::2]',
+    '[::ffff:128.0.0.1]',
+    '[::ffff:10.0.0.5]',
+    'db.internal',
+    'localhost.example.com', // only the .localhost suffix is loopback
+    'notlocalhost',
+  ])('%s is a different machine', (host) => {
+    expect(() => against(host)).not.toThrow();
+  });
+
+  it('works in the other direction: a developer URL spelled as another loopback form', () => {
+    for (const developer of [
+      'postgresql://u:p@127.0.0.2:5432/careeros_integration',
+      'postgresql://u:p@2130706433/careeros_integration',
+      'postgresql://u:p@[::ffff:7f00:1]/careeros_integration',
+    ]) {
+      expect(() => against('localhost', developer)).toThrow(
+        /developer database/,
+      );
+    }
+  });
+
+  it('treats every numeric spelling of one non-loopback address as the same host', () => {
+    const developer = 'postgresql://u:p@10.0.0.5:5432/careeros_integration';
+    for (const host of [
+      '10.0.0.5',
+      '0xa000005',
+      '012.0.0.5',
+      '167772165',
+      '[::ffff:10.0.0.5]',
+      '[::ffff:a00:5]',
+    ]) {
+      expect(() => against(host, developer)).toThrow(/developer database/);
+    }
+    expect(() => against('10.0.0.6', developer)).not.toThrow();
+  });
+
+  it('still distinguishes ports and database names', () => {
+    expect(() => against('127.0.0.2', dev, '55432')).not.toThrow();
+    expect(() =>
+      resolve(url('careeros_integration_2', '127.0.0.2'), [dev]),
+    ).not.toThrow();
+  });
+});
+
+describe('integration database guard: fails closed when developer configuration cannot be checked', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'guard-failclosed-'));
+  const validTarget = url('careeros_integration', 'localhost', '55432');
+  let spies: jest.SpyInstance[] = [];
+  afterEach(() => {
+    for (const spy of spies) spy.mockRestore();
+    spies = [];
+  });
+
+  it('a missing .env file simply contributes nothing', () => {
+    expect(
+      guard.collectDeveloperUrls({}, [path.join(tmp, 'does-not-exist.env')]),
+    ).toEqual([]);
+  });
+
+  it('an .env path that exists but cannot be read is an error, not a skip', () => {
+    const dirAsFile = path.join(tmp, 'a-directory.env');
+    fs.mkdirSync(dirAsFile);
+    expect(() => guard.collectDeveloperUrls({}, [dirAsFile])).toThrow(
+      guard.IntegrationDatabaseGuardError,
+    );
+    expect(() => guard.collectDeveloperUrls({}, [dirAsFile])).toThrow(
+      /Cannot read .*EISDIR.*cannot be completed/,
+    );
+  });
+
+  it('a permission error is an error, and nothing from the file is leaked', () => {
+    const file = path.join(tmp, 'locked.env');
+    fs.writeFileSync(
+      file,
+      'DATABASE_URL=postgresql://dev:FILESECRET@localhost:5432/careeros\n',
+    );
+    const real = fs.readFileSync;
+    spies.push(
+      jest.spyOn(fs, 'readFileSync').mockImplementation(((
+        target: unknown,
+        ...rest: unknown[]
+      ) => {
+        if (target === file) {
+          throw Object.assign(new Error('EACCES: FILESECRET'), {
+            code: 'EACCES',
+          });
+        }
+        return (real as (...a: unknown[]) => unknown)(target, ...rest);
+      }) as unknown as typeof fs.readFileSync),
+    );
+    let message = '';
+    try {
+      guard.collectDeveloperUrls({}, [file]);
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toMatch(/Cannot read .*EACCES.*cannot be completed/);
+    expect(message).not.toContain('FILESECRET');
+  });
+
+  it('a file that cannot be parsed is an error', () => {
+    const file = path.join(tmp, 'garbled.env');
+    fs.writeFileSync(file, 'DATABASE_URL=x\n');
+    spies.push(
+      jest.spyOn(dotenv, 'parse').mockImplementation(() => {
+        throw new Error('boom: FILESECRET');
+      }),
+    );
+    let message = '';
+    try {
+      guard.collectDeveloperUrls({}, [file]);
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toMatch(/Cannot parse .*cannot be completed/);
+    expect(message).not.toContain('FILESECRET');
+  });
+
+  it('validation as a whole refuses instead of continuing without the collision check', () => {
+    const dirAsFile = path.join(tmp, 'also-a-directory.env');
+    fs.mkdirSync(dirAsFile);
+    expect(() =>
+      guard.resolveIntegrationDatabaseUrl(
+        { INTEGRATION_DATABASE_URL: validTarget },
+        guard.collectDeveloperUrls({}, [dirAsFile]),
+      ),
+    ).toThrow(guard.IntegrationDatabaseGuardError);
+  });
+
+  it.each([
+    'postgresql:///careeros',
+    'postgres://',
+    'postgresql://localhost',
+    'POSTGRESQL://:5432/',
+  ])(
+    'a developer URL that looks like PostgreSQL but cannot be understood (%s) is an error',
+    (broken) => {
+      for (const developerUrls of [[broken], [undefined, broken]]) {
+        expect(() => resolve(validTarget, developerUrls)).toThrow(
+          /cannot be understood/,
+        );
+      }
+    },
+  );
+
+  it.each(['file:./dev.db', 'mysql://u:p@localhost/db', 'not a url', ''])(
+    'a developer value that is not a PostgreSQL URL (%j) cannot collide and is ignored',
+    (other) => {
+      expect(resolve(validTarget, [other])).toBe(validTarget);
+    },
+  );
+
+  it('an unusable integration URL is still reported first', () => {
+    expect(() => resolve('not a url', ['postgresql:///careeros'])).toThrow(
+      /not a valid postgresql/,
+    );
+  });
+});
+
 describe('integration database guard: refusal happens before any network access', () => {
   const spies: jest.SpyInstance[] = [];
   const tripwire = () => {
@@ -323,6 +540,34 @@ describe('integration scripts: refuse before connecting or starting a server', (
         DIRECT_URL: url('careeros_integration'),
       },
       /developer database/,
+    ],
+    [
+      'developer database spelled as another loopback address',
+      {
+        INTEGRATION_DATABASE_URL: url('careeros_integration', '127.0.0.2'),
+        DATABASE_URL: url('careeros_integration', '2130706433'),
+      },
+      /developer database/,
+    ],
+    [
+      'developer database configured as IPv4-mapped loopback',
+      {
+        INTEGRATION_DATABASE_URL: url('careeros_integration', 'localhost'),
+        DIRECT_URL: url('careeros_integration', '[::ffff:7f00:1]'),
+      },
+      /developer database/,
+    ],
+    [
+      'a developer DATABASE_URL that cannot be understood',
+      {
+        INTEGRATION_DATABASE_URL: url(
+          'careeros_integration',
+          'localhost',
+          '55432',
+        ),
+        DATABASE_URL: 'postgresql:///careeros',
+      },
+      /cannot be understood/,
     ],
     [
       'non-disposable name: careeros',

@@ -48,13 +48,121 @@ class IntegrationDatabaseGuardError extends Error {
   }
 }
 
-const LOOPBACK_HOSTS = new Set([
-  'localhost',
-  '127.0.0.1',
-  '::1',
-  '[::1]',
-  '0.0.0.0',
-]);
+// ── Host normalisation ────────────────────────────────────────────────────
+// Two URLs can name the same PostgreSQL instance with different spellings. The
+// collision check compares NORMALISED hosts, so every way of writing "this
+// machine" collapses to `localhost`, and numeric spellings of any other IPv4
+// address collapse to dotted-quad. No DNS is used (the guard performs no
+// network access), so two different HOSTNAMES that merely resolve to the same
+// machine cannot be recognised; that limit is documented in
+// test/INTEGRATION_TESTS.md.
+
+/**
+ * inet_aton-style IPv4 parsing: 1-4 parts, each decimal, 0x-hex or 0-octal; the
+ * last part fills the remaining bytes (so 2130706433, 0x7f000001, 0177.0.0.1
+ * and 127.1 all mean 127.0.0.1). WHATWG URL does NOT normalise these for the
+ * postgresql: scheme, but the OS resolver does when the client connects.
+ * @returns {number[] | null} four octets, or null if this is not a numeric IPv4
+ */
+function parseLegacyIPv4(host) {
+  const parts = host.split('.');
+  if (parts.length < 1 || parts.length > 4) return null;
+  const numbers = [];
+  for (const part of parts) {
+    let value;
+    if (/^0x[0-9a-f]+$/i.test(part)) value = parseInt(part, 16);
+    else if (/^0[0-7]*$/.test(part)) value = parseInt(part, 8);
+    else if (/^[1-9][0-9]*$/.test(part)) value = parseInt(part, 10);
+    else return null;
+    numbers.push(value);
+  }
+  const last = numbers[numbers.length - 1];
+  if (last >= 256 ** (5 - numbers.length)) return null;
+  for (let i = 0; i < numbers.length - 1; i++) {
+    if (numbers[i] > 255) return null;
+  }
+  let total = last;
+  for (let i = 0; i < numbers.length - 1; i++) {
+    total += numbers[i] * 256 ** (3 - i);
+  }
+  return [
+    Math.floor(total / 256 ** 3) % 256,
+    Math.floor(total / 256 ** 2) % 256,
+    Math.floor(total / 256) % 256,
+    total % 256,
+  ];
+}
+
+/** Expand an IPv6 text form (optionally with an embedded dotted IPv4) to 8 groups. */
+function expandIPv6(text) {
+  let value = text.toLowerCase();
+  const lastColon = value.lastIndexOf(':');
+  const tail = value.slice(lastColon + 1);
+  if (tail.includes('.')) {
+    const v4 = parseLegacyIPv4(tail);
+    if (!v4 || tail.split('.').length !== 4) return null;
+    const hi = ((v4[0] << 8) | v4[1]).toString(16);
+    const lo = ((v4[2] << 8) | v4[3]).toString(16);
+    value = `${value.slice(0, lastColon + 1)}${hi}:${lo}`;
+  }
+  const halves = value.split('::');
+  if (halves.length > 2) return null;
+  const head = halves[0] === '' ? [] : halves[0].split(':');
+  const rest = halves.length === 2 && halves[1] !== '' ? halves[1].split(':') : [];
+  let groups;
+  if (halves.length === 1) {
+    groups = head;
+  } else {
+    const missing = 8 - head.length - rest.length;
+    if (missing < 1) return null;
+    groups = [...head, ...Array(missing).fill('0'), ...rest];
+  }
+  if (groups.length !== 8) return null;
+  const numbers = groups.map((group) =>
+    /^[0-9a-f]{1,4}$/.test(group) ? parseInt(group, 16) : NaN,
+  );
+  return numbers.some(Number.isNaN) ? null : numbers;
+}
+
+function isLoopbackIPv4(octets) {
+  // 127.0.0.0/8 is loopback; 0.0.0.0 connects to this machine as well.
+  return octets[0] === 127 || octets.every((octet) => octet === 0);
+}
+
+/**
+ * @returns {string} 'localhost' for every spelling of this machine, a canonical
+ *   dotted-quad for other IPv4 addresses (including IPv4-mapped IPv6), the
+ *   lower-cased bracketed address for other IPv6, otherwise the lower-cased
+ *   hostname without a trailing dot.
+ */
+function normalizeHost(rawHost) {
+  const host = rawHost.toLowerCase().replace(/\.$/, '');
+  if (host === 'localhost' || host.endsWith('.localhost')) return 'localhost';
+
+  if (host.startsWith('[') && host.endsWith(']')) {
+    const groups = expandIPv6(host.slice(1, -1));
+    if (!groups) return host;
+    const high = groups.slice(0, 5).every((group) => group === 0);
+    const embedded = [
+      groups[6] >> 8,
+      groups[6] & 0xff,
+      groups[7] >> 8,
+      groups[7] & 0xff,
+    ];
+    if (groups.slice(0, 7).every((group) => group === 0) && groups[7] <= 1) {
+      return 'localhost'; // :: and ::1
+    }
+    // ::ffff:a.b.c.d (IPv4-mapped) and ::a.b.c.d (IPv4-compatible)
+    if (high && (groups[5] === 0xffff || groups[5] === 0)) {
+      return isLoopbackIPv4(embedded) ? 'localhost' : embedded.join('.');
+    }
+    return host;
+  }
+
+  const octets = parseLegacyIPv4(host);
+  if (octets) return isLoopbackIPv4(octets) ? 'localhost' : octets.join('.');
+  return host;
+}
 
 /** Whole-word disposable markers: careeros_integration yes, careeros / latest no. */
 const DISPOSABLE_NAME_MARKER =
@@ -84,7 +192,7 @@ function parseDatabaseTarget(url) {
   }
   if (!rawHost || !database) return null;
   return {
-    host: LOOPBACK_HOSTS.has(rawHost) ? 'localhost' : rawHost,
+    host: normalizeHost(rawHost),
     port: parsed.port || '5432',
     database,
   };
@@ -123,9 +231,22 @@ function resolveIntegrationDatabaseUrl(env, developerUrls) {
   }
 
   const collides = developerUrls.some((candidate) => {
-    const dev = candidate ? parseDatabaseTarget(candidate) : null;
+    if (!candidate) return false;
+    const dev = parseDatabaseTarget(candidate);
+    if (dev === null) {
+      // A value that is meant to be a PostgreSQL URL but cannot be understood
+      // means the collision check cannot be completed: fail closed. Values with
+      // other schemes are not PostgreSQL endpoints and cannot collide.
+      if (/^\s*postgres(ql)?:/i.test(candidate)) {
+        throw new IntegrationDatabaseGuardError(
+          'A developer DATABASE_URL / DIRECT_URL looks like a PostgreSQL URL but ' +
+            'cannot be understood (it needs a host and a database name), so the ' +
+            'developer-database collision check cannot be completed. Fix or unset it.',
+        );
+      }
+      return false;
+    }
     return (
-      dev !== null &&
       dev.host === target.host &&
       dev.port === target.port &&
       dev.database === target.database
@@ -151,18 +272,36 @@ function resolveIntegrationDatabaseUrl(env, developerUrls) {
 
 /**
  * DATABASE_URL / DIRECT_URL values from an .env file, WITHOUT touching
- * process.env and without any network access. Unreadable files yield [].
+ * process.env and without any network access.
+ *
+ * FAILS CLOSED: a file that does not exist contributes nothing, but a file that
+ * exists and cannot be read or parsed throws, because the developer-database
+ * collision check cannot be completed without it. Silently skipping an
+ * unreadable configuration file would let a collision through.
  * @param {string} file
  * @returns {(string | undefined)[]}
+ * @throws {IntegrationDatabaseGuardError}
  */
 function readDeveloperUrlsFromEnvFile(file) {
+  let text;
   try {
-    if (!fs.existsSync(file)) return [];
-    const { parse } = require('dotenv');
-    const values = parse(fs.readFileSync(file, 'utf8'));
+    text = fs.readFileSync(file, 'utf8');
+  } catch (error) {
+    if (error && error.code === 'ENOENT') return [];
+    throw new IntegrationDatabaseGuardError(
+      `Cannot read ${file} (${(error && error.code) || 'unknown error'}), so the ` +
+        `developer-database collision check cannot be completed. ` +
+        `Fix the file or its permissions, or remove it.`,
+    );
+  }
+  try {
+    const values = require('dotenv').parse(text);
     return [values.DATABASE_URL, values.DIRECT_URL];
   } catch {
-    return [];
+    throw new IntegrationDatabaseGuardError(
+      `Cannot parse ${file}, so the developer-database collision check cannot be completed. ` +
+        `Fix the file or remove it.`,
+    );
   }
 }
 
