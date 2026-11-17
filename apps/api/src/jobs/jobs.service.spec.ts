@@ -318,6 +318,7 @@ describe('JobsService', () => {
   let applicationsService: {
     getAppliedMirror: jest.Mock;
     markApplied: jest.Mock;
+    linkTargetedResume: jest.Mock;
   };
 
   beforeEach(() => {
@@ -336,6 +337,7 @@ describe('JobsService', () => {
     applicationsService = {
       getAppliedMirror: jest.fn().mockResolvedValue(null),
       markApplied: jest.fn(),
+      linkTargetedResume: jest.fn().mockResolvedValue(false),
     };
     service = new JobsService(
       repo as unknown as PrismaJobsRepository,
@@ -747,6 +749,27 @@ describe('JobsService', () => {
       expect(
         result.analysis.targetingRecommendations.prioritySkillNames,
       ).toEqual(['typescript']);
+    });
+
+    it('links the new version to the job application and says so', async () => {
+      const j = job({ requiredSkills: ['TypeScript'] });
+      repo.addJob(j);
+      resumeProfileService.listByWorkspace.mockResolvedValue([resumeProfile()]);
+      resumeProfileService.createVersion.mockImplementation(
+        (_ws: string, rpId: string, input: Record<string, unknown>) =>
+          Promise.resolve({ id: 'ver-9', resumeProfileId: rpId, ...input }),
+      );
+      applicationsService.linkTargetedResume.mockResolvedValue(true);
+
+      const result = await service.createTargetedResumeVersion(j.id, WS);
+
+      expect(applicationsService.linkTargetedResume).toHaveBeenCalledWith(
+        WS,
+        j.id,
+        'rp-a',
+        'ver-9',
+      );
+      expect(result.applicationLinked).toBe(true);
     });
 
     it('rejects a supplied resume profile that is not in the workspace', async () => {

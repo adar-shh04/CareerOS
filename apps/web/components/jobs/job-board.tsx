@@ -89,6 +89,30 @@ export function JobBoard({
         const data = (await response.json()) as JobOpportunity[];
         setJobs(data);
         setHasMore(data.length === PAGE_SIZE);
+        setHasHiddenDismissed(false);
+        // An empty, unfiltered radar is either a brand-new workspace or one
+        // where every job was dismissed. Ask once, without hiding dismissed
+        // jobs, so the two are never confused.
+        if (
+          data.length === 0 &&
+          !showDismissed &&
+          !appliedQuery &&
+          !remoteOnly &&
+          !savedOnly &&
+          !selectedSkill
+        ) {
+          try {
+            const probe = await fetch("/api/jobs?limit=1", {
+              cache: "no-store",
+            });
+            if (probe.ok) {
+              const any = (await probe.json()) as JobOpportunity[];
+              setHasHiddenDismissed(any.length > 0);
+            }
+          } catch {
+            /* keep the first-run state if the probe fails */
+          }
+        }
       } else {
         const body = (await response.json().catch(() => ({}))) as {
           message?: string;
@@ -114,7 +138,14 @@ export function JobBoard({
     } finally {
       setLoading(false);
     }
-  }, [listUrl]);
+  }, [
+    listUrl,
+    showDismissed,
+    appliedQuery,
+    remoteOnly,
+    savedOnly,
+    selectedSkill,
+  ]);
 
   const loadMore = async () => {
     setLoadingMore(true);
@@ -184,6 +215,8 @@ export function JobBoard({
   }, [jobs, savedOnly, showDismissed]);
 
   const [addJobOpen, setAddJobOpen] = useState(false);
+  // The API returned nothing only because every job is dismissed (and hidden).
+  const [hasHiddenDismissed, setHasHiddenDismissed] = useState(false);
   const [ingesting, setIngesting] = useState(false);
   const [ingestError, setIngestError] = useState<string | null>(null);
 
@@ -230,15 +263,23 @@ export function JobBoard({
   // "Nothing is narrowing the list and it is still empty" is the first-run
   // state; otherwise an empty list is the result of a search or filter.
   const filtersActive =
-    appliedQuery !== "" ||
-    remoteOnly ||
-    savedOnly ||
-    selectedSkill !== "" ||
-    jobs.length > 0;
+    appliedQuery !== "" || remoteOnly || savedOnly || selectedSkill !== "";
+  // Jobs exist but all of them are dismissed: either the API said so (probe)
+  // or the user just dismissed the last visible one in place.
+  const dismissedHidden =
+    !showDismissed &&
+    !savedOnly &&
+    (hasHiddenDismissed ||
+      (filteredJobs.length === 0 &&
+        jobs.some((job) => job.workspaceState?.isDismissed)));
   const emptyState = (
     <JobEmptyState
       query={searchQuery}
       filtersActive={filtersActive}
+      dismissedHidden={dismissedHidden}
+      onShowDismissed={() => {
+        setShowDismissed(true);
+      }}
       savedOnly={savedOnly}
       onResetQuery={() => {
         setSearchQuery("");

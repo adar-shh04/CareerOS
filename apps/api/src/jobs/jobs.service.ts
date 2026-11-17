@@ -724,10 +724,20 @@ export class JobsService {
       },
     );
 
+    // If this job is already tracked, attach the new version to the
+    // application (see ApplicationsService.linkTargetedResume for the rule).
+    const applicationLinked = await this.applicationsService.linkTargetedResume(
+      workspaceId,
+      jobId,
+      targetProfile.id,
+      version.id,
+    );
+
     return {
       version,
       analysis,
       profile: targetProfile,
+      applicationLinked,
     };
   }
 

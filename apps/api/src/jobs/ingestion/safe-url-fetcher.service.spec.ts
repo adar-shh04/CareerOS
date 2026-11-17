@@ -70,6 +70,24 @@ describe('isBlockedAddress', () => {
     '2002:7f00:1::1',
     '2001:db8::1',
     '0:0:0:0:0:0:0:1',
+    // Outside global unicast 2000::/3: never acceptable, whatever the range
+    '4000::1',
+    '5f00::1',
+    '8000::1',
+    'a000::1',
+    'c000::1',
+    'e000::1',
+    '1000::1',
+    '100::1',
+    'fec0::1',
+    // Special-purpose space inside 2000::/3
+    '2001::1',
+    '2001:1::1',
+    '2001:2::1',
+    '2001:10::1',
+    '2001:1ff:ffff::1',
+    '3fff::1',
+    '3fff:fff::1',
   ])('blocks %s', (ip) => {
     expect(isBlockedAddress(ip)).toBe(true);
   });
@@ -83,7 +101,13 @@ describe('isBlockedAddress', () => {
     '100.128.0.1',
     '2606:4700:4700::1111',
     '2a00:1450:4001:81b::200e',
+    '2001:4860:4860::8888',
+    '2001:200::1', // APNIC allocation, just past 2001::/23
+    '2400:cb00::1',
+    '3ffe::1',
     '::ffff:8.8.8.8',
+    '64:ff9b::808:808', // NAT64 of 8.8.8.8
+    '2002:808:808::1', // 6to4 of 8.8.8.8
   ])('allows %s', (ip) => {
     expect(isBlockedAddress(ip)).toBe(false);
   });

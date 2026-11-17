@@ -105,11 +105,13 @@ export class JobIngestionService {
     );
     if (existing) return { job: existing, created: false };
 
-    const job = await this.repository.upsertCanonicalJob({
+    // Insert-if-absent: if a concurrent request created the same job first,
+    // report that as a duplicate instead of overwriting or claiming creation.
+    return this.repository.createPrivateJobIfAbsent({
       ...input,
+      ownerOrganizationId,
       fingerprint: ownedFingerprint,
     });
-    return { job, created: true };
   }
 
   async ingest(options: IngestionOptions): Promise<IngestionResult> {

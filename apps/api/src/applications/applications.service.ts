@@ -137,6 +137,13 @@ export class ApplicationsService {
       );
     }
 
+    // Tracking a job you already built a targeted resume for links that
+    // resume automatically (only when the caller chose no resume themselves).
+    const targeted =
+      !input.resumeProfileId && !input.resumeVersionId
+        ? await this.latestTargetedVersion(workspaceId, input.jobId)
+        : null;
+
     const row = await this.prisma.client
       .$transaction(async (tx) => {
         const created = await tx.application.create({
@@ -149,8 +156,10 @@ export class ApplicationsService {
               input.appliedAt ?? (status === 'applied' ? new Date() : null),
             followUpAt: input.followUpAt ?? null,
             deadlineAt: input.deadlineAt ?? null,
-            resumeProfileId: input.resumeProfileId ?? null,
-            resumeVersionId: input.resumeVersionId ?? null,
+            resumeProfileId:
+              input.resumeProfileId ?? targeted?.resumeProfileId ?? null,
+            resumeVersionId:
+              input.resumeVersionId ?? targeted?.resumeVersionId ?? null,
           },
           include: { job: true },
         });
@@ -270,6 +279,10 @@ export class ApplicationsService {
       resumeProfileId: input.resumeProfileId,
     });
 
+    const targeted = !input.resumeProfileId
+      ? await this.latestTargetedVersion(workspaceId, jobId)
+      : null;
+
     // A concurrent request may insert the application between our read and
     // insert (unique organization_id + job_id); one retry then finds it.
     const run = () =>
@@ -286,7 +299,9 @@ export class ApplicationsService {
               status: 'applied',
               notes: input.notes ?? null,
               appliedAt: input.appliedAt ?? new Date(),
-              resumeProfileId: input.resumeProfileId ?? null,
+              resumeProfileId:
+                input.resumeProfileId ?? targeted?.resumeProfileId ?? null,
+              resumeVersionId: targeted?.resumeVersionId ?? null,
             },
             include: { job: true },
           });
@@ -409,6 +424,57 @@ export class ApplicationsService {
       update: data,
       create: { organizationId: workspaceId, jobId: app.jobId, ...data },
     });
+  }
+
+  /**
+   * The newest targeted resume version this workspace created for the job
+   * (Job Radar records the job in the version's artifact metadata).
+   */
+  private async latestTargetedVersion(
+    workspaceId: string,
+    jobId: string,
+  ): Promise<{ resumeProfileId: string; resumeVersionId: string } | null> {
+    const version = await this.prisma.client.resumeVersion.findFirst({
+      where: {
+        organizationId: workspaceId,
+        artifactMetadata: { path: ['jobId'], equals: jobId },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, resumeProfileId: true },
+    });
+    return version
+      ? {
+          resumeProfileId: version.resumeProfileId,
+          resumeVersionId: version.id,
+        }
+      : null;
+  }
+
+  /**
+   * Called when a targeted resume is created for a job. If the workspace
+   * already tracks that job, link the new version to the application, unless
+   * the application has moved past "saved" and already has a resume version:
+   * the resume you actually applied with must not change silently.
+   * No application => nothing to do (it is linked when you track the job).
+   */
+  async linkTargetedResume(
+    workspaceId: string,
+    jobId: string,
+    resumeProfileId: string,
+    resumeVersionId: string,
+  ): Promise<boolean> {
+    const application = await this.prisma.client.application.findFirst({
+      where: { organizationId: workspaceId, jobId },
+    });
+    if (!application) return false;
+    if (application.status !== 'saved' && application.resumeVersionId) {
+      return false;
+    }
+    await this.prisma.client.application.update({
+      where: { id: application.id },
+      data: { resumeProfileId, resumeVersionId },
+    });
+    return true;
   }
 
   private async assertJobExists(

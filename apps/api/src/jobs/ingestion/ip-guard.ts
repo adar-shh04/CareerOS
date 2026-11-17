@@ -113,16 +113,22 @@ export function isBlockedIPv6(ip: string): boolean {
   if (g[0] === 0x64 && g[1] === 0xff9b && g[2] === 1) return true;
   // 2002::/16 6to4: judge by the embedded IPv4 address
   if (g[0] === 0x2002) return isBlockedIPv4(embeddedV4(g[1], g[2]));
-  // 2001::/32 Teredo, 2001:db8::/32 documentation
-  if (g[0] === 0x2001 && (g[1] === 0 || g[1] === 0x0db8)) return true;
-  // 100::/64 discard-only
-  if (g[0] === 0x100 && g[1] === 0 && g[2] === 0 && g[3] === 0) return true;
-  // fc00::/7 unique local (includes AWS metadata fd00:ec2::254)
-  if ((g[0] & 0xfe00) === 0xfc00) return true;
-  // fe80::/10 link-local, fec0::/10 site-local (deprecated)
-  if ((g[0] & 0xffc0) === 0xfe80 || (g[0] & 0xffc0) === 0xfec0) return true;
-  // ff00::/8 multicast
-  if ((g[0] & 0xff00) === 0xff00) return true;
+
+  // Everything below is an ALLOW-list rule, not a deny-list: an IPv6 address
+  // is only acceptable when it is global unicast, 2000::/3 (RFC 4291 / IANA
+  // allocation). That alone rejects every other block, including
+  // fc00::/7 unique-local (AWS metadata fd00:ec2::254), fe80::/10 link-local,
+  // fec0::/10 site-local, ff00::/8 multicast, 100::/64 discard-only, and
+  // unallocated space such as 4000::/2 or 8000::/1.
+  if ((g[0] & 0xe000) !== 0x2000) return true;
+
+  // Special-purpose ranges that sit INSIDE 2000::/3 and are not public hosts:
+  // 2001::/23 IETF protocol assignments (Teredo 2001::/32, benchmarking,
+  // ORCHID, ...), 2001:db8::/32 documentation, 3fff::/20 documentation.
+  if (g[0] === 0x2001 && ((g[1] & 0xfe00) === 0 || g[1] === 0x0db8)) {
+    return true;
+  }
+  if (g[0] === 0x3fff && (g[1] & 0xf000) === 0) return true;
   return false;
 }
 

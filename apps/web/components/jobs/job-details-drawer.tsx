@@ -174,7 +174,10 @@ export function JobDetailsDrawer({
       const data = (await res.json()) as {
         version: ResumeVersion;
         profile: ResumeProfile;
+        applicationLinked?: boolean;
       };
+      // The API attached the version to this job's application: refresh it.
+      if (data.applicationLinked) onApplicationUpdated?.();
       setCreatedResumeHref(
         `/resumes/${data.profile.id}/versions/${data.version.id}`,
       );

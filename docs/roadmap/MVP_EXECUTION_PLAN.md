@@ -6,6 +6,59 @@
 
 ---
 
+## 0. Delivery Status and Recorded Deviations (updated 2026-11-18)
+
+Branch: `feat/mvp-job-intake-and-reminders`. Status is based on the code and on
+browser verification against a local stack, not on the task descriptions below.
+
+| Task | Status | Notes |
+| --- | --- | --- |
+| T-01 Manual job entry | Done | Jobs are now tenant-aware (see deviation 1). Duplicate postings are detected, not re-created. |
+| T-02 Targeted resume feedback | Done | Opens the new version; links it to the job's application (see deviation 4). |
+| T-03 First-run empty state | Done | Distinguishes new workspace / all dismissed / filtered / saved-only. Sample jobs deliberately not built (deviation 2). |
+| T-04 Recommendation diff | Not started | |
+| T-05 Follow-up / deadline dates | Done | `interviewDate` deferred (deviation 3). |
+| T-06 ATS keyword breakdown | Not started | |
+| T-07 URL importer | Done | Draft-only. IPv6 guard is an allow-list (global unicast only). |
+
+Deviations from the original task text, decided deliberately:
+
+1. **Private jobs (T-01).** The plan assumed `Job` was a shared table. A pasted
+   job must not be visible to other workspaces, so `jobs.owner_organization_id`
+   was added (NULL = shared catalog). Visibility is enforced in the API on every
+   job read path and in the database by triggers
+   (`20261118120000_job_owner_integrity_triggers`): an Application, JobMatch or
+   WorkspaceJobState can never reference another workspace's private job.
+2. **"Load sample demonstration jobs" (T-03) is not implemented.** It would
+   write demo rows into real workspaces. The acceptance criterion is amended to:
+   a new user sees a clear empty state with "Paste your first job" and an
+   optional live-fetch action. Revisit only if a clearly separated demo
+   workspace is introduced.
+3. **`interviewDate` (T-05) is deferred to T-09.** A single date cannot model
+   several interview rounds; it belongs with the `InterviewRound` model.
+4. **Targeted resume to application link (T-02).** A new targeted version is
+   attached to the job's application when it is still `saved` or has no resume
+   version yet. After applying, a newer version never replaces the one that was
+   submitted. Tracking a job later picks up the latest targeted version
+   automatically.
+
+Known limitations of what shipped: the URL importer relies on application-level
+SSRF protections only (no network egress allow-list) and cannot read pages that
+need JavaScript or a login; reminders use calendar-day (UTC midnight) semantics.
+
+### Technical backlog carried over (must not be buried by feature work)
+
+- PostgreSQL is the only database: CockroachDB removal / standardization stays
+  settled.
+- Missing foreign-key and tenant-integrity constraints stay tracked (private-job
+  references are now trigger-enforced; other gaps remain open).
+- Migration reproducibility from an empty database is a release requirement.
+- Dead-code cleanup stays in the stabilization follow-up.
+- Infrastructure additions (queues, object storage) stay deferred until a real
+  requirement justifies them.
+
+---
+
 ## 1. Prioritization Framework
 
 All backlog tasks are categorized using a strict value-first taxonomy:

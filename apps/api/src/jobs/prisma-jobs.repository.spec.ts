@@ -413,6 +413,45 @@ describe('PrismaJobsRepository', () => {
       expect(mockJob.findFirst).not.toHaveBeenCalled();
     });
 
+    it('createPrivateJobIfAbsent returns the winner on a unique race and never updates', async () => {
+      const raceError = new Prisma.PrismaClientKnownRequestError('unique', {
+        code: 'P2002',
+        clientVersion: 'test',
+      });
+      mockJob.create.mockRejectedValue(raceError);
+      mockJob.findUnique.mockResolvedValue({
+        ...sampleDbJob,
+        externalId: null,
+        ownerOrganizationId: 'ws-a',
+      });
+      const result = await repository.createPrivateJobIfAbsent({
+        company: 'Acme',
+        title: 'Eng',
+        location: 'Remote',
+        ownerOrganizationId: 'ws-a',
+        fingerprint: 'fp-x',
+      });
+      expect(result.created).toBe(false);
+      expect(result.job.id).toBe(sampleDbJob.id);
+      expect(mockJob.update).not.toHaveBeenCalled();
+      expect(mockJob.findUnique).toHaveBeenCalledWith({
+        where: { fingerprint: 'fp-x' },
+      });
+    });
+
+    it('createPrivateJobIfAbsent rethrows unrelated errors', async () => {
+      mockJob.create.mockRejectedValue(new Error('db down'));
+      await expect(
+        repository.createPrivateJobIfAbsent({
+          company: 'Acme',
+          title: 'Eng',
+          location: 'Remote',
+          ownerOrganizationId: 'ws-a',
+          fingerprint: 'fp-x',
+        }),
+      ).rejects.toThrow('db down');
+    });
+
     it('a private job is created owned, never shared', async () => {
       mockJob.create.mockResolvedValue({
         ...sampleDbJob,

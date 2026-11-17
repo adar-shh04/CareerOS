@@ -44,13 +44,9 @@ export class PrismaJobsRepository {
 
   // ── Canonical Jobs ─────────────────────────────────────────────────────
 
-  /**
-   * Upsert a canonical job by (source, externalId) or by fingerprint.
-   * If externalId is absent but fingerprint is present, deduplicates by fingerprint.
-   * Race-safe against concurrent ingestion runs.
-   */
-  async upsertCanonicalJob(input: CreateJobInput): Promise<CanonicalJob> {
-    const data = {
+  /** Column values for a job row built from a CreateJobInput. */
+  private toJobData(input: CreateJobInput) {
+    return {
       source: input.source ?? 'manual',
       ownerOrganizationId: input.ownerOrganizationId ?? null,
       sourceUrl: input.sourceUrl ?? null,
@@ -80,6 +76,47 @@ export class PrismaJobsRepository {
           }
         : {}),
     };
+  }
+
+  /**
+   * Insert a workspace-private job unless one with the same fingerprint
+   * already exists. Never updates: when a concurrent request wins the unique
+   * fingerprint race, the winner's row is returned with created = false, so a
+   * duplicate submission is reported as a duplicate and leaves the original
+   * untouched.
+   */
+  async createPrivateJobIfAbsent(
+    input: CreateJobInput & {
+      ownerOrganizationId: string;
+      fingerprint: string;
+    },
+  ): Promise<{ job: CanonicalJob; created: boolean }> {
+    try {
+      const row = await this.prisma.client.job.create({
+        data: this.toJobData(input),
+      });
+      return { job: this.mapJob(row), created: true };
+    } catch (error: unknown) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        const existing = await this.prisma.client.job.findUnique({
+          where: { fingerprint: input.fingerprint },
+        });
+        if (existing) return { job: this.mapJob(existing), created: false };
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Upsert a canonical job by (source, externalId) or by fingerprint.
+   * If externalId is absent but fingerprint is present, deduplicates by fingerprint.
+   * Race-safe against concurrent ingestion runs.
+   */
+  async upsertCanonicalJob(input: CreateJobInput): Promise<CanonicalJob> {
+    const data = this.toJobData(input);
 
     // If neither externalId nor fingerprint is provided, create directly
     if (!input.externalId && !input.fingerprint) {

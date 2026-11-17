@@ -10,6 +10,9 @@ interface JobEmptyStateProps {
   filtersActive?: boolean;
   /** Only saved jobs are being shown. */
   savedOnly?: boolean;
+  /** Jobs exist, but every one of them is dismissed (and hidden). */
+  dismissedHidden?: boolean;
+  onShowDismissed?: () => void;
   /** Open the Add Job dialog. */
   onAddJob?: () => void;
   /** Fetch live market jobs (optional; needs an ingestion token). */
@@ -22,10 +25,52 @@ export function JobEmptyState({
   onResetQuery,
   filtersActive = Boolean(query),
   savedOnly = false,
+  dismissedHidden = false,
+  onShowDismissed,
   onAddJob,
   onFetchLive,
   fetchingLive = false,
 }: JobEmptyStateProps) {
+  // Not a new workspace: every job was dismissed and dismissed jobs are
+  // hidden. Offer to bring them back instead of the first-run onboarding.
+  if (dismissedHidden && !filtersActive) {
+    return (
+      <div className="p-10 text-center rounded-xl border border-slate-200/80 bg-white space-y-4 shadow-xs">
+        <Briefcase className="w-12 h-12 text-slate-300 mx-auto" />
+        <div className="space-y-1.5">
+          <h3 className="text-lg font-bold text-slate-900">
+            You have dismissed every job
+          </h3>
+          <p className="text-sm text-slate-500 max-w-md mx-auto">
+            Dismissed jobs are hidden from the radar. Show them again, or add a
+            new job.
+          </p>
+        </div>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
+          {onShowDismissed && (
+            <button
+              type="button"
+              onClick={onShowDismissed}
+              className="px-4 py-2.5 rounded-lg bg-[#1d68ed] hover:bg-[#1555c8] text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+            >
+              Show dismissed jobs
+            </button>
+          )}
+          {onAddJob && (
+            <button
+              type="button"
+              onClick={onAddJob}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-medium transition-colors cursor-pointer"
+            >
+              <ClipboardPaste className="w-3.5 h-3.5" />
+              Add a job
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   // First run: nothing is filtering the list and it is still empty, so the
   // radar genuinely has no jobs yet. Tell the user how to get their first one.
   if (!filtersActive && onAddJob) {
@@ -68,7 +113,6 @@ export function JobEmptyState({
         <p className="text-[11px] text-slate-400 max-w-md mx-auto">
           Live market jobs are optional and need an Apify API token in your
           server configuration. Pasting a job works without any setup.
-          Dismissed jobs are hidden by default.
         </p>
       </div>
     );

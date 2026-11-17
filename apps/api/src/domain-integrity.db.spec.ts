@@ -565,6 +565,134 @@ describeWithDatabase('Domain & data integrity (PostgreSQL)', () => {
       ).toBe(1);
     });
 
+    it('the database itself refuses cross-workspace references to a private job', async () => {
+      const { job } = await jobs.addManualJob(wsA, {
+        ...manual,
+        title: `${token} Trigger Target`,
+        sourceUrl: `https://jobs.example.com/${token}/trigger`,
+      });
+      jobIds.push(job.id);
+
+      // Bypass the service layer entirely: workspace B writes directly.
+      await expect(
+        prisma.client.application.create({
+          data: { organizationId: wsB, jobId: job.id },
+        }),
+      ).rejects.toThrow(/Foreign key constraint/);
+      await expect(
+        prisma.client.workspaceJobState.create({
+          data: { organizationId: wsB, jobId: job.id },
+        }),
+      ).rejects.toThrow(/Foreign key constraint/);
+      await expect(
+        prisma.client.jobMatch.create({
+          data: {
+            organizationId: wsB,
+            jobId: job.id,
+            overallScore: 1,
+            skillScore: 1,
+            roleScore: 1,
+            experienceScore: 1,
+            locationScore: 1,
+            seniorityScore: 1,
+            explanation: 'x',
+          },
+        }),
+      ).rejects.toThrow(/Foreign key constraint/);
+
+      // The owner can; and nothing leaked in.
+      await prisma.client.workspaceJobState.create({
+        data: { organizationId: wsA, jobId: job.id },
+      });
+      expect(
+        await prisma.client.application.count({ where: { jobId: job.id } }),
+      ).toBe(0);
+    });
+
+    it('shared catalog jobs stay referenceable by every workspace', async () => {
+      const shared = await createJob({ title: `${token} Shared For Both` });
+      for (const ws of [wsA, wsB]) {
+        await prisma.client.workspaceJobState.create({
+          data: { organizationId: ws, jobId: shared.id },
+        });
+      }
+    });
+
+    it('a shared job already used by another workspace cannot be made private', async () => {
+      const shared = await createJob({ title: `${token} Referenced Shared` });
+      await prisma.client.workspaceJobState.create({
+        data: { organizationId: wsB, jobId: shared.id },
+      });
+      await expect(
+        prisma.client.job.update({
+          where: { id: shared.id },
+          data: { ownerOrganizationId: wsA },
+        }),
+      ).rejects.toThrow(/Foreign key constraint/);
+      // ...but it can become private to the one workspace that uses it.
+      await prisma.client.job.update({
+        where: { id: shared.id },
+        data: { ownerOrganizationId: wsB },
+      });
+    });
+
+    it('concurrent identical submissions create exactly one job and report the rest as duplicates', async () => {
+      const posting = {
+        ...manual,
+        title: `${token} Concurrent`,
+        sourceUrl: `https://jobs.example.com/${token}/concurrent`,
+      };
+      const results = await Promise.all(
+        Array.from({ length: 8 }, () => jobs.addManualJob(wsA, posting)),
+      );
+      for (const r of results) jobIds.push(r.job.id);
+      expect(new Set(results.map((r) => r.job.id)).size).toBe(1);
+      expect(results.filter((r) => !r.duplicate)).toHaveLength(1);
+      expect(
+        await prisma.client.job.count({
+          where: { ownerOrganizationId: wsA, title: posting.title },
+        }),
+      ).toBe(1);
+    });
+
+    it('a targeted resume is linked to the job application, in either order', async () => {
+      // Application first, then the targeted resume: linked immediately.
+      const a = await createJob({
+        title: `${token} Link A`,
+        requiredSkills: ['TypeScript'],
+      });
+      await applications.create(wsA, { jobId: a.id });
+      const first = await jobs.createTargetedResumeVersion(a.id, wsA);
+      expect(first.applicationLinked).toBe(true);
+      const linked = await prisma.client.application.findFirstOrThrow({
+        where: { organizationId: wsA, jobId: a.id },
+      });
+      expect(linked.resumeVersionId).toBe(first.version.id);
+      expect(linked.resumeProfileId).toBe(first.profile.id);
+
+      // Targeted resume first, then track the job: linked on creation.
+      const b = await createJob({
+        title: `${token} Link B`,
+        requiredSkills: ['TypeScript'],
+      });
+      const second = await jobs.createTargetedResumeVersion(b.id, wsA);
+      expect(second.applicationLinked).toBe(false); // nothing tracked yet
+      await applications.create(wsA, { jobId: b.id });
+      const tracked = await prisma.client.application.findFirstOrThrow({
+        where: { organizationId: wsA, jobId: b.id },
+      });
+      expect(tracked.resumeVersionId).toBe(second.version.id);
+
+      // Once applied, a newer targeted resume must not swap the submitted one.
+      await applications.markApplied(wsA, b.id);
+      const third = await jobs.createTargetedResumeVersion(b.id, wsA);
+      expect(third.applicationLinked).toBe(false);
+      const stable = await prisma.client.application.findFirstOrThrow({
+        where: { organizationId: wsA, jobId: b.id },
+      });
+      expect(stable.resumeVersionId).toBe(second.version.id);
+    });
+
     it('a genuinely different job is created', async () => {
       const other = await jobs.addManualJob(wsA, {
         ...manual,

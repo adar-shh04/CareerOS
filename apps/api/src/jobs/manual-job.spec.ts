@@ -120,7 +120,10 @@ describe('JobDeduplicationService.normalizeSourceUrl', () => {
 describe('JobIngestionService.ingestManual', () => {
   const build = (existing: unknown = null) => {
     const upsert = jest.fn((input: CreateJobInput) =>
-      Promise.resolve({ id: 'job-1', ...input }),
+      Promise.resolve({
+        job: { id: 'job-1', ...input },
+        created: true,
+      }),
     );
     const findDup = jest.fn(() => Promise.resolve(existing));
     const service = new JobIngestionService(
@@ -128,7 +131,7 @@ describe('JobIngestionService.ingestManual', () => {
       new JobNormalizationService(),
       new JobDeduplicationService(),
       {
-        upsertCanonicalJob: upsert,
+        createPrivateJobIfAbsent: upsert,
         findVisibleDuplicate: findDup,
       } as unknown as PrismaJobsRepository,
     );
@@ -194,5 +197,16 @@ describe('JobIngestionService.ingestManual', () => {
     // no shared-catalog fingerprint when the location is unknown
     expect(fps[0]).toHaveLength(1);
     expect(fps[0][0]).not.toBe(fps[1][0]);
+  });
+
+  it('reports a lost insert race as a duplicate, not a creation', async () => {
+    const { service, upsert } = build();
+    const winner = { id: 'winner-1', title: 'Senior Backend Engineer' };
+    upsert.mockResolvedValueOnce({
+      job: winner as never,
+      created: false,
+    });
+    const result = await service.ingestManual(raw, 'org-a');
+    expect(result).toEqual({ job: winner, created: false });
   });
 });
