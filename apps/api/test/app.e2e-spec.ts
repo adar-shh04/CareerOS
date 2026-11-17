@@ -7,7 +7,12 @@ import type { App } from 'supertest/types';
 
 import { AppModule } from './../src/app.module';
 
-describe('AppController (e2e)', () => {
+// Boots the full app, so it needs the disposable test database (TEST_DATABASE_URL).
+const describeWithDatabase = process.env.DATABASE_URL
+  ? describe
+  : describe.skip;
+
+describeWithDatabase('AppController (e2e)', () => {
   let app: INestApplication<App>;
 
   beforeEach(async () => {
