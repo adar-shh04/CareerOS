@@ -17,6 +17,7 @@ import type {
   AiCoachSection,
   MasterCareerProfile,
   ResumeProfile,
+  SelectedRecordIds,
 } from "./index.js";
 
 export const CANONICAL_CAREEROS_LATEX_TEMPLATE = String.raw`\documentclass[a4paper]{article}
@@ -238,8 +239,47 @@ function itemizeBlock(items: string[], itemsep = "-3pt"): string {
 export function generateLatexFromProfile(
   masterProfile: MasterCareerProfile,
   resumeProfile?: LatexResumeProfile | null,
+  options?: LatexGenerationOptions,
 ): string {
+  return generateLatexDocument(masterProfile, resumeProfile, options).latex;
+}
+
+export interface LatexGenerationOptions {
+  /**
+   * When given, ONLY these records are rendered (experiences, projects,
+   * skills, certifications; education, identity and links are not selectable).
+   * Without it every record is rendered and priority ids only reorder.
+   */
+  selection?: SelectedRecordIds;
+}
+
+export interface GeneratedLatexDocument {
+  latex: string;
+  /**
+   * The records the generator actually emitted, observed rather than assumed.
+   * Achievements are never rendered by the standard template, so
+   * achievementIds is always empty.
+   */
+  represented: SelectedRecordIds;
+}
+
+/** Same output as generateLatexFromProfile, plus which records it contains. */
+export function generateLatexDocument(
+  masterProfile: MasterCareerProfile,
+  resumeProfile?: LatexResumeProfile | null,
+  options?: LatexGenerationOptions,
+): GeneratedLatexDocument {
   const { identity } = masterProfile;
+  const selection = options?.selection;
+
+  const pick = <T extends { id: string }>(
+    items: T[] | undefined,
+    ids: string[] | undefined,
+  ): T[] | undefined => {
+    if (!selection) return items;
+    const wanted = new Set(ids ?? []);
+    return (items ?? []).filter((item) => wanted.has(item.id));
+  };
 
   const prioritize = <T extends { id: string }>(
     items: T[] | undefined,
@@ -254,19 +294,19 @@ export function generateLatexFromProfile(
   };
 
   const experiences = prioritize(
-    masterProfile.experiences,
+    pick(masterProfile.experiences, selection?.experienceIds),
     resumeProfile?.priorityExperienceIds,
   );
   const projects = prioritize(
-    masterProfile.projects,
+    pick(masterProfile.projects, selection?.projectIds),
     resumeProfile?.priorityProjectIds,
   );
   const skills = prioritize(
-    masterProfile.skills,
+    pick(masterProfile.skills, selection?.skillIds),
     resumeProfile?.prioritySkillIds,
   );
   const certs = prioritize(
-    masterProfile.certifications,
+    pick(masterProfile.certifications, selection?.certificationIds),
     resumeProfile?.priorityCertificationIds,
   );
   const education = masterProfile.education;
@@ -392,7 +432,7 @@ ${itemizeBlock(
       : "";
 
   // Function replacements so "$" sequences in content are never interpreted.
-  return CANONICAL_CAREEROS_LATEX_TEMPLATE.replace(
+  const latex = CANONICAL_CAREEROS_LATEX_TEMPLATE.replace(
     "{{FULL_NAME}}",
     () => escapeLatex(identity.fullName),
   )
@@ -403,6 +443,17 @@ ${itemizeBlock(
     .replace("{{PROJECTS_SECTION}}", () => projSection)
     .replace("{{SKILLS_SECTION}}", () => skillsSection)
     .replace("{{CERTIFICATIONS_SECTION}}", () => certSection);
+
+  return {
+    latex,
+    represented: {
+      experienceIds: experiences.map((item) => item.id),
+      projectIds: projects.map((item) => item.id),
+      skillIds: skills.map((item) => item.id),
+      certificationIds: certs.map((item) => item.id),
+      achievementIds: [], // not rendered by the standard template
+    },
+  };
 }
 
 const SECTION_COMMANDS = ["header", "resumesection", "section\\*?"] as const;

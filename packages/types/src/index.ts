@@ -246,7 +246,128 @@ export interface ResumeVersion {
   confidence?: number;
   explanation?: string;
   artifactMetadata?: Record<string, unknown>;
+  /**
+   * The resume document exactly as it existed when this version was created.
+   * Absent on versions created before documents were captured: those must be
+   * rendered from the version's own frozen data, never from the current
+   * Resume Profile.
+   */
+  document?: ResumeVersionDocument;
   createdAt: string;
+}
+
+/* ── Resume version documents & selection review (T-04) ───────────────────
+ * Three things are kept apart on purpose:
+ *   1. in the Master Career Profile: a record exists (version snapshot);
+ *   2. selected for the resume: `selectedRecordIds`, read through
+ *      `document.selectionMode`;
+ *   3. represented in the document: what the generator actually emitted
+ *      (`document.representedRecordIds`), unknown for custom LaTeX.
+ * Selecting a record does not prove its content reached the document. */
+
+/**
+ * - prioritized: every record is in the document; the selected ids only move
+ *   records first. This is what versions without a stored mode mean.
+ * - included: only the selected records are in the document.
+ */
+export type ResumeSelectionMode = "prioritized" | "included";
+
+/**
+ * - generated: CareerOS's standard template filled from the profile data.
+ * - custom_preserved: the profile's own LaTeX copied verbatim; a record
+ *   selection cannot reliably change it.
+ */
+export type ResumeDocumentKind = "generated" | "custom_preserved";
+
+export interface ResumeVersionDocument {
+  latexSource: string;
+  kind: ResumeDocumentKind;
+  selectionMode: ResumeSelectionMode;
+  /**
+   * Records the generator emitted (observed, not assumed). Absent when the
+   * source is custom: whether a record reached the document is then unknown.
+   */
+  representedRecordIds?: SelectedRecordIds;
+  /** Summary guidance used for a generated document, so a revision keeps it. */
+  summaryGuidance?: string;
+  createdFrom: "targeted_resume" | "manual" | "revision";
+  /** For a revision: the version it was derived from (never modified). */
+  basedOnVersionId?: string;
+}
+
+export type SelectionReviewSectionKind =
+  | "experiences"
+  | "projects"
+  | "skills"
+  | "certifications"
+  | "achievements";
+
+export interface SelectionReviewRecord {
+  id: string;
+  label: string;
+  /** Short context line, e.g. dates or issuer. */
+  detail?: string;
+  /** In the version's current selection (see mode on the review). */
+  included: boolean;
+  /** Moved first in a "prioritized" version. */
+  prioritized: boolean;
+  /**
+   * The deterministic recommendation for this posting: true = include,
+   * false = a reason to leave it out, null = no signal either way (kept).
+   * Null whenever there is no job context.
+   */
+  recommended: boolean | null;
+  /** Why, in plain words; always present when recommended is not null. */
+  reasons: string[];
+  /** Job terms this record lists (canonical identity), for explanation. */
+  matchedTerms: { term: string; importance: "required" | "preferred" }[];
+  /** Whether the document actually contains it; null when unknown (custom). */
+  representedInDocument: boolean | null;
+}
+
+export interface SelectionReviewSection {
+  kind: SelectionReviewSectionKind;
+  label: string;
+  /** False when the standard template does not render this kind at all. */
+  renderedByTemplate: boolean;
+  records: SelectionReviewRecord[];
+}
+
+export type SelectionReviewDocumentStatus =
+  | "generated"
+  | "custom_preserved"
+  | "not_captured";
+
+export interface ResumeSelectionReview {
+  versionId: string;
+  resumeProfileId: string;
+  targetCompany?: string;
+  targetRole?: string;
+  selectionMode: ResumeSelectionMode;
+  document: {
+    status: SelectionReviewDocumentStatus;
+    /**
+     * Whether saving a changed selection changes the document by default.
+     * False for custom LaTeX: the revised version then keeps the source as it
+     * is unless the user explicitly asks for the standard template.
+     */
+    selectionChangesDocument: boolean;
+    /** Plain-language limitation to show the user, when there is one. */
+    limitation?: string;
+  };
+  /** True when the version carries a job analysis to recommend against. */
+  recommendationsAvailable: boolean;
+  sections: SelectionReviewSection[];
+}
+
+/** Body of POST .../versions/:versionId/revisions. */
+export interface CreateResumeVersionRevisionInput {
+  selectedRecordIds: SelectedRecordIds;
+  /**
+   * auto: regenerate when the base document is generated or not captured, keep
+   * custom LaTeX verbatim. generate: explicitly use the standard template.
+   */
+  documentMode?: "auto" | "generate";
 }
 
 /* ── Canonical Job Domain Types ───────────────────────────────────────── */
