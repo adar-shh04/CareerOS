@@ -6,8 +6,10 @@ import { DEFAULT_MATCHING_WEIGHTS } from '@repo/types';
  * evidence semantics change so every stored match is recomputed.
  *   2 — canonical skill identity, preferred-skill evidence, normalized
  *       seniority/experience (stabilization passes 1–2).
+ *   3 — evidence.coverage: term-by-term keyword coverage with evidence
+ *       locations (T-06). Older stored matches lack it, so they recompute.
  */
-export const MATCHER_VERSION = 2;
+export const MATCHER_VERSION = 3;
 
 export const DEFAULT_WEIGHTS_KEY = 'default';
 

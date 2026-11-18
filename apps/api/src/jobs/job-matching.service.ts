@@ -4,6 +4,7 @@ import type { MasterCareerProfile } from '../career-profile/career-profile.types
 import type { ResumeProfile } from '../resume-profile/resume-profile.types';
 import type { CanonicalJob, MatchInput, MatchOutput } from './jobs.types';
 import { DEFAULT_WEIGHTS } from './jobs.types';
+import { buildKeywordCoverage } from './keyword-coverage';
 import {
   type ResolvedJobRequirements,
   resolveJobRequirements,
@@ -107,6 +108,9 @@ export class JobMatchingService {
           ? { requiredYears: requirements.requiredYears }
           : {}),
         requiredYearsSource: requirements.requiredYearsSource,
+        // Term-by-term coverage with evidence locations, from the same
+        // canonical identities the scorer above used.
+        coverage: buildKeywordCoverage(job, masterProfile, resumeProfile),
       },
     };
   }

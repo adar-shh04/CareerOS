@@ -351,6 +351,83 @@ export interface JobMatchEvidence {
   /** Years of experience the job requires and where it came from. */
   requiredYears?: number;
   requiredYearsSource?: "normalized" | "unknown";
+  /**
+   * Term-by-term keyword coverage with evidence locations (matcher v3+).
+   * Absent on matches computed before it existed.
+   */
+  coverage?: JobKeywordCoverage;
+}
+
+/* ── Keyword coverage & evidence (deterministic, no AI) ───────────────────
+ * "Job keyword coverage" is NOT an ATS score. It states, term by term, which
+ * skills a posting lists and what in the Master Career Profile supports them.
+ * Terms are compared by canonical skill identity (never by substring), and
+ * evidence is only ever a reference to an existing profile record. A missing
+ * term is a gap to report, never something to invent. */
+
+/** Where a term is supported in the Master Career Profile. */
+export type EvidenceReferenceKind =
+  | "skill"
+  | "technology"
+  | "experience"
+  | "project";
+
+export interface EvidenceReference {
+  kind: EvidenceReferenceKind;
+  /** Id of the career record (stable, so a resume selection can point at it). */
+  recordId: string;
+  /** Human label: skill name, "Title at Company", or project name. */
+  label: string;
+}
+
+/**
+ * - evidenced: at least one experience or project lists the term.
+ * - listed_only: the term is only in the skills/technologies lists, with no
+ *   experience or project backing it. The evidence is unclear, so say so.
+ * - missing: nothing in the profile lists it.
+ */
+export type KeywordCoverageStatus = "evidenced" | "listed_only" | "missing";
+
+/** How the report groups terms; derived from a fixed dictionary, not a model. */
+export type KeywordCoverageGroup =
+  | "technical_skills"
+  | "tools_frameworks"
+  | "domain_knowledge";
+
+export interface KeywordCoverageTerm {
+  /** Display name (canonical spelling when the term is known). */
+  term: string;
+  /** Canonical identity used for every comparison. */
+  key: string;
+  importance: "required" | "preferred";
+  group: KeywordCoverageGroup;
+  status: KeywordCoverageStatus;
+  /** Every profile record that supports the term (empty when missing). */
+  evidence: EvidenceReference[];
+  /**
+   * Whether supporting evidence is part of the resume profile's current
+   * selection. Absent when the match was not scored against a resume profile.
+   * A skill can exist in the Master Career Profile without being selected.
+   */
+  selectedForResume?: boolean;
+}
+
+export interface KeywordCoverageSummary {
+  /** Distinct terms the posting lists at this importance. */
+  total: number;
+  /** In the profile at all: evidenced + listed_only (matches the matcher). */
+  matched: number;
+  evidenced: number;
+  listedOnly: number;
+  missing: number;
+  /** matched / total as 0-100, or null when the posting lists none. */
+  percent: number | null;
+}
+
+export interface JobKeywordCoverage {
+  required: KeywordCoverageSummary;
+  preferred: KeywordCoverageSummary;
+  terms: KeywordCoverageTerm[];
 }
 
 /** Persisted match result for a job × workspace × resume-profile combination.
