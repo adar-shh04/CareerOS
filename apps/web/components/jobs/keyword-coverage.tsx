@@ -65,34 +65,41 @@ function CoverageBar({
     );
   }
   const percent = summary.percent ?? 0;
+  // Two different things are counted, so they are shown as two different
+  // segments: terms backed by an experience or project (solid), and terms that
+  // are only in the skills lists (lighter). Never one merged number.
+  const evidencedWidth = (summary.evidenced / summary.total) * 100;
+  const listedOnlyWidth = (summary.listedOnly / summary.total) * 100;
   return (
     <div className="space-y-1">
       <div className="flex items-baseline justify-between gap-2 text-xs">
         <span className="font-semibold text-slate-700">{title}</span>
-        <span className="text-slate-600">
-          {summary.matched} of {summary.total} in your profile ({percent}%)
+        <span className="text-slate-700">
+          {summary.evidenced} of {summary.total} backed by experience or
+          projects
         </span>
       </div>
       <div
-        className="h-1.5 rounded-full bg-slate-200 overflow-hidden"
-        role="progressbar"
-        aria-label={`${title} coverage`}
-        aria-valuenow={percent}
-        aria-valuemin={0}
-        aria-valuemax={100}
+        className="flex h-1.5 rounded-full bg-slate-200 overflow-hidden"
+        role="img"
+        aria-label={`${title}: ${String(summary.evidenced)} backed by experience or projects, ${String(summary.listedOnly)} listed in skills only, ${String(summary.missing)} not in profile, out of ${String(summary.total)}`}
       >
         <div
-          className="h-full rounded-full bg-[#1d68ed]"
-          style={{ width: `${String(percent)}%` }}
+          className="h-full bg-[#1d68ed]"
+          style={{ width: `${String(evidencedWidth)}%` }}
+        />
+        <div
+          className="h-full bg-amber-300"
+          style={{ width: `${String(listedOnlyWidth)}%` }}
         />
       </div>
       <p className="text-[11px] text-slate-500">
-        {summary.evidenced} backed by experience or projects
+        {summary.matched} of {summary.total} are in your profile ({percent}%)
         {summary.listedOnly > 0
-          ? `, ${String(summary.listedOnly)} listed in skills only`
+          ? `, but ${String(summary.listedOnly)} of those ${summary.listedOnly === 1 ? "is" : "are"} only in your skills lists with no experience or project behind ${summary.listedOnly === 1 ? "it" : "them"}`
           : ""}
         {summary.missing > 0
-          ? `, ${String(summary.missing)} not in profile`
+          ? `; ${String(summary.missing)} not in profile`
           : ""}
         .
       </p>
