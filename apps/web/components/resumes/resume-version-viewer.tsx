@@ -7,9 +7,46 @@ import {
   Printer,
 } from "lucide-react";
 import Link from "next/link";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+
+import { generateLatexFromProfile } from "@/lib/latex-engine";
 
 import { ResumePreview } from "../resume-intelligence/resume-preview";
+import { VersionSelectionReview } from "./version-selection-review";
+
+const RECONSTRUCTED_NOTICE =
+  "This version predates document snapshots. It is shown reconstructed from its frozen profile data and may differ from the document you saw when it was created.";
+
+/**
+ * The document of a version, from version-owned data only. The current Resume
+ * Profile is never consulted: a version is an immutable snapshot.
+ */
+function resolveVersionDocument(version: ResumeVersion): {
+  latexSource: string;
+  badge: string;
+  notice?: string;
+} {
+  if (version.document) {
+    return {
+      latexSource: version.document.latexSource,
+      badge:
+        version.document.kind === "custom_preserved"
+          ? "Your custom LaTeX (preserved)"
+          : "Generated document",
+    };
+  }
+  const sel = version.selectedRecordIds;
+  return {
+    latexSource: generateLatexFromProfile(version.masterProfileSnapshot, {
+      priorityExperienceIds: sel.experienceIds,
+      priorityProjectIds: sel.projectIds,
+      prioritySkillIds: sel.skillIds,
+      priorityCertificationIds: sel.certificationIds,
+    }),
+    badge: "Reconstructed",
+    notice: RECONSTRUCTED_NOTICE,
+  };
+}
 
 interface ResumeVersionViewerProps {
   profileId: string;
@@ -57,6 +94,11 @@ export function ResumeVersionViewer({
   useEffect(() => {
     void loadVersionData();
   }, [loadVersionData]);
+
+  const versionDocument = useMemo(
+    () => (version ? resolveVersionDocument(version) : null),
+    [version],
+  );
 
   if (loading) {
     return (
@@ -155,12 +197,22 @@ export function ResumeVersionViewer({
 
       {/* Resume Live Preview */}
       <div className="rounded-xl border border-slate-200/80 bg-white p-6 shadow-xs">
-        <ResumePreview
-          masterProfile={snapshot}
-          selectedProfile={profile}
-          selectedVersion={version}
-        />
+        {versionDocument && (
+          <ResumePreview
+            masterProfile={snapshot}
+            selectedVersion={version}
+            fixedLatexSource={versionDocument.latexSource}
+            documentBadge={versionDocument.badge}
+            notice={versionDocument.notice}
+          />
+        )}
       </div>
+
+      <VersionSelectionReview
+        key={version.id}
+        profileId={profileId}
+        versionId={version.id}
+      />
     </div>
   );
 }

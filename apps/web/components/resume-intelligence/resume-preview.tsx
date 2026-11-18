@@ -30,6 +30,16 @@ interface ResumePreviewProps {
   selectedProfile?: ResumeProfile | null;
   selectedVersion?: ResumeVersion | null;
   onUpdateProfileLatex?: (latexSource: string) => Promise<void>;
+  /**
+   * Version mode: render exactly this LaTeX. It is never replaced by profile or
+   * generated state, the code view is read-only and the profile-editing
+   * controls are hidden. Print and copy remain.
+   */
+  fixedLatexSource?: string;
+  /** Status badge shown in version mode (e.g. "Generated document"). */
+  documentBadge?: string;
+  /** Plain-language notice shown above the document in version mode. */
+  notice?: string;
 }
 
 export function ResumePreview({
@@ -37,7 +47,11 @@ export function ResumePreview({
   selectedProfile,
   selectedVersion,
   onUpdateProfileLatex,
+  fixedLatexSource,
+  documentBadge,
+  notice,
 }: ResumePreviewProps) {
+  const isFixed = fixedLatexSource !== undefined;
   const printRef = useRef<HTMLDivElement>(null);
   const [viewMode, setViewMode] = useState<"rendered" | "code" | "split">(
     "rendered",
@@ -54,15 +68,17 @@ export function ResumePreview({
     return generateLatexFromProfile(profileData, selectedProfile);
   }, [profileData, selectedProfile]);
 
-  const [latexSource, setLatexSource] = useState<string>("");
+  const [editableLatex, setLatexSource] = useState<string>("");
+  const latexSource = isFixed ? fixedLatexSource : editableLatex;
 
   useEffect(() => {
+    if (isFixed) return;
     if (selectedProfile?.latexSource) {
       setLatexSource(selectedProfile.latexSource);
     } else if (generatedLatex) {
       setLatexSource(generatedLatex);
     }
-  }, [selectedProfile?.latexSource, generatedLatex]);
+  }, [isFixed, selectedProfile?.latexSource, generatedLatex]);
 
   // Compile LaTeX into typeset HTML preview
   const compiled = useMemo(() => {
@@ -84,13 +100,13 @@ export function ResumePreview({
   };
 
   const handleResetToCanonical = () => {
-    if (generatedLatex) {
+    if (!isFixed && generatedLatex) {
       setLatexSource(generatedLatex);
     }
   };
 
   const handleSaveLatex = async () => {
-    if (!selectedProfile?.id) return;
+    if (isFixed || !selectedProfile?.id) return;
     setIsSaving(true);
     setSaveSuccess(false);
     try {
@@ -122,7 +138,11 @@ export function ResumePreview({
     }
   };
 
-  if (!profileData?.identity.fullName && !selectedProfile?.latexSource) {
+  if (
+    !isFixed &&
+    !profileData?.identity.fullName &&
+    !selectedProfile?.latexSource
+  ) {
     return (
       <div className="p-12 text-center rounded-xl border border-slate-200/80 bg-white shadow-xs">
         <User className="w-12 h-12 text-[#1d68ed] mx-auto mb-3" />
@@ -147,12 +167,18 @@ export function ResumePreview({
             <h3 className="font-bold text-slate-900 text-base">
               Resume Studio — LaTeX Pipeline
             </h3>
-            {selectedProfile && (
+            {!isFixed && selectedProfile && (
               <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-[#1d68ed] border border-blue-200/80">
                 Profile: {selectedProfile.name}
               </span>
             )}
-            {selectedProfile?.latexSource ? (
+            {isFixed ? (
+              documentBadge ? (
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                  {documentBadge}
+                </span>
+              ) : null
+            ) : selectedProfile?.latexSource ? (
               <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
                 User Template Preserved
               </span>
@@ -163,9 +189,18 @@ export function ResumePreview({
             )}
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Compiled LaTeX output with Computer Modern typography. Edit LaTeX
-            source or preview rendered document live.
+            {isFixed
+              ? "The document exactly as stored with this version. It is read-only."
+              : "Compiled LaTeX output with Computer Modern typography. Edit LaTeX source or preview rendered document live."}
           </p>
+          {isFixed && notice && (
+            <p
+              role="note"
+              className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+            >
+              {notice}
+            </p>
+          )}
         </div>
 
         {/* View toggles & actions */}
@@ -230,7 +265,7 @@ export function ResumePreview({
             )}
           </button>
 
-          {selectedProfile && (
+          {!isFixed && selectedProfile && (
             <button
               type="button"
               onClick={() => {
@@ -282,6 +317,7 @@ export function ResumePreview({
                   ({latexSource.length} chars)
                 </span>
               </div>
+              {!isFixed && (
               <button
                 type="button"
                 onClick={handleResetToCanonical}
@@ -290,10 +326,15 @@ export function ResumePreview({
                 <RefreshCw className="w-3 h-3" />
                 Reset to Canonical Template
               </button>
+              )}
             </div>
             <textarea
               value={latexSource}
-              onChange={(e) => setLatexSource(e.target.value)}
+              readOnly={isFixed}
+              aria-label={isFixed ? "LaTeX source of this version (read-only)" : "LaTeX source"}
+              onChange={(e) => {
+                if (!isFixed) setLatexSource(e.target.value);
+              }}
               spellCheck={false}
               className="w-full h-[650px] lg:h-[900px] p-4 bg-white text-slate-900 font-mono text-xs leading-relaxed resize-none outline-none border-none selection:bg-blue-100"
               placeholder="% Paste or edit your LaTeX resume code here..."

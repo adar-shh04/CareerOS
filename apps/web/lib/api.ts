@@ -12,6 +12,7 @@ import type {
   CareerHandbookResponse,
   CreateApplicationInput,
   CreateResumeVersionInput,
+  CreateResumeVersionRevisionInput,
   JobAnalysisResult,
   JobMatchingWeights,
   JobOpportunity,
@@ -22,6 +23,7 @@ import type {
   OnboardingProfileInput,
   ResumeProfile,
   ResumeProfileInput,
+  ResumeSelectionReview,
   ResumeVersion,
   SectionCoachingRequest,
   SectionCoachingResponse,
@@ -331,6 +333,47 @@ export async function fetchResumeVersion(
         Cookie: sessionCookie,
       },
       cache: "no-store",
+    },
+  );
+
+  return parseResponse<ResumeVersion>(response);
+}
+
+export async function fetchResumeVersionSelectionReview(
+  sessionCookie: string,
+  workspaceId: string,
+  profileId: string,
+  versionId: string,
+): Promise<ResumeSelectionReview> {
+  const response = await fetch(
+    `${getWorkspacePath(workspaceId)}/resume-profiles/${profileId}/versions/${versionId}/selection-review`,
+    {
+      headers: {
+        Cookie: sessionCookie,
+      },
+      cache: "no-store",
+    },
+  );
+
+  return parseResponse<ResumeSelectionReview>(response);
+}
+
+export async function createResumeVersionRevision(
+  sessionCookie: string,
+  workspaceId: string,
+  profileId: string,
+  versionId: string,
+  input: CreateResumeVersionRevisionInput,
+): Promise<ResumeVersion> {
+  const response = await fetch(
+    `${getWorkspacePath(workspaceId)}/resume-profiles/${profileId}/versions/${versionId}/revisions`,
+    {
+      method: "POST",
+      headers: {
+        Cookie: sessionCookie,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(input),
     },
   );
 
