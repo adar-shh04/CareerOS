@@ -16,7 +16,7 @@ browser verification against a local stack, not on the task descriptions below.
 | T-01 Manual job entry | Done | Jobs are now tenant-aware (see deviation 1). Duplicate postings are detected, not re-created. |
 | T-02 Targeted resume feedback | Done | Opens the new version; links it to the job's application (see deviation 4). |
 | T-03 First-run empty state | Done | Distinguishes new workspace / all dismissed / filtered / saved-only. Sample jobs deliberately not built (deviation 2). |
-| T-04 Recommendation diff | Not started | |
+| T-04 Recommendation review and revised versions | Implemented, awaiting review | Record-level selection; revisions create new immutable versions (deviation 5). Integration paths verified in Pass 6. |
 | T-05 Follow-up / deadline dates | Done | `interviewDate` deferred (deviation 3). |
 | T-06 Keyword coverage (was "ATS keyword breakdown") | Implemented, awaiting review | Deterministic job keyword coverage with evidence locations; not an ATS score. Integration paths (real matches, stale refresh) are verified in Pass 6. |
 | T-07 URL importer | Done | Draft-only. IPv6 guard is an allow-list (global unicast only). |
@@ -35,8 +35,9 @@ Deviations from the original task text, decided deliberately:
    job row under `FOR KEY SHARE` and fails closed. No flow ever re-owns a job;
    private to shared would also leak the pasted text to every workspace.
    Concurrency tests: `apps/api/src/job-owner-integrity.db.spec.ts`. DB-backed
-   suites can be pointed at a disposable database with `TEST_DATABASE_URL`
-   (`apps/api/.env` otherwise always wins).
+   suites are opt-in: they run only against a disposable database named by
+   `TEST_DATABASE_URL` (validated, never the developer database) and skip
+   otherwise; see `apps/api/test/INTEGRATION_TESTS.md`.
 2. **"Load sample demonstration jobs" (T-03) is not implemented.** It would
    write demo rows into real workspaces. The acceptance criterion is amended to:
    a new user sees a clear empty state with "Paste your first job" and an
@@ -50,6 +51,24 @@ Deviations from the original task text, decided deliberately:
    submitted. Tracking a job later picks up the latest targeted version
    automatically.
 
+5. **Revised resume versions (T-04).** A version is an immutable snapshot and now
+   owns its document: the document as it existed at creation is stored under
+   `artifactMetadata.document` (existing JSON column, so no schema change; the
+   server owns that key). The version viewer renders only from version-owned data
+   and never from the current Resume Profile. A version created before this
+   change has no stored document and is shown reconstructed from its frozen
+   profile data, with a visible notice. Selection is record-level (experiences,
+   projects, skills, certifications; achievements are recorded but the standard
+   template does not print them). A revision copies the base version's frozen
+   snapshot and targeting context, validates ids against that snapshot, works
+   after the master profile changes, and never touches an application. Custom
+   LaTeX is preserved verbatim unless the user explicitly asks for the standard
+   template; a source counts as the standard template only when it is
+   byte-identical to the regenerated one, so a standard source that is merely out
+   of date is treated as custom (conservative). Existing `selectedRecordIds`
+   keep their meaning ("prioritized": all records included, ids only reorder);
+   revisions store `selectionMode: "included"`.
+
 Known limitations of what shipped: the URL importer relies on application-level
 SSRF protections only (no network egress allow-list) and cannot read pages that
 need JavaScript or a login; reminders use calendar-day (UTC midnight) semantics.
@@ -61,11 +80,26 @@ need JavaScript or a login; reminders use calendar-day (UTC midnight) semantics.
 - Missing foreign-key and tenant-integrity constraints stay tracked (private-job
   references are now trigger-enforced; other gaps remain open).
 - Migration reproducibility from an empty database is a release requirement.
-- Dead-code cleanup stays in the stabilization follow-up.
+- Dead-code cleanup was reported complete in Pass 5; reopen it only with concrete
+  evidence, not as a standing task.
 - Infrastructure additions (queues, object storage) stay deferred until a real
   requirement justifies them.
 
 ### Feature backlog (recorded, not scheduled)
+
+- **LaTeX origin marker.** Telling a standard source from a custom one by
+  byte-comparison is conservative: after the master profile is edited, a source
+  that was standard is treated as custom, so a revision keeps its document
+  unless the user opts into the standard template. Record where a profile's
+  LaTeX came from (generated, imported, edited, AI-edited) so this can be exact.
+- **Database-level immutability for resume versions.** Versions are append-only
+  in application code (no update or delete path), but nothing in the database
+  forbids an update. Consider a trigger like the job-ownership one.
+- **Explicit "use this version for application X".** Revisions never change which
+  version an application uses. The explicit action for switching is not built.
+- **Revision summary text.** A generated revision reuses the base version's summary
+  guidance when it has one; a version created before documents were captured falls
+  back to the profile headline.
 
 - **Imported-resume evidence extraction.** Keyword coverage (T-06) only counts
   technologies listed on experiences and projects and in the skills lists. A term
