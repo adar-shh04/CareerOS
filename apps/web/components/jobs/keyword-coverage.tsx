@@ -22,19 +22,19 @@ const STATUS: Record<
   { label: string; hint: string; className: string; Icon: typeof CheckCircle2 }
 > = {
   evidenced: {
-    label: "Evidenced",
-    hint: "An experience or project in your profile lists this.",
+    label: "Listed on experience or project",
+    hint: "The term is in the technologies list of an experience or project. The profile does not verify how it was used.",
     className: "bg-emerald-50 border-emerald-200 text-emerald-800",
     Icon: CheckCircle2,
   },
   listed_only: {
-    label: "Listed only",
-    hint: "It is in your skills list, but no experience or project backs it.",
+    label: "Listed only in skills",
+    hint: "It is in your skills list, but no experience or project lists it.",
     className: "bg-amber-50 border-amber-200 text-amber-800",
     Icon: HelpCircle,
   },
   missing: {
-    label: "Not in profile",
+    label: "Not found in profile",
     hint: "Nothing in your Master Career Profile lists this.",
     className: "bg-slate-100 border-slate-200 text-slate-600",
     Icon: CircleDashed,
@@ -75,14 +75,14 @@ function CoverageBar({
       <div className="flex items-baseline justify-between gap-2 text-xs">
         <span className="font-semibold text-slate-700">{title}</span>
         <span className="text-slate-700">
-          {summary.evidenced} of {summary.total} backed by experience or
-          projects
+          {summary.evidenced} of {summary.total} listed on an experience or
+          project
         </span>
       </div>
       <div
         className="flex h-1.5 rounded-full bg-slate-200 overflow-hidden"
         role="img"
-        aria-label={`${title}: ${String(summary.evidenced)} backed by experience or projects, ${String(summary.listedOnly)} listed in skills only, ${String(summary.missing)} not in profile, out of ${String(summary.total)}`}
+        aria-label={`${title}: ${String(summary.evidenced)} listed on an experience or project, ${String(summary.listedOnly)} listed only in skills, ${String(summary.missing)} not found in profile, out of ${String(summary.total)}`}
       >
         <div
           className="h-full bg-[#1d68ed]"
@@ -96,10 +96,10 @@ function CoverageBar({
       <p className="text-[11px] text-slate-500">
         {summary.matched} of {summary.total} are in your profile ({percent}%)
         {summary.listedOnly > 0
-          ? `, but ${String(summary.listedOnly)} of those ${summary.listedOnly === 1 ? "is" : "are"} only in your skills lists with no experience or project behind ${summary.listedOnly === 1 ? "it" : "them"}`
+          ? `, but ${String(summary.listedOnly)} of those ${summary.listedOnly === 1 ? "is" : "are"} listed only in your skills, on no experience or project`
           : ""}
         {summary.missing > 0
-          ? `; ${String(summary.missing)} not in profile`
+          ? `; ${String(summary.missing)} not found in profile`
           : ""}
         .
       </p>
@@ -139,9 +139,7 @@ function TermRow({ term }: { term: KeywordCoverageTerm }) {
       {term.evidence.length > 0 ? (
         <p className="text-xs text-slate-600">
           <span className="font-medium text-slate-700">
-            {term.status === "listed_only"
-              ? "Only found in: "
-              : "Supported by: "}
+            {term.status === "listed_only" ? "Only listed in: " : "Listed on: "}
           </span>
           {shown.map(evidenceLabel).join(" · ")}
           {hidden > 0 && (
@@ -224,9 +222,10 @@ export function KeywordCoveragePanel({
       })}
 
       <p className="text-[11px] text-slate-500">
-        Evidence comes from the technologies listed on your experiences and
-        projects and from your skills lists. Skills mentioned only inside bullet
-        text are not counted.
+        Matches come from the technologies listed on your experiences and
+        projects and from your skills lists. CareerOS does not verify how a
+        listed technology was used, and skills mentioned only inside bullet text
+        are not counted.
       </p>
     </section>
   );
