@@ -1,6 +1,10 @@
 import { randomUUID } from 'node:crypto';
 
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import type {
+  CreateResumeVersionRevisionInput,
+  ResumeSelectionReview,
+} from '@repo/types';
 import { generateLatexFromProfile } from '@repo/types';
 
 import { CareerProfileService } from '../career-profile/career-profile.service';
@@ -20,6 +24,15 @@ import {
   type ResumeVersion,
   type SelectedRecordIds,
 } from './resume-profile.types';
+import {
+  buildCreationDocument,
+  buildRevisionDocument,
+  DOCUMENT_KEY,
+  emptySelection,
+  readVersionDocument,
+  withoutDocument,
+} from './resume-version-document';
+import { buildSelectionReview, selectableIds } from './selection-review';
 
 export class ResumeProfileValidationError extends Error {}
 
@@ -295,7 +308,7 @@ export class ResumeProfileService {
       this.normalizeProfileId(profileId),
     );
 
-    return versions.map((version) => structuredClone(version));
+    return versions.map((version) => this.presentVersion(version));
   }
 
   async createVersion(
@@ -325,6 +338,17 @@ export class ResumeProfileService {
       input.selectedRecordIds ?? this.buildSelectedRecordIds(resumeProfile);
     const timestamp = new Date().toISOString();
 
+    // The document is frozen with the version so it never depends on the
+    // current Resume Profile again. The server owns this key: whatever a
+    // client sent under it is overwritten.
+    const document = buildCreationDocument(
+      masterProfile,
+      resumeProfile,
+      input.artifactMetadata?.createdFrom === 'job_radar'
+        ? 'targeted_resume'
+        : 'manual',
+    );
+
     const version: ResumeVersion = {
       id: randomUUID(),
       workspaceId: normalizedWorkspaceId,
@@ -343,13 +367,14 @@ export class ResumeProfileService {
         : undefined,
       confidence: input.confidence,
       explanation: this.trimOptional(input.explanation),
-      artifactMetadata: input.artifactMetadata
-        ? structuredClone(input.artifactMetadata)
-        : undefined,
+      artifactMetadata: structuredClone({
+        ...(input.artifactMetadata ?? {}),
+        [DOCUMENT_KEY]: document,
+      }),
       createdAt: timestamp,
     };
 
-    return structuredClone(
+    return this.presentVersion(
       await this.resumeProfileRepository.createVersion(version),
     );
   }
@@ -367,7 +392,128 @@ export class ResumeProfileService {
       this.normalizeVersionId(versionId),
     );
 
-    return version ? structuredClone(version) : undefined;
+    return version ? this.presentVersion(version) : undefined;
+  }
+
+  /**
+   * Read-only review of what a version selected and why, built only from the
+   * version's own data (see selection-review.ts).
+   */
+  async getSelectionReview(
+    workspaceId: string,
+    profileId: string,
+    versionId: string,
+  ): Promise<ResumeSelectionReview> {
+    const version = await this.findVersionById(
+      workspaceId,
+      profileId,
+      versionId,
+    );
+    if (!version) throw new NotFoundException('Resume version not found.');
+    return buildSelectionReview(version);
+  }
+
+  /**
+   * Create a NEW version from a base version with a changed record selection.
+   * The base is never modified. The revision keeps the base's frozen profile
+   * snapshot and targeting context (it does not re-snapshot the current master
+   * profile, and works after the master has changed), and it never touches any
+   * application: switching which version an application uses stays an explicit
+   * user action.
+   */
+  async createRevision(
+    workspaceId: string,
+    profileId: string,
+    baseVersionId: string,
+    input: CreateResumeVersionRevisionInput,
+  ): Promise<ResumeVersion> {
+    const base = await this.findVersionById(
+      workspaceId,
+      profileId,
+      baseVersionId,
+    );
+    if (!base) throw new NotFoundException('Resume version not found.');
+
+    const selection = this.normalizeSelectionAgainstSnapshot(
+      base,
+      input.selectedRecordIds,
+    );
+    const document = buildRevisionDocument(
+      base,
+      selection,
+      input.documentMode === 'generate' ? 'generate' : 'auto',
+    );
+
+    // Context travels with the revision; the server owns the document key.
+    const metadata = withoutDocument(base.artifactMetadata) ?? {};
+
+    const revision: ResumeVersion = {
+      id: randomUUID(),
+      workspaceId: this.normalizeWorkspaceId(workspaceId),
+      resumeProfileId: this.normalizeProfileId(profileId),
+      targetCompany: base.targetCompany,
+      targetRole: base.targetRole,
+      masterProfileSnapshot: structuredClone(base.masterProfileSnapshot),
+      selectedRecordIds: selection,
+      templateVersion: base.templateVersion,
+      outputFormat: base.outputFormat,
+      jobAnalysisEvidence: base.jobAnalysisEvidence
+        ? structuredClone(base.jobAnalysisEvidence)
+        : undefined,
+      matchResult: base.matchResult
+        ? structuredClone(base.matchResult)
+        : undefined,
+      confidence: base.confidence,
+      explanation: base.explanation,
+      artifactMetadata: structuredClone({
+        ...metadata,
+        revisedFromVersionId: base.id,
+        [DOCUMENT_KEY]: document,
+      }),
+      createdAt: new Date().toISOString(),
+    };
+
+    return this.presentVersion(
+      await this.resumeProfileRepository.createVersion(revision),
+    );
+  }
+
+  /** Only ids that exist in the base version's frozen snapshot, deduplicated. */
+  private normalizeSelectionAgainstSnapshot(
+    base: ResumeVersion,
+    requested: SelectedRecordIds | undefined,
+  ): SelectedRecordIds {
+    const allowed = selectableIds(base);
+    const result = emptySelection();
+    for (const field of Object.keys(allowed) as (keyof SelectedRecordIds)[]) {
+      const ids = requested?.[field];
+      if (ids === undefined) continue;
+      if (!Array.isArray(ids) || ids.some((id) => typeof id !== 'string')) {
+        throw new ResumeProfileValidationError(
+          `selectedRecordIds.${field} must be a list of ids.`,
+        );
+      }
+      const known = new Set(allowed[field]);
+      const unique = [...new Set(ids)];
+      if (unique.some((id) => !known.has(id))) {
+        throw new ResumeProfileValidationError(
+          `selectedRecordIds.${field} contains an ID that is not in this version's profile snapshot.`,
+        );
+      }
+      result[field] = unique;
+    }
+    return result;
+  }
+
+  /**
+   * A stored version as the API returns it: a defensive copy with the
+   * server-owned document lifted out of artifactMetadata into `document`.
+   */
+  private presentVersion(version: ResumeVersion): ResumeVersion {
+    const copy = structuredClone(version);
+    const document = readVersionDocument(copy.artifactMetadata);
+    copy.artifactMetadata = withoutDocument(copy.artifactMetadata);
+    return document ? { ...copy, document } : copy;
   }
 
   private async requireProfile(

@@ -14,8 +14,10 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Throttle } from '@nestjs/throttler';
+import type { ResumeSelectionReview } from '@repo/types';
 
 import { WorkspaceMemberGuard } from '../common/guards/workspace-member.guard';
+import { CreateVersionRevisionDto } from './create-version-revision.dto';
 import { ResumeParserService } from './resume-parser.service';
 import {
   ResumeProfileService,
@@ -252,6 +254,58 @@ export class ResumeProfileController {
       }
 
       return version;
+    } catch (error) {
+      this.rethrowValidationError(error);
+    }
+  }
+
+  /**
+   * What the version selected and why, built only from the version's own data.
+   */
+  @Get(':profileId/versions/:versionId/selection-review')
+  async getSelectionReview(
+    @Param('workspaceId') workspaceId: string,
+    @Param('profileId') profileId: string,
+    @Param('versionId') versionId: string,
+  ): Promise<ResumeSelectionReview> {
+    try {
+      return await this.resumeProfileService.getSelectionReview(
+        workspaceId,
+        profileId,
+        versionId,
+      );
+    } catch (error) {
+      this.rethrowValidationError(error);
+    }
+  }
+
+  /**
+   * Create a NEW version from this one with a changed record selection. The
+   * existing version and every application are left untouched.
+   */
+  @Post(':profileId/versions/:versionId/revisions')
+  async createRevision(
+    @Param('workspaceId') workspaceId: string,
+    @Param('profileId') profileId: string,
+    @Param('versionId') versionId: string,
+    @Body() input: CreateVersionRevisionDto,
+  ): Promise<ResumeVersion> {
+    try {
+      return await this.resumeProfileService.createRevision(
+        workspaceId,
+        profileId,
+        versionId,
+        {
+          selectedRecordIds: {
+            experienceIds: input.selectedRecordIds.experienceIds ?? [],
+            projectIds: input.selectedRecordIds.projectIds ?? [],
+            skillIds: input.selectedRecordIds.skillIds ?? [],
+            certificationIds: input.selectedRecordIds.certificationIds ?? [],
+            achievementIds: input.selectedRecordIds.achievementIds ?? [],
+          },
+          documentMode: input.documentMode,
+        },
+      );
     } catch (error) {
       this.rethrowValidationError(error);
     }

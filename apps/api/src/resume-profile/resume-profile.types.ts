@@ -1,3 +1,5 @@
+import type { ResumeVersionDocument } from '@repo/types';
+
 import type { MasterCareerProfile } from '../career-profile/career-profile.types';
 
 export type ResumeSection =
@@ -94,6 +96,8 @@ export interface ResumeVersion {
   confidence?: number;
   explanation?: string;
   artifactMetadata?: Record<string, unknown>;
+  /** The document as it existed at creation (see ResumeVersionDocument). */
+  document?: ResumeVersionDocument;
   createdAt: string;
 }
 
