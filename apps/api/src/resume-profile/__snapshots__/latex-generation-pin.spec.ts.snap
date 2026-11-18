@@ -1,0 +1,584 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`canonical LaTeX generation (pinned) a master profile with no records still yields a document 1`] = `
+"\\documentclass[a4paper]{article}
+\\usepackage{amsmath}
+\\usepackage{amssymb}
+\\usepackage{textcomp}
+\\usepackage[utf8]{inputenc}
+\\usepackage[T1]{fontenc}
+\\usepackage[left=1.5cm, right=1.5cm, top=1.5cm, bottom=1.5cm]{geometry}
+\\usepackage{longtable}
+\\pagestyle{empty}
+\\raggedright
+\\usepackage{xcolor}
+\\usepackage{hyperref}
+\\usepackage{fontawesome5}
+
+\\definecolor{lightblue}{RGB}{102,178,255}
+\\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=black,
+    citecolor=black
+}
+
+\\def\\bull{\\vrule height 0.8ex width .8ex depth -.1ex }
+
+% DEFINITIONS FOR RESUME %%%%%%%%%%%%%%%%%%%%%%%
+
+\\newcommand{\\area} [2] {
+    \\vspace*{-9pt}
+    \\begin{verse}
+        \\textbf{#1}   #2
+    \\end{verse}
+}
+
+\\newcommand{\\lineunder} {
+    \\vspace*{-8pt} \\\\
+    \\hspace*{-18pt} \\hrulefill \\\\
+}
+
+\\newcommand{\\header} [1] {
+    {\\hspace*{-18pt}\\vspace*{6pt} \\textsc{#1}}
+    \\vspace*{-6pt} \\lineunder
+}
+
+\\newcommand{\\employer} [3] {
+    { \\textbf{#1} (#2)\\\\ \\underline{\\textbf{\\emph{#3}}}\\\\  }
+}
+
+\\newcommand{\\contact} [3] {
+    \\vspace*{-10pt}
+    \\begin{center}
+        {\\Huge \\scshape {#1}}\\\\
+        #2 \\\\ #3
+    \\end{center}
+    \\vspace*{-8pt}
+}
+
+\\newenvironment{achievements}{
+    \\begin{list}
+        {$\\bullet$}{\\topsep 0pt \\itemsep -2pt}}{\\vspace*{4pt}
+    \\end{list}
+}
+
+\\newcommand{\\schoolwithcourses} [4] {
+    \\textbf{#1} #2 $\\bullet$ #3\\\\
+    #4 \\\\
+    \\vspace*{5pt}
+}
+
+\\newcommand{\\school} [4] {
+    \\textbf{#1} #2 $\\bullet$ #3\\\\
+    #4 \\\\
+}
+
+% END RESUME DEFINITIONS %%%%%%%%%%%%%%%%%%%%%%%
+
+\\begin{document}
+\\vspace*{-40pt}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+%     Profile
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\\begin{center}
+    {\\Huge \\bfseries \\scshape Ada Lovelace} \\\\
+    \\vspace{4pt}
+    \\small
+    London, UK \\,|\\, \\href{mailto:ada@example.test}{ada@example.test}
+\\end{center}
+
+\\header{Summary}
+{\\usefont{T1}{cmr}{m}{n}
+Staff Engineer
+}
+\\vspace{0.5em}
+
+
+
+
+
+
+
+
+
+
+
+\\ 
+\\end{document}
+"
+`;
+
+exports[`canonical LaTeX generation (pinned) no resume profile 1`] = `
+"\\documentclass[a4paper]{article}
+\\usepackage{amsmath}
+\\usepackage{amssymb}
+\\usepackage{textcomp}
+\\usepackage[utf8]{inputenc}
+\\usepackage[T1]{fontenc}
+\\usepackage[left=1.5cm, right=1.5cm, top=1.5cm, bottom=1.5cm]{geometry}
+\\usepackage{longtable}
+\\pagestyle{empty}
+\\raggedright
+\\usepackage{xcolor}
+\\usepackage{hyperref}
+\\usepackage{fontawesome5}
+
+\\definecolor{lightblue}{RGB}{102,178,255}
+\\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=black,
+    citecolor=black
+}
+
+\\def\\bull{\\vrule height 0.8ex width .8ex depth -.1ex }
+
+% DEFINITIONS FOR RESUME %%%%%%%%%%%%%%%%%%%%%%%
+
+\\newcommand{\\area} [2] {
+    \\vspace*{-9pt}
+    \\begin{verse}
+        \\textbf{#1}   #2
+    \\end{verse}
+}
+
+\\newcommand{\\lineunder} {
+    \\vspace*{-8pt} \\\\
+    \\hspace*{-18pt} \\hrulefill \\\\
+}
+
+\\newcommand{\\header} [1] {
+    {\\hspace*{-18pt}\\vspace*{6pt} \\textsc{#1}}
+    \\vspace*{-6pt} \\lineunder
+}
+
+\\newcommand{\\employer} [3] {
+    { \\textbf{#1} (#2)\\\\ \\underline{\\textbf{\\emph{#3}}}\\\\  }
+}
+
+\\newcommand{\\contact} [3] {
+    \\vspace*{-10pt}
+    \\begin{center}
+        {\\Huge \\scshape {#1}}\\\\
+        #2 \\\\ #3
+    \\end{center}
+    \\vspace*{-8pt}
+}
+
+\\newenvironment{achievements}{
+    \\begin{list}
+        {$\\bullet$}{\\topsep 0pt \\itemsep -2pt}}{\\vspace*{4pt}
+    \\end{list}
+}
+
+\\newcommand{\\schoolwithcourses} [4] {
+    \\textbf{#1} #2 $\\bullet$ #3\\\\
+    #4 \\\\
+    \\vspace*{5pt}
+}
+
+\\newcommand{\\school} [4] {
+    \\textbf{#1} #2 $\\bullet$ #3\\\\
+    #4 \\\\
+}
+
+% END RESUME DEFINITIONS %%%%%%%%%%%%%%%%%%%%%%%
+
+\\begin{document}
+\\vspace*{-40pt}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+%     Profile
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\\begin{center}
+    {\\Huge \\bfseries \\scshape Ada Lovelace} \\\\
+    \\vspace{4pt}
+    \\small
+    London, UK \\,|\\, \\href{mailto:ada@example.test}{ada@example.test} \\,|\\, \\href{https://github.com/ada}{GitHub}
+\\end{center}
+
+\\header{Summary}
+{\\usefont{T1}{cmr}{m}{n}
+Staff Engineer
+}
+\\vspace{0.5em}
+
+\\header{Education}
+\\vspace{0.2em}
+\\textbf{University of London}\\hfill 2008 - 2011\\\\
+BSc, Mathematics\\hfill \\\\
+\\vspace{0.8em}
+
+\\header{Experience}
+\\vspace{0.2em}
+\\textbf{Acme, Engineer}\\hfill 2012 - 2016\\\\
+\\vspace{-3mm}
+{\\setlength{\\leftmargini}{10pt}
+\\begin{itemize} \\itemsep -3pt
+\\item Built billing \\& invoicing 100\\% in-house
+\\end{itemize}}
+
+\\textbf{Globex, Senior Engineer}\\hfill 2016 - 2020\\\\
+\\vspace{-3mm}
+{\\setlength{\\leftmargini}{10pt}
+\\begin{itemize} \\itemsep -3pt
+\\item Led the platform team
+\\end{itemize}}
+
+\\textbf{Initech, Staff Engineer}\\hfill 2020 - Present\\\\
+
+\\header{Projects}
+\\vspace{0.2em}
+\\textbf{Radar}
+\\vspace{-2.7mm}
+{\\setlength{\\leftmargini}{10pt}
+\\begin{itemize} \\itemsep -3pt
+\\item Job radar
+\\end{itemize}}
+\\vspace*{-.1mm}
+
+\\textbf{Ledger}\\hfill \\href{https://github.com/x/ledger}{Github}
+\\vspace{-2.7mm}
+{\\setlength{\\leftmargini}{10pt}
+\\begin{itemize} \\itemsep -3pt
+\\item Double-entry ledger
+\\end{itemize}}
+\\vspace*{-.1mm}
+
+\\header{Skills}
+\\vspace{0.2em}
+\\textbf{Core Competencies:} TypeScript, Go, Rust
+\\vspace{0.5em}
+
+\\header{Certifications}
+\\vspace{-2mm}
+{\\setlength{\\leftmargini}{10pt}
+\\begin{itemize} \\itemsep -6pt
+\\item AWS Solutions Architect - Amazon
+\\item CKA - CNCF
+\\end{itemize}}
+
+\\ 
+\\end{document}
+"
+`;
+
+exports[`canonical LaTeX generation (pinned) priorities on every kind plus summary guidance 1`] = `
+"\\documentclass[a4paper]{article}
+\\usepackage{amsmath}
+\\usepackage{amssymb}
+\\usepackage{textcomp}
+\\usepackage[utf8]{inputenc}
+\\usepackage[T1]{fontenc}
+\\usepackage[left=1.5cm, right=1.5cm, top=1.5cm, bottom=1.5cm]{geometry}
+\\usepackage{longtable}
+\\pagestyle{empty}
+\\raggedright
+\\usepackage{xcolor}
+\\usepackage{hyperref}
+\\usepackage{fontawesome5}
+
+\\definecolor{lightblue}{RGB}{102,178,255}
+\\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=black,
+    citecolor=black
+}
+
+\\def\\bull{\\vrule height 0.8ex width .8ex depth -.1ex }
+
+% DEFINITIONS FOR RESUME %%%%%%%%%%%%%%%%%%%%%%%
+
+\\newcommand{\\area} [2] {
+    \\vspace*{-9pt}
+    \\begin{verse}
+        \\textbf{#1}   #2
+    \\end{verse}
+}
+
+\\newcommand{\\lineunder} {
+    \\vspace*{-8pt} \\\\
+    \\hspace*{-18pt} \\hrulefill \\\\
+}
+
+\\newcommand{\\header} [1] {
+    {\\hspace*{-18pt}\\vspace*{6pt} \\textsc{#1}}
+    \\vspace*{-6pt} \\lineunder
+}
+
+\\newcommand{\\employer} [3] {
+    { \\textbf{#1} (#2)\\\\ \\underline{\\textbf{\\emph{#3}}}\\\\  }
+}
+
+\\newcommand{\\contact} [3] {
+    \\vspace*{-10pt}
+    \\begin{center}
+        {\\Huge \\scshape {#1}}\\\\
+        #2 \\\\ #3
+    \\end{center}
+    \\vspace*{-8pt}
+}
+
+\\newenvironment{achievements}{
+    \\begin{list}
+        {$\\bullet$}{\\topsep 0pt \\itemsep -2pt}}{\\vspace*{4pt}
+    \\end{list}
+}
+
+\\newcommand{\\schoolwithcourses} [4] {
+    \\textbf{#1} #2 $\\bullet$ #3\\\\
+    #4 \\\\
+    \\vspace*{5pt}
+}
+
+\\newcommand{\\school} [4] {
+    \\textbf{#1} #2 $\\bullet$ #3\\\\
+    #4 \\\\
+}
+
+% END RESUME DEFINITIONS %%%%%%%%%%%%%%%%%%%%%%%
+
+\\begin{document}
+\\vspace*{-40pt}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+%     Profile
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\\begin{center}
+    {\\Huge \\bfseries \\scshape Ada Lovelace} \\\\
+    \\vspace{4pt}
+    \\small
+    London, UK \\,|\\, \\href{mailto:ada@example.test}{ada@example.test} \\,|\\, \\href{https://github.com/ada}{GitHub}
+\\end{center}
+
+\\header{Summary}
+{\\usefont{T1}{cmr}{m}{n}
+Backend engineer focused on TypeScript \\& Go.
+}
+\\vspace{0.5em}
+
+\\header{Education}
+\\vspace{0.2em}
+\\textbf{University of London}\\hfill 2008 - 2011\\\\
+BSc, Mathematics\\hfill \\\\
+\\vspace{0.8em}
+
+\\header{Experience}
+\\vspace{0.2em}
+\\textbf{Initech, Staff Engineer}\\hfill 2020 - Present\\\\
+
+\\textbf{Acme, Engineer}\\hfill 2012 - 2016\\\\
+\\vspace{-3mm}
+{\\setlength{\\leftmargini}{10pt}
+\\begin{itemize} \\itemsep -3pt
+\\item Built billing \\& invoicing 100\\% in-house
+\\end{itemize}}
+
+\\textbf{Globex, Senior Engineer}\\hfill 2016 - 2020\\\\
+\\vspace{-3mm}
+{\\setlength{\\leftmargini}{10pt}
+\\begin{itemize} \\itemsep -3pt
+\\item Led the platform team
+\\end{itemize}}
+
+\\header{Projects}
+\\vspace{0.2em}
+\\textbf{Ledger}\\hfill \\href{https://github.com/x/ledger}{Github}
+\\vspace{-2.7mm}
+{\\setlength{\\leftmargini}{10pt}
+\\begin{itemize} \\itemsep -3pt
+\\item Double-entry ledger
+\\end{itemize}}
+\\vspace*{-.1mm}
+
+\\textbf{Radar}
+\\vspace{-2.7mm}
+{\\setlength{\\leftmargini}{10pt}
+\\begin{itemize} \\itemsep -3pt
+\\item Job radar
+\\end{itemize}}
+\\vspace*{-.1mm}
+
+\\header{Skills}
+\\vspace{0.2em}
+\\textbf{Core Competencies:} Rust, TypeScript, Go
+\\vspace{0.5em}
+
+\\header{Certifications}
+\\vspace{-2mm}
+{\\setlength{\\leftmargini}{10pt}
+\\begin{itemize} \\itemsep -6pt
+\\item CKA - CNCF
+\\item AWS Solutions Architect - Amazon
+\\end{itemize}}
+
+\\ 
+\\end{document}
+"
+`;
+
+exports[`canonical LaTeX generation (pinned) priority ids only reorder: three experiences with one prioritised still renders three 1`] = `
+"\\documentclass[a4paper]{article}
+\\usepackage{amsmath}
+\\usepackage{amssymb}
+\\usepackage{textcomp}
+\\usepackage[utf8]{inputenc}
+\\usepackage[T1]{fontenc}
+\\usepackage[left=1.5cm, right=1.5cm, top=1.5cm, bottom=1.5cm]{geometry}
+\\usepackage{longtable}
+\\pagestyle{empty}
+\\raggedright
+\\usepackage{xcolor}
+\\usepackage{hyperref}
+\\usepackage{fontawesome5}
+
+\\definecolor{lightblue}{RGB}{102,178,255}
+\\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=black,
+    citecolor=black
+}
+
+\\def\\bull{\\vrule height 0.8ex width .8ex depth -.1ex }
+
+% DEFINITIONS FOR RESUME %%%%%%%%%%%%%%%%%%%%%%%
+
+\\newcommand{\\area} [2] {
+    \\vspace*{-9pt}
+    \\begin{verse}
+        \\textbf{#1}   #2
+    \\end{verse}
+}
+
+\\newcommand{\\lineunder} {
+    \\vspace*{-8pt} \\\\
+    \\hspace*{-18pt} \\hrulefill \\\\
+}
+
+\\newcommand{\\header} [1] {
+    {\\hspace*{-18pt}\\vspace*{6pt} \\textsc{#1}}
+    \\vspace*{-6pt} \\lineunder
+}
+
+\\newcommand{\\employer} [3] {
+    { \\textbf{#1} (#2)\\\\ \\underline{\\textbf{\\emph{#3}}}\\\\  }
+}
+
+\\newcommand{\\contact} [3] {
+    \\vspace*{-10pt}
+    \\begin{center}
+        {\\Huge \\scshape {#1}}\\\\
+        #2 \\\\ #3
+    \\end{center}
+    \\vspace*{-8pt}
+}
+
+\\newenvironment{achievements}{
+    \\begin{list}
+        {$\\bullet$}{\\topsep 0pt \\itemsep -2pt}}{\\vspace*{4pt}
+    \\end{list}
+}
+
+\\newcommand{\\schoolwithcourses} [4] {
+    \\textbf{#1} #2 $\\bullet$ #3\\\\
+    #4 \\\\
+    \\vspace*{5pt}
+}
+
+\\newcommand{\\school} [4] {
+    \\textbf{#1} #2 $\\bullet$ #3\\\\
+    #4 \\\\
+}
+
+% END RESUME DEFINITIONS %%%%%%%%%%%%%%%%%%%%%%%
+
+\\begin{document}
+\\vspace*{-40pt}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+%     Profile
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\\begin{center}
+    {\\Huge \\bfseries \\scshape Ada Lovelace} \\\\
+    \\vspace{4pt}
+    \\small
+    London, UK \\,|\\, \\href{mailto:ada@example.test}{ada@example.test} \\,|\\, \\href{https://github.com/ada}{GitHub}
+\\end{center}
+
+\\header{Summary}
+{\\usefont{T1}{cmr}{m}{n}
+Staff Engineer
+}
+\\vspace{0.5em}
+
+\\header{Education}
+\\vspace{0.2em}
+\\textbf{University of London}\\hfill 2008 - 2011\\\\
+BSc, Mathematics\\hfill \\\\
+\\vspace{0.8em}
+
+\\header{Experience}
+\\vspace{0.2em}
+\\textbf{Globex, Senior Engineer}\\hfill 2016 - 2020\\\\
+\\vspace{-3mm}
+{\\setlength{\\leftmargini}{10pt}
+\\begin{itemize} \\itemsep -3pt
+\\item Led the platform team
+\\end{itemize}}
+
+\\textbf{Acme, Engineer}\\hfill 2012 - 2016\\\\
+\\vspace{-3mm}
+{\\setlength{\\leftmargini}{10pt}
+\\begin{itemize} \\itemsep -3pt
+\\item Built billing \\& invoicing 100\\% in-house
+\\end{itemize}}
+
+\\textbf{Initech, Staff Engineer}\\hfill 2020 - Present\\\\
+
+\\header{Projects}
+\\vspace{0.2em}
+\\textbf{Radar}
+\\vspace{-2.7mm}
+{\\setlength{\\leftmargini}{10pt}
+\\begin{itemize} \\itemsep -3pt
+\\item Job radar
+\\end{itemize}}
+\\vspace*{-.1mm}
+
+\\textbf{Ledger}\\hfill \\href{https://github.com/x/ledger}{Github}
+\\vspace{-2.7mm}
+{\\setlength{\\leftmargini}{10pt}
+\\begin{itemize} \\itemsep -3pt
+\\item Double-entry ledger
+\\end{itemize}}
+\\vspace*{-.1mm}
+
+\\header{Skills}
+\\vspace{0.2em}
+\\textbf{Core Competencies:} TypeScript, Go, Rust
+\\vspace{0.5em}
+
+\\header{Certifications}
+\\vspace{-2mm}
+{\\setlength{\\leftmargini}{10pt}
+\\begin{itemize} \\itemsep -6pt
+\\item AWS Solutions Architect - Amazon
+\\item CKA - CNCF
+\\end{itemize}}
+
+\\ 
+\\end{document}
+"
+`;
