@@ -21,6 +21,7 @@ import React, { useEffect, useState } from "react";
 import type { TrackedApplication } from "@/lib/api";
 
 import { JobMatchBadge } from "./job-match-badge";
+import { KeywordCoveragePanel } from "./keyword-coverage";
 
 interface JobDetailsDrawerProps {
   job: JobOpportunity | null;
@@ -384,7 +385,10 @@ export function JobDetailsDrawer({
             </div>
           )}
 
-          {/* Skills Breakdown */}
+          {/* Keyword coverage (matcher v3+); older matches fall back to the plain list */}
+          {job.match?.evidence.coverage ? (
+            <KeywordCoveragePanel coverage={job.match.evidence.coverage} />
+          ) : (
           <div className="space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">
               Skills Breakdown
@@ -426,6 +430,7 @@ export function JobDetailsDrawer({
               </div>
             )}
           </div>
+          )}
 
           {/* Application Pipeline Card */}
           <div className="p-4 rounded-xl border border-slate-200/80 bg-slate-50 space-y-3">
