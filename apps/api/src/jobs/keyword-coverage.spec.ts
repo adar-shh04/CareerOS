@@ -3,7 +3,11 @@ import type { ResumeProfile } from '../resume-profile/resume-profile.types';
 import { JobMatchingService } from './job-matching.service';
 import type { CanonicalJob } from './jobs.types';
 import { buildKeywordCoverage } from './keyword-coverage';
-import { MATCHER_VERSION } from './match-freshness';
+import {
+  currentMatchSource,
+  isMatchFresh,
+  MATCHER_VERSION,
+} from './match-freshness';
 import { canonicalSkillKey } from './skill-identity';
 
 const profile = (
@@ -355,5 +359,59 @@ describe('keyword coverage and the matcher agree', () => {
       'percent',
       'total',
     ]);
+  });
+});
+
+describe('keyword coverage: persistence and freshness', () => {
+  const matcher = new JobMatchingService();
+  const current = currentMatchSource({
+    jobUpdatedAt: '2026-01-01T00:00:00.000Z',
+    profileVersion: 1,
+  });
+  const stored = (over: Record<string, unknown> = {}) => ({
+    matcherVersion: current.matcherVersion,
+    profileVersion: current.profileVersion,
+    jobUpdatedAt: current.jobUpdatedAt,
+    resumeProfileUpdatedAt: current.resumeProfileUpdatedAt,
+    weightsKey: current.weightsKey,
+    ...over,
+  });
+
+  it('a match stored by the previous matcher version (no coverage) is stale and recomputes', () => {
+    expect(isMatchFresh(stored(), current)).toBe(true);
+    expect(isMatchFresh(stored({ matcherVersion: 2 }), current)).toBe(false);
+    expect(isMatchFresh(stored({ matcherVersion: 1 }), current)).toBe(false);
+    // legacy rows with no recorded version are stale too
+    expect(isMatchFresh(stored({ matcherVersion: null }), current)).toBe(false);
+    expect(current.matcherVersion).toBeGreaterThanOrEqual(3);
+  });
+
+  it('coverage survives the JSON serialization used to persist match evidence', () => {
+    const { evidence } = matcher.match({
+      job: job(['Node.js', 'Go', 'Rust'], ['Redis', 'Elixir']),
+      masterProfile: richProfile,
+    });
+    const roundTripped = JSON.parse(
+      JSON.stringify(evidence),
+    ) as typeof evidence;
+    expect(roundTripped).toEqual(evidence);
+    expect(roundTripped.coverage?.required.percent).toBe(67);
+    expect(roundTripped.coverage?.terms.map((t) => t.status)).toEqual([
+      'evidenced',
+      'listed_only',
+      'missing',
+      'listed_only',
+      'missing',
+    ]);
+  });
+
+  it('a posting with no terms stays null (not 0%) after the round trip', () => {
+    const { evidence } = matcher.match({
+      job: job([]),
+      masterProfile: richProfile,
+    });
+    const back = JSON.parse(JSON.stringify(evidence)) as typeof evidence;
+    expect(back.coverage?.required.percent).toBeNull();
+    expect(back.coverage?.preferred.percent).toBeNull();
   });
 });
