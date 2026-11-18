@@ -18,7 +18,7 @@ browser verification against a local stack, not on the task descriptions below.
 | T-03 First-run empty state | Done | Distinguishes new workspace / all dismissed / filtered / saved-only. Sample jobs deliberately not built (deviation 2). |
 | T-04 Recommendation diff | Not started | |
 | T-05 Follow-up / deadline dates | Done | `interviewDate` deferred (deviation 3). |
-| T-06 ATS keyword breakdown | Not started | |
+| T-06 Keyword coverage (was "ATS keyword breakdown") | Implemented, awaiting review | Deterministic job keyword coverage with evidence locations; not an ATS score. Integration paths (real matches, stale refresh) are verified in Pass 6. |
 | T-07 URL importer | Done | Draft-only. IPv6 guard is an allow-list (global unicast only). |
 
 Deviations from the original task text, decided deliberately:
@@ -64,6 +64,26 @@ need JavaScript or a login; reminders use calendar-day (UTC midnight) semantics.
 - Dead-code cleanup stays in the stabilization follow-up.
 - Infrastructure additions (queues, object storage) stay deferred until a real
   requirement justifies them.
+
+### Feature backlog (recorded, not scheduled)
+
+- **Imported-resume evidence extraction.** Keyword coverage (T-06) only counts
+  technologies listed on experiences and projects and in the skills lists. A term
+  that appears only inside resume bullet text is deliberately reported as not in
+  the profile. Keep that conservative behaviour: do not add broad text matching.
+  Later, build structured evidence extraction with traceable source references
+  (which record, which bullet) so imported resumes are not under-counted.
+- **Profile-specific matches are not freshness-checked on read.** Matches against
+  a resume profile are returned as stored, unlike the Master Profile match, which
+  is recomputed when the matcher version, profile version or job changes. Matches
+  stored before T-06 therefore lack `evidence.coverage` and the drawer falls back
+  to the plain skills list. Pre-existing behaviour, not introduced by T-06; fix
+  with T-04's resume-profile work.
+- **Evidence has three distinct states** that T-04 must keep separate: present in
+  the Master Career Profile (T-06 `evidence`), selected for the targeted resume
+  (`selectedForResume`, record level), and actually represented in the generated
+  document. A record being selected does not prove its content reached the
+  document.
 
 ---
 
