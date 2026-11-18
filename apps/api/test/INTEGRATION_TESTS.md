@@ -109,10 +109,25 @@ The Jest guard refuses, with an explanatory error and without connecting:
 
 - a `TEST_DATABASE_URL` that is not a `postgresql://` URL with a database name;
 - the developer database, i.e. the same host, port and database name as any
-  `DATABASE_URL` / `DIRECT_URL` from your shell or `.env` files;
+  `DATABASE_URL` / `DIRECT_URL` from your shell or `.env` files, with every
+  spelling of "this machine" treated as one host (all of `127.0.0.0/8`,
+  `localhost` / `*.localhost`, `0.0.0.0`, `::`, `::1`, IPv4-mapped and
+  IPv4-compatible IPv6, and numeric spellings such as `2130706433`,
+  `0x7f000001`, `0177.0.0.1`, `127.1`);
 - a database whose name does not contain a test marker as a whole word (the same
-  list as above).
+  list as above);
+- a run where the developer configuration cannot be checked: an `.env` file that
+  exists but cannot be read or parsed, or a developer `DATABASE_URL` /
+  `DIRECT_URL` that looks like PostgreSQL but has no host or database name.
+  This is only consulted when you opt in, so a plain `pnpm test` (which uses no
+  database) is unaffected.
 
-Only `CAREEROS_ALLOW_UNSAFE_TEST_DATABASE=1` bypasses the last two checks for
-the Jest suites, with a warning on every run. Do not set it in shared scripts or
-CI. It has no effect on `test:integration`.
+Only `CAREEROS_ALLOW_UNSAFE_TEST_DATABASE=1` bypasses the developer-database and
+name checks for the Jest suites, with a warning on every run. Do not set it in
+shared scripts or CI. It has no effect on `test:integration`.
+
+The Jest guard and the integration guard share one implementation of URL
+parsing, host normalisation, the name marker and `.env` discovery
+(`test/integration-db-guard.cjs`); `src/testing/test-database-guard.ts` re-exports
+it, so the two cannot drift apart. The same limit applies: no DNS is used, so
+two different hostnames that resolve to the same machine cannot be recognised.

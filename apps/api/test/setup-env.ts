@@ -3,17 +3,20 @@ import * as path from 'node:path';
 
 import dotenv from 'dotenv';
 
-import { resolveTestDatabaseUrl } from '../src/testing/test-database-guard';
+import {
+  collectDeveloperUrls,
+  resolveTestDatabaseUrl,
+} from '../src/testing/test-database-guard';
 
 process.env.NODE_ENV = 'test';
 
-// Database URLs the developer has configured, from the shell and from the
-// .env files below. They identify the DEVELOPER database: the guard refuses to
-// run the suites against it.
-const developerUrls: (string | undefined)[] = [
-  process.env.DATABASE_URL,
-  process.env.DIRECT_URL,
-];
+// The shell's database URLs exactly as they were BEFORE any .env is loaded.
+// Together with the .env files below they identify the DEVELOPER database,
+// which the guard refuses to run the suites against.
+const ambientDatabaseUrls = {
+  DATABASE_URL: process.env.DATABASE_URL,
+  DIRECT_URL: process.env.DIRECT_URL,
+};
 
 const rootEnv = path.resolve(__dirname, '../../../.env');
 if (fs.existsSync(rootEnv)) {
@@ -24,8 +27,6 @@ if (fs.existsSync(localEnv)) {
   dotenv.config({ path: localEnv, override: true });
 }
 
-developerUrls.push(process.env.DATABASE_URL, process.env.DIRECT_URL);
-
 // Database-backed suites are opt-in. They run only against TEST_DATABASE_URL,
 // a disposable, fully migrated database whose name looks like a test database
 // and which is not the developer database (see test-database-guard.ts for the
@@ -33,7 +34,15 @@ developerUrls.push(process.env.DATABASE_URL, process.env.DIRECT_URL);
 // those suites skip themselves and no test can reach the developer database:
 // an empty string (not "unset") also stops better-auth.instance.ts from
 // falling back to its built-in localhost URL.
-const testDatabaseUrl = resolveTestDatabaseUrl(process.env, developerUrls);
+//
+// The developer configuration is read lazily and FAILS CLOSED: only when a
+// database was requested, and if a .env file exists but cannot be read or
+// parsed the run is refused instead of continuing with an incomplete
+// developer-database check. (dotenv.config above ignores such errors, which is
+// why the check reads the files itself.)
+const testDatabaseUrl = resolveTestDatabaseUrl(process.env, () =>
+  collectDeveloperUrls(ambientDatabaseUrls, [rootEnv, localEnv]),
+);
 process.env.DATABASE_URL = testDatabaseUrl ?? '';
 process.env.DIRECT_URL = testDatabaseUrl ?? '';
 
