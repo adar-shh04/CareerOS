@@ -8,6 +8,7 @@ import * as path from 'node:path';
  *
  * - body-parser: GHSA-27r3-jxmh-p828 (fixed in 2.4.0)
  * - zod: GHSA-mrhx-c7xc-m3w5 (fixed in 4.6.6)
+ * - effect: GHSA-7589-6fvf-x4pw (fixed in 3.22.1)
  */
 const lockfilePath = path.resolve(__dirname, '../../../pnpm-lock.yaml');
 const lockfile = fs.readFileSync(lockfilePath, 'utf8');
@@ -44,5 +45,9 @@ describe('security-sensitive vendored dependency pins', () => {
 
   it('resolves zod to the CVE-fixed version (GHSA-mrhx-c7xc-m3w5)', () => {
     expect(gte(requireResolvedVersion('zod'), '4.6.6')).toBe(true);
+  });
+
+  it('resolves effect to the CVE-fixed version (GHSA-7589-6fvf-x4pw)', () => {
+    expect(gte(requireResolvedVersion('effect'), '3.22.1')).toBe(true);
   });
 });
