@@ -227,6 +227,10 @@ export class AiCapabilityService {
       apiKey,
       model,
       options,
+      {},
+      // `max_tokens` is deprecated for Chat Completions and rejected by
+      // newer models; OpenAI expects `max_completion_tokens`.
+      'max_completion_tokens',
     );
   }
 
@@ -343,6 +347,7 @@ export class AiCapabilityService {
     model: string,
     options: AiCompletionOptions,
     extraHeaders: Record<string, string> = {},
+    tokenLimitField: 'max_tokens' | 'max_completion_tokens' = 'max_tokens',
   ): Promise<string> {
     const body: Record<string, unknown> = {
       model,
@@ -351,7 +356,7 @@ export class AiCapabilityService {
         { role: 'user', content: options.userPrompt },
       ],
       temperature: options.temperature ?? 0.2,
-      max_tokens: options.maxTokens ?? 2000,
+      [tokenLimitField]: options.maxTokens ?? 2000,
     };
 
     if (options.jsonMode) {
